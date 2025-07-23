@@ -1,42 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Usergy Design System - Premium SaaS Platform */
 
 @layer base {
   :root {
+    /* Usergy Brand Colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 225 15% 20%;
+
+    /* Brand Primary - Blue Gradient */
+    --primary-start: 195 100% 50%; /* #00C6FB */
+    --primary-end: 217 100% 46%;   /* #005BEA */
+    --primary: 217 100% 46%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Brand Accent - Strategic Red */
+    --accent-red: 352 100% 64%; /* #FF4757 */
+    --accent-red-foreground: 0 0% 100%;
+
+    /* Success - Teal matching logo nodes */
+    --success: 168 76% 42%;
+    --success-foreground: 0 0% 100%;
+
+    /* Neutrals */
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 225 15% 35%;
+    
+    --muted: 220 13% 91%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 220 13% 91%;
+    --accent-foreground: 225 15% 35%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 225 15% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 225 15% 20%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --destructive: 352 100% 64%;
+    --destructive-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 100% 46%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --radius: 0.75rem;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Custom Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary-start)), hsl(var(--primary-end)));
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 13% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(195 100% 50% / 0.1), hsl(217 100% 46% / 0.1));
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Shadows */
+    --shadow-soft: 0 2px 8px hsl(217 100% 46% / 0.08);
+    --shadow-medium: 0 4px 16px hsl(217 100% 46% / 0.12);
+    --shadow-strong: 0 8px 32px hsl(217 100% 46% / 0.16);
+    --shadow-glow: 0 0 40px hsl(195 100% 50% / 0.3);
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --sidebar-background: 0 0% 98%;
 
@@ -100,6 +128,112 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter;
+  }
+}
+
+@layer components {
+  /* Usergy Component Patterns */
+  .usergy-gradient {
+    background: var(--gradient-primary);
+  }
+
+  .usergy-shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .usergy-shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+
+  .usergy-shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .usergy-input {
+    @apply bg-background border-2 border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
+  }
+
+  .usergy-input-error {
+    @apply border-destructive focus:border-destructive focus:ring-destructive/20;
+  }
+
+  .usergy-input-success {
+    @apply border-success focus:border-success focus:ring-success/20;
+  }
+
+  .usergy-btn-primary {
+    @apply px-6 py-3 rounded-xl font-semibold text-primary-foreground transition-all duration-300 usergy-gradient hover:scale-[1.02] active:scale-[0.98] usergy-shadow-medium hover:usergy-shadow-glow;
+  }
+
+  .usergy-btn-secondary {
+    @apply px-6 py-3 rounded-xl font-semibold bg-background border-2 border-border text-foreground transition-all duration-300 hover:border-primary hover:text-primary hover:scale-[1.02] active:scale-[0.98] usergy-shadow-soft;
+  }
+
+  .floating-node {
+    @apply absolute rounded-full opacity-60 animate-pulse;
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .network-line {
+    @apply absolute opacity-30;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary-start)), transparent);
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float-delayed {
+    animation: float 6s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+
+  .animate-float-slow {
+    animation: float 8s ease-in-out infinite;
+    animation-delay: 4s;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-out;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
