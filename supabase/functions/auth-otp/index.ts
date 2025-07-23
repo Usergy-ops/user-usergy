@@ -106,12 +106,28 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { email, action, otp, password }: OTPRequest = await req.json();
+    console.log(`Processing ${action} action for email:`, email);
 
     switch (action) {
       case 'generate': {
-        // Check if user already exists
-        const { data: existingUser } = await supabase.auth.admin.getUserByEmail(email);
-        if (existingUser.user) {
+        // Check if user already exists using the correct method
+        const { data: existingUsers, error: userCheckError } = await supabase.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000 // Adjust as needed
+        });
+
+        if (userCheckError) {
+          console.error('Error checking existing users:', userCheckError);
+          return new Response(
+            JSON.stringify({ error: "Failed to verify email availability" }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Check if email already exists
+        const userExists = existingUsers.users.some(user => user.email === email);
+        if (userExists) {
+          console.log('User already exists:', email);
           return new Response(
             JSON.stringify({ error: "This email is already part of our community" }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -121,6 +137,8 @@ const handler = async (req: Request): Promise<Response> => {
         // Generate new OTP
         const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        console.log('Generated OTP:', otpCode, 'for email:', email);
 
         // Store OTP in database using the new table
         const { error: dbError } = await supabase
@@ -142,6 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Send OTP email
         await sendOTPEmail(email, otpCode, 'welcome');
 
+        console.log('OTP generated and stored successfully for:', email);
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -159,6 +178,8 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
+        console.log('Verifying OTP:', otp, 'for email:', email);
+
         // Get and validate OTP using the new table
         const { data: otpData, error: otpError } = await supabase
           .from('user_otp_verification')
@@ -172,12 +193,14 @@ const handler = async (req: Request): Promise<Response> => {
           .single();
 
         if (otpError || !otpData) {
-          // Increment attempt counter
-          await supabase
-            .from('user_otp_verification')
-            .update({ attempts: otpData?.attempts ? otpData.attempts + 1 : 1 })
-            .eq('email', email)
-            .eq('otp_code', otp);
+          console.error('OTP validation failed:', otpError);
+          // Increment attempt counter if record exists
+          if (otpData?.id) {
+            await supabase
+              .from('user_otp_verification')
+              .update({ attempts: (otpData.attempts || 0) + 1 })
+              .eq('id', otpData.id);
+          }
 
           return new Response(
             JSON.stringify({ error: "Invalid or expired verification code" }),
@@ -190,6 +213,8 @@ const handler = async (req: Request): Promise<Response> => {
           .from('user_otp_verification')
           .update({ verified_at: new Date().toISOString() })
           .eq('id', otpData.id);
+
+        console.log('OTP verified, creating user account for:', email);
 
         // Create user account
         const { data: userData, error: userError } = await supabase.auth.admin.createUser({
@@ -209,6 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
+        console.log('User account created successfully:', userData.user?.id);
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -220,6 +246,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'resend': {
+        console.log('Resending OTP for email:', email);
+
         // Check for recent OTP requests (rate limiting)
         const { data: recentOTP } = await supabase
           .from('user_otp_verification')
@@ -250,6 +278,7 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
         if (dbError) {
+          console.error('Database error on resend:', dbError);
           return new Response(
             JSON.stringify({ error: "Failed to generate new code" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -259,6 +288,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Send OTP email
         await sendOTPEmail(email, otpCode, 'resend');
 
+        console.log('OTP resent successfully for:', email);
         return new Response(
           JSON.stringify({ 
             success: true, 
