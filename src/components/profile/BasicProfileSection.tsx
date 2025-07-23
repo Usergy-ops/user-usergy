@@ -26,58 +26,67 @@ export const BasicProfileSection: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
     defaultValues: {
-      full_name: profileData.full_name || '',
-      phone_number: profileData.phone_number || '',
-      date_of_birth: profileData.date_of_birth || '',
-      age: profileData.age || 0,
-      gender: profileData.gender || '',
-      country: profileData.country || '',
-      city: profileData.city || '',
-      timezone: profileData.timezone || '',
+      full_name: '',
+      phone_number: '',
+      date_of_birth: '',
+      age: 0,
+      gender: '',
+      country: '',
+      city: '',
+      timezone: '',
     }
   });
 
-  // Load form data from localStorage on component mount to prevent data loss
+  // Initialize form data only once, prioritizing localStorage over database
   useEffect(() => {
+    if (isFormInitialized) return;
+
     const savedFormData = localStorage.getItem('basicProfileFormData');
+    let formData: any = {};
+
     if (savedFormData) {
       try {
-        const parsedData = JSON.parse(savedFormData);
-        Object.keys(parsedData).forEach(key => {
-          if (parsedData[key] !== undefined && parsedData[key] !== null && parsedData[key] !== '') {
-            setValue(key as keyof BasicProfileFormData, parsedData[key]);
-          }
-        });
+        formData = JSON.parse(savedFormData);
       } catch (error) {
-        console.error('Error loading saved form data:', error);
+        console.error('Error parsing saved form data:', error);
       }
     }
-  }, [setValue]);
+
+    // Merge with database data, but prioritize localStorage
+    const mergedData = {
+      full_name: formData.full_name || profileData.full_name || '',
+      phone_number: formData.phone_number || profileData.phone_number || '',
+      date_of_birth: formData.date_of_birth || profileData.date_of_birth || '',
+      age: formData.age || profileData.age || 0,
+      gender: formData.gender || profileData.gender || '',
+      country: formData.country || profileData.country || '',
+      city: formData.city || profileData.city || '',
+      timezone: formData.timezone || profileData.timezone || '',
+    };
+
+    // Set form values
+    Object.keys(mergedData).forEach(key => {
+      if (mergedData[key] !== undefined && mergedData[key] !== null && mergedData[key] !== '') {
+        setValue(key as keyof BasicProfileFormData, mergedData[key]);
+      }
+    });
+
+    setIsFormInitialized(true);
+  }, [profileData, setValue, isFormInitialized]);
 
   // Save form data to localStorage whenever form values change
   useEffect(() => {
+    if (!isFormInitialized) return;
+
     const subscription = watch((value) => {
       localStorage.setItem('basicProfileFormData', JSON.stringify(value));
     });
     return () => subscription.unsubscribe();
-  }, [watch]);
-
-  // Update form values when profileData changes (from database)
-  useEffect(() => {
-    if (profileData) {
-      setValue('full_name', profileData.full_name || '');
-      setValue('phone_number', profileData.phone_number || '');
-      setValue('date_of_birth', profileData.date_of_birth || '');
-      setValue('age', profileData.age || 0);
-      setValue('gender', profileData.gender || '');
-      setValue('country', profileData.country || '');
-      setValue('city', profileData.city || '');
-      setValue('timezone', profileData.timezone || '');
-    }
-  }, [profileData, setValue]);
+  }, [watch, isFormInitialized]);
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -139,7 +148,6 @@ export const BasicProfileSection: React.FC = () => {
       formData.country &&
       formData.city?.trim() &&
       formData.timezone
-      // Removed avatar_url requirement to make profile picture optional
     );
   };
 
@@ -150,7 +158,6 @@ export const BasicProfileSection: React.FC = () => {
         section_1_completed: true
       });
       
-      // Clear saved form data after successful submission
       localStorage.removeItem('basicProfileFormData');
       
       toast({
@@ -158,7 +165,6 @@ export const BasicProfileSection: React.FC = () => {
         description: "Your basic information has been updated successfully.",
       });
 
-      // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
@@ -216,7 +222,6 @@ export const BasicProfileSection: React.FC = () => {
         </p>
       </div>
 
-      {/* Profile Picture Upload - Now Optional */}
       <div className="flex flex-col items-center space-y-4">
         <div className="relative">
           <Avatar className="w-24 h-24 border-4 border-primary/20">
@@ -251,11 +256,9 @@ export const BasicProfileSection: React.FC = () => {
         </p>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          {/* Full Name */}
           <div className="space-y-2">
             <Label htmlFor="full_name" className="text-sm font-medium">
               Full Name <span className="text-red-500">*</span>
@@ -271,7 +274,6 @@ export const BasicProfileSection: React.FC = () => {
             )}
           </div>
 
-          {/* Phone Number - Optional */}
           <div className="space-y-2">
             <Label htmlFor="phone_number" className="text-sm font-medium">
               Phone Number
@@ -285,7 +287,6 @@ export const BasicProfileSection: React.FC = () => {
             />
           </div>
 
-          {/* Date of Birth */}
           <div className="space-y-2">
             <Label htmlFor="date_of_birth" className="text-sm font-medium">
               Date of Birth
@@ -298,7 +299,6 @@ export const BasicProfileSection: React.FC = () => {
             />
           </div>
 
-          {/* Age */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Age <span className="text-red-500">*</span>
@@ -318,7 +318,6 @@ export const BasicProfileSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Gender */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Gender <span className="text-red-500">*</span>
@@ -339,7 +338,6 @@ export const BasicProfileSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Country */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Country <span className="text-red-500">*</span>
@@ -361,7 +359,6 @@ export const BasicProfileSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* City */}
           <div className="space-y-2">
             <Label htmlFor="city" className="text-sm font-medium">
               City <span className="text-red-500">*</span>
@@ -377,7 +374,6 @@ export const BasicProfileSection: React.FC = () => {
             )}
           </div>
 
-          {/* Timezone */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Timezone <span className="text-red-500">*</span>

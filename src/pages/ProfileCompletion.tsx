@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
@@ -12,9 +12,6 @@ import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSect
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-
-// Component cache to prevent remounting
-const componentCache = new Map();
 
 const ProfileCompletion = () => {
   const { user } = useAuth();
@@ -32,7 +29,6 @@ const ProfileCompletion = () => {
   // Calculate real-time completion percentage
   const calculateRealTimeCompletion = () => {
     const mandatoryFields = {
-      // Basic Profile (7 fields - phone_number is now optional)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
@@ -40,17 +36,11 @@ const ProfileCompletion = () => {
       gender: profileData.gender,
       age: profileData.age,
       timezone: profileData.timezone,
-      
-      // Devices & Tech (4 fields)
       operating_systems: deviceData.operating_systems,
       devices_owned: deviceData.devices_owned,
       mobile_manufacturers: deviceData.mobile_manufacturers,
       email_clients: deviceData.email_clients,
-      
-      // Education & Work (1 field)
       education_level: profileData.education_level,
-      
-      // AI & Tech Fluency (4 fields)
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level,
       ai_tools_used: techFluencyData.ai_models_used,
@@ -69,6 +59,16 @@ const ProfileCompletion = () => {
   };
 
   const realTimeCompletion = calculateRealTimeCompletion();
+
+  // Memoize components to prevent unnecessary re-renders
+  const sectionComponents = useMemo(() => ({
+    1: <BasicProfileSection />,
+    2: <DevicesSection />,
+    3: <EducationWorkSection />,
+    4: <TechFluencySection />,
+    5: <SocialPresenceSection />,
+    6: <SkillsInterestsSection />
+  }), []);
 
   useEffect(() => {
     if (user) {
@@ -92,37 +92,6 @@ const ProfileCompletion = () => {
     return <CompletionCelebration />;
   }
 
-  // Use cached components or create new ones to prevent remounting
-  const getSectionComponent = (id: number) => {
-    if (!componentCache.has(id)) {
-      let component;
-      switch (id) {
-        case 1:
-          component = <BasicProfileSection />;
-          break;
-        case 2:
-          component = <DevicesSection />;
-          break;
-        case 3:
-          component = <EducationWorkSection />;
-          break;
-        case 4:
-          component = <TechFluencySection />;
-          break;
-        case 5:
-          component = <SocialPresenceSection />;
-          break;
-        case 6:
-          component = <SkillsInterestsSection />;
-          break;
-        default:
-          component = <div>Section not found</div>;
-      }
-      componentCache.set(id, component);
-    }
-    return componentCache.get(id);
-  };
-
   const sections = [
     { id: 1, title: "Basic Profile" },
     { id: 2, title: "Devices & Tech" },
@@ -143,14 +112,11 @@ const ProfileCompletion = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Header */}
       <Header />
 
-      {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           
-          {/* Header */}
           <div className="text-center mb-8 animate-fade-in">
             <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
               Complete Your Explorer Profile
@@ -161,10 +127,8 @@ const ProfileCompletion = () => {
             </p>
           </div>
 
-          {/* Section Content */}
           <div className="bg-card/80 backdrop-blur-sm usergy-shadow-strong rounded-3xl p-8 lg:p-12 border border-border/50 animate-slide-up">
             
-            {/* Section Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
@@ -175,7 +139,6 @@ const ProfileCompletion = () => {
                 </div>
               </div>
               
-              {/* Mini Progress for Current Section */}
               <div className="w-full bg-muted rounded-full h-2">
                 <div 
                   className="bg-gradient-to-r from-primary-start to-primary-end h-2 rounded-full transition-all duration-500"
@@ -184,17 +147,10 @@ const ProfileCompletion = () => {
               </div>
             </div>
 
-            {/* Section Component - Rendered conditionally to prevent remounting */}
             <div className="mb-8">
-              {currentStep === 1 && getSectionComponent(1)}
-              {currentStep === 2 && getSectionComponent(2)}
-              {currentStep === 3 && getSectionComponent(3)}
-              {currentStep === 4 && getSectionComponent(4)}
-              {currentStep === 5 && getSectionComponent(5)}
-              {currentStep === 6 && getSectionComponent(6)}
+              {sectionComponents[currentStep as keyof typeof sectionComponents]}
             </div>
 
-            {/* Navigation */}
             <div className="flex items-center justify-between pt-8 border-t border-border">
               <button
                 onClick={handlePrevious}
