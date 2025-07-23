@@ -13,7 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 interface Conversation {
   id: string;
   title: string;
-  type: 'general' | 'private' | 'announcement';
+  type: 'general' | 'private' | 'announcement' | 'project';
   created_at: string;
   updated_at: string;
   unread_count: number;
@@ -70,7 +70,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
       const processedConversations: Conversation[] = data?.map(conv => {
         const lastMessage = conv.messages?.[conv.messages.length - 1];
-        const lastReadAt = conv.conversation_participants[0]?.last_read_at;
+        const participantData = conv.conversation_participants.find(p => p.user_id === user.id);
+        const lastReadAt = participantData?.last_read_at;
         
         // Calculate unread count (simplified)
         const unreadCount = conv.messages?.filter(
@@ -79,14 +80,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
         return {
           id: conv.id,
-          title: conv.title,
-          type: conv.type,
+          title: conv.title || 'Untitled Conversation',
+          type: conv.type as 'general' | 'private' | 'announcement' | 'project',
           created_at: conv.created_at,
           updated_at: conv.updated_at,
           unread_count: unreadCount,
           last_message: lastMessage ? {
             content: lastMessage.content,
-            sender_name: lastMessage.sender.full_name,
+            sender_name: lastMessage.sender?.full_name || 'Unknown User',
             created_at: lastMessage.created_at
           } : undefined
         };

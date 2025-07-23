@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 import { ConversationList } from './ConversationList';
 import { MessageThread } from './MessageThread';
 import { Card } from '@/components/ui/card';
