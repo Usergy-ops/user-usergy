@@ -1,42 +1,117 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthToggle } from '@/components/AuthToggle';
 import { AuthForm } from '@/components/AuthForm';
 import { GoogleAuthButton } from '@/components/UsergyCTA';
+import { OTPVerification } from '@/components/OTPVerification';
 import { NetworkNodes } from '@/components/NetworkNodes';
 import heroIllustration from '@/assets/usergy-hero-illustration.png';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [isLoading, setIsLoading] = useState(false);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [pendingSignup, setPendingSignup] = useState<{ email: string; password: string } | null>(null);
   const { toast } = useToast();
+  const { user, signUp, signIn } = useAuth();
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user) {
+      toast({
+        title: "Welcome back!",
+        description: "You're already signed in."
+      });
+    }
+  }, [user, toast]);
 
   const handleAuthSubmit = async (email: string, password?: string) => {
+    if (!password) return;
+    
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: authMode === 'signup' ? "Welcome to Usergy!" : "Welcome back!",
-        description: authMode === 'signup' 
-          ? "Your journey as a digital explorer begins now." 
-          : "Great to see you again, explorer.",
-      });
-    }, 2000);
+    if (authMode === 'signup') {
+      const { error } = await signUp(email, password);
+      
+      if (error) {
+        toast({
+          title: "Sign up failed",
+          description: error,
+          variant: "destructive"
+        });
+      } else {
+        setPendingSignup({ email, password });
+        setShowOTPVerification(true);
+        toast({
+          title: "Check your email!",
+          description: "We've sent you a verification code."
+        });
+      }
+    } else {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast({
+          title: "Sign in failed", 
+          description: error,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "Great to see you again, explorer."
+        });
+      }
+    }
+    
+    setIsLoading(false);
   };
 
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     
-    // Simulate Google auth
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Connected!",
-        description: "Successfully authenticated with Google.",
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl
+        }
       });
-    }, 1500);
+
+      if (error) {
+        toast({
+          title: "Google authentication failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Authentication error",
+        description: "Failed to authenticate with Google",
+        variant: "destructive"
+      });
+    }
+    
+    setIsLoading(false);
+  };
+
+  const handleOTPSuccess = () => {
+    setShowOTPVerification(false);
+    setPendingSignup(null);
+    toast({
+      title: "Welcome to Usergy!",
+      description: "Your account has been created successfully."
+    });
+  };
+
+  const handleBackToSignup = () => {
+    setShowOTPVerification(false);
+    setPendingSignup(null);
   };
 
   return (
@@ -144,12 +219,21 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Email Form */}
-                <AuthForm 
-                  mode={authMode} 
-                  onSubmit={handleAuthSubmit}
-                  isLoading={isLoading}
-                />
+                {/* Email Form or OTP Verification */}
+                {showOTPVerification && pendingSignup ? (
+                  <OTPVerification
+                    email={pendingSignup.email}
+                    password={pendingSignup.password}
+                    onBack={handleBackToSignup}
+                    onSuccess={handleOTPSuccess}
+                  />
+                ) : (
+                  <AuthForm 
+                    mode={authMode} 
+                    onSubmit={handleAuthSubmit}
+                    isLoading={isLoading}
+                  />
+                )}
 
                 {/* Footer Links */}
                 <div className="mt-8 text-center space-y-4">
