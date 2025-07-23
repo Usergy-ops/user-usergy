@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -26,7 +25,10 @@ export const BasicProfileSection: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [formLoaded, setFormLoaded] = useState(false);
+  
+  // Use refs for persistent state across tab switches
+  const initialLoadComplete = useRef(false);
+  const hasFormData = useRef(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
     defaultValues: {
@@ -41,9 +43,53 @@ export const BasicProfileSection: React.FC = () => {
     }
   });
 
-  // Fix form state synchronization with proper loading state
+  // Check sessionStorage for backup data and load from database if needed
   useEffect(() => {
-    if (profileData && !formLoaded) {
+    const componentName = 'basicProfile';
+    const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
+    
+    if (backupData && !initialLoadComplete.current && !hasFormData.current) {
+      try {
+        const parsedBackup = JSON.parse(backupData);
+        const hasBackupData = Object.values(parsedBackup).some(value => {
+          if (Array.isArray(value)) return value.length > 0;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (typeof value === 'number') return value > 0;
+          return false;
+        });
+        
+        if (hasBackupData) {
+          // Load from backup if it has data
+          Object.keys(parsedBackup).forEach(key => {
+            if (parsedBackup[key] !== undefined && parsedBackup[key] !== null) {
+              setValue(key as any, parsedBackup[key], { shouldDirty: false });
+            }
+          });
+          hasFormData.current = true;
+          initialLoadComplete.current = true;
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading backup data:', error);
+      }
+    }
+
+    // Only load from database if we haven't loaded initially AND form is empty
+    const currentFormData = watch();
+    const formHasData = Object.values(currentFormData).some(value => {
+      if (typeof value === 'string') return value.trim() !== '';
+      if (typeof value === 'number') return value > 0;
+      return false;
+    });
+
+    // If form already has data, don't overwrite it
+    if (formHasData) {
+      hasFormData.current = true;
+      return;
+    }
+
+    // Only load from database if this is the first load and form is empty
+    if (profileData && !initialLoadComplete.current && !hasFormData.current) {
       setTimeout(() => {
         setValue('full_name', profileData.full_name || '', { shouldDirty: false });
         setValue('phone_number', profileData.phone_number || '', { shouldDirty: false });
@@ -53,17 +99,19 @@ export const BasicProfileSection: React.FC = () => {
         setValue('country', profileData.country || '', { shouldDirty: false });
         setValue('city', profileData.city || '', { shouldDirty: false });
         setValue('timezone', profileData.timezone || '', { shouldDirty: false });
-        setFormLoaded(true);
+        initialLoadComplete.current = true;
       }, 100);
     }
-  }, [profileData, setValue, formLoaded]);
+  }, [profileData, setValue, watch]);
 
-  // Add real-time auto-save for input fields
+  // Updated auto-save logic to respect existing form data
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
     const subscription = watch((value, { name }) => {
-      if (name && value[name] !== undefined && formLoaded) {
+      // Only auto-save if initial load is complete and we have form data
+      if (name && value[name] !== undefined && initialLoadComplete.current) {
+        hasFormData.current = true;
         clearTimeout(timeoutId);
         timeoutId = setTimeout(async () => {
           try {
@@ -79,7 +127,45 @@ export const BasicProfileSection: React.FC = () => {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, [watch, updateProfileData, formLoaded]);
+  }, [watch, updateProfileData]);
+
+  // Handle page visibility changes for tab switching
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Page became visible again - don't reload data if form has content
+        const currentFormData = watch();
+        const formHasData = Object.values(currentFormData).some(value => {
+          if (Array.isArray(value)) return value.length > 0;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (typeof value === 'number') return value > 0;
+          return false;
+        });
+        
+        if (formHasData) {
+          hasFormData.current = true;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [watch]);
+
+  // Save form data to sessionStorage as backup
+  useEffect(() => {
+    const subscription = watch((value) => {
+      if (hasFormData.current || initialLoadComplete.current) {
+        const componentName = 'basicProfile';
+        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(value));
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [watch]);
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -150,6 +236,9 @@ export const BasicProfileSection: React.FC = () => {
         ...data,
         section_1_completed: true
       });
+      
+      // Clear backup data after successful submit
+      sessionStorage.removeItem('usergy_basicProfile_backup');
       
       toast({
         title: "Basic profile saved!",
