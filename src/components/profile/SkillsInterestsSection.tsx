@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -18,7 +17,7 @@ interface SkillsInterestsFormData {
 }
 
 export const SkillsInterestsSection: React.FC = () => {
-  const { profileData, skillsData, updateProfileData, calculateCompletion } = useProfile();
+  const { profileData, skillsData, updateProfileData } = useProfile();
   const { toast } = useToast();
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -48,18 +47,12 @@ export const SkillsInterestsSection: React.FC = () => {
         product_categories: data.product_categories,
       });
 
-      // Recalculate completion and wait for it to finish
-      await calculateCompletion();
-      
-      // Force a small delay to ensure state updates have propagated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       toast({
         title: "Profile completed!",
         description: "Your Explorer profile is now complete. Welcome to the community!",
       });
 
-      // Show celebration screen instead of navigating
+      // Show celebration screen
       setShowCelebration(true);
 
     } catch (error) {
