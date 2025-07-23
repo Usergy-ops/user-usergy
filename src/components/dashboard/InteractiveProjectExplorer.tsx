@@ -25,12 +25,13 @@ export const InteractiveProjectExplorer: React.FC = () => {
               className={`
                 absolute w-20 h-16 bg-white rounded-xl shadow-lg cursor-pointer transition-all duration-500 hover:shadow-2xl
                 ${hoveredProject === project.id ? 'scale-110 z-10' : 'hover:scale-105'}
+                animate-float
               `}
               style={{
                 top: `${20 + index * 25}%`,
                 left: `${30 + index * 15}%`,
                 transform: `rotate(${index * 5 - 5}deg)`,
-                animation: `float ${3 + index}s ease-in-out infinite`
+                animationDelay: `${index * 0.5}s`
               }}
               onMouseEnter={() => setHoveredProject(project.id)}
               onMouseLeave={() => setHoveredProject(null)}
@@ -54,14 +55,6 @@ export const InteractiveProjectExplorer: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      {/* CSS Animation for floating effect */}
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(var(--rotate, 0deg)); }
-          50% { transform: translateY(-10px) rotate(var(--rotate, 0deg)); }
-        }
-      `}</style>
     </div>
   );
 };
