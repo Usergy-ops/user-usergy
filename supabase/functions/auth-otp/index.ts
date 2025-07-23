@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 
@@ -121,13 +122,12 @@ const handler = async (req: Request): Promise<Response> => {
         const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        // Store OTP in database
+        // Store OTP in database using the new table
         const { error: dbError } = await supabase
-          .from('user_otps')
+          .from('user_otp_verification')
           .insert({
             email,
             otp_code: otpCode,
-            otp_type: 'email_verification',
             expires_at: expiresAt.toISOString()
           });
 
@@ -159,14 +159,13 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Get and validate OTP
+        // Get and validate OTP using the new table
         const { data: otpData, error: otpError } = await supabase
-          .from('user_otps')
+          .from('user_otp_verification')
           .select('*')
           .eq('email', email)
           .eq('otp_code', otp)
-          .eq('used', false)
-          .eq('otp_type', 'email_verification')
+          .is('verified_at', null)
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
           .limit(1)
@@ -175,8 +174,8 @@ const handler = async (req: Request): Promise<Response> => {
         if (otpError || !otpData) {
           // Increment attempt counter
           await supabase
-            .from('user_otps')
-            .update({ attempts: supabase.rpc('increment', { x: 1, field_name: 'attempts' }) })
+            .from('user_otp_verification')
+            .update({ attempts: otpData?.attempts ? otpData.attempts + 1 : 1 })
             .eq('email', email)
             .eq('otp_code', otp);
 
@@ -186,10 +185,10 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Mark OTP as used
+        // Mark OTP as verified
         await supabase
-          .from('user_otps')
-          .update({ used: true })
+          .from('user_otp_verification')
+          .update({ verified_at: new Date().toISOString() })
           .eq('id', otpData.id);
 
         // Create user account
@@ -223,10 +222,9 @@ const handler = async (req: Request): Promise<Response> => {
       case 'resend': {
         // Check for recent OTP requests (rate limiting)
         const { data: recentOTP } = await supabase
-          .from('user_otps')
+          .from('user_otp_verification')
           .select('created_at')
           .eq('email', email)
-          .eq('otp_type', 'email_verification')
           .gt('created_at', new Date(Date.now() - 60 * 1000).toISOString()) // Last 60 seconds
           .limit(1)
           .single();
@@ -244,11 +242,10 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Store new OTP
         const { error: dbError } = await supabase
-          .from('user_otps')
+          .from('user_otp_verification')
           .insert({
             email,
             otp_code: otpCode,
-            otp_type: 'email_verification',
             expires_at: expiresAt.toISOString()
           });
 

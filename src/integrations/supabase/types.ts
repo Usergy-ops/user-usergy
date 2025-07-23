@@ -187,6 +187,36 @@ export type Database = {
           },
         ]
       }
+      user_otp_verification: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          otp_code: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       user_otps: {
         Row: {
           attempts: number | null
