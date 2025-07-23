@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -6,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Heart, Globe } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface SkillsInterestsFormData {
   bio: string;
@@ -17,8 +18,9 @@ interface SkillsInterestsFormData {
 }
 
 export const SkillsInterestsSection: React.FC = () => {
-  const { profileData, skillsData, updateProfileData, setCurrentStep, currentStep } = useProfile();
+  const { profileData, skillsData, updateProfileData, calculateCompletion } = useProfile();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const { register, handleSubmit, setValue, watch } = useForm<SkillsInterestsFormData>({
     defaultValues: {
@@ -32,6 +34,7 @@ export const SkillsInterestsSection: React.FC = () => {
 
   const onSubmit = async (data: SkillsInterestsFormData) => {
     try {
+      // Update profile data
       await updateProfileData('profile', {
         bio: data.bio,
         languages_spoken: data.languages_spoken,
@@ -39,20 +42,27 @@ export const SkillsInterestsSection: React.FC = () => {
         section_6_completed: true
       });
 
+      // Update skills data
       await updateProfileData('skills', {
         interests: data.interests,
         product_categories: data.product_categories,
       });
+
+      // Recalculate completion
+      await calculateCompletion();
       
       toast({
         title: "Profile completed!",
-        description: "Your Explorer profile is now complete.",
+        description: "Your Explorer profile is now complete. Welcome to the community!",
       });
 
-      // FIXED: Keep current step at 6 instead of setting to 7
-      // The celebration screen will be triggered by the completion percentage, not step number
-      // This ensures we don't have "Step 7 of 6" bug
+      // Navigate to dashboard after successful completion
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
+
     } catch (error) {
+      console.error('Profile completion error:', error);
       toast({
         title: "Error completing profile",
         description: "Please try again.",
@@ -145,7 +155,7 @@ export const SkillsInterestsSection: React.FC = () => {
             type="submit" 
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
           >
-            Complete Profile
+            Complete Profile & Go to Dashboard
           </Button>
         </div>
       </form>

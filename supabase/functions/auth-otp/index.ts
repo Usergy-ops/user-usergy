@@ -13,13 +13,15 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-// Initialize Resend with proper error handling
+// Check for Resend API key and initialize conditionally
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
-if (!resendApiKey) {
-  console.error('RESEND_API_KEY is not set in environment variables');
-}
+let resend: Resend | null = null;
 
-const resend = new Resend(resendApiKey);
+if (resendApiKey) {
+  resend = new Resend(resendApiKey);
+} else {
+  console.warn('RESEND_API_KEY not found - email functionality will be disabled');
+}
 
 interface OTPRequest {
   email: string;
@@ -33,8 +35,9 @@ const generateOTP = (): string => {
 };
 
 const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resend' = 'welcome') => {
-  if (!resendApiKey) {
-    throw new Error('RESEND_API_KEY is not configured');
+  if (!resend) {
+    console.error('Resend not initialized - email cannot be sent');
+    throw new Error('Email service is not configured');
   }
 
   const subject = type === 'welcome' 
@@ -129,12 +132,12 @@ const handler = async (req: Request): Promise<Response> => {
     const { email, action, otp, password }: OTPRequest = await req.json();
     console.log(`Processing ${action} action for email:`, email);
 
-    // Check if Resend API key is configured
-    if (!resendApiKey) {
-      console.error('RESEND_API_KEY is not configured');
+    // Check if email service is available for actions that require it
+    if ((action === 'generate' || action === 'resend') && !resend) {
+      console.error('Email service not available - RESEND_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: "Email service is not configured. Please contact support." }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Email service is temporarily unavailable. Please try again later or contact support." }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -186,8 +189,16 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Send OTP email via Resend
-        await sendOTPEmail(email, otpCode, 'welcome');
+        // Send OTP email
+        try {
+          await sendOTPEmail(email, otpCode, 'welcome');
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          return new Response(
+            JSON.stringify({ error: "Failed to send verification email. Please try again." }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
         console.log('OTP generated and sent successfully for:', email);
         return new Response(
@@ -306,8 +317,16 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Send OTP email via Resend
-        await sendOTPEmail(email, otpCode, 'resend');
+        // Send OTP email
+        try {
+          await sendOTPEmail(email, otpCode, 'resend');
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          return new Response(
+            JSON.stringify({ error: "Failed to send verification email. Please try again." }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
         console.log('OTP resent successfully for:', email);
         return new Response(

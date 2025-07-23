@@ -9,7 +9,6 @@ import { EducationWorkSection } from '@/components/profile/EducationWorkSection'
 import { TechFluencySection } from '@/components/profile/TechFluencySection';
 import { SocialPresenceSection } from '@/components/profile/SocialPresenceSection';
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
-import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -85,9 +84,9 @@ const ProfileCompletion = () => {
     );
   }
 
-  // FIXED: Show celebration component when profile is complete AND user is at step 6
-  if (isProfileComplete && currentStep === 6) {
-    return <CompletionCelebration />;
+  // If profile is complete, redirect to dashboard
+  if (isProfileComplete) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   const sections = [
