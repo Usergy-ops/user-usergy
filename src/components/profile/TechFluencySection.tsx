@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { Brain, Code, Zap } from 'lucide-react';
+import { validateRequiredFields } from '@/utils/dataValidation';
 
 interface TechFluencyFormData {
   technical_experience_level: string;
@@ -22,6 +23,7 @@ interface TechFluencyFormData {
 export const TechFluencySection: React.FC = () => {
   const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, setValue, watch } = useForm<TechFluencyFormData>({
     defaultValues: {
@@ -45,8 +47,41 @@ export const TechFluencySection: React.FC = () => {
   };
 
   const onSubmit = async (data: TechFluencyFormData) => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
       console.log('Submitting tech fluency data:', data);
+      
+      // Validate required fields
+      const missing = validateRequiredFields(data, ['technical_experience_level', 'ai_familiarity_level']);
+      if (missing.length > 0) {
+        toast({
+          title: "Required fields missing",
+          description: `Please fill in: ${missing.join(', ')}`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Check required arrays
+      if (!data.ai_interests || data.ai_interests.length === 0) {
+        toast({
+          title: "Required selection missing",
+          description: "Please select at least one AI interest",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (!data.ai_models_used || data.ai_models_used.length === 0) {
+        toast({
+          title: "Required selection missing",
+          description: "Please select at least one AI tool you've used",
+          variant: "destructive"
+        });
+        return;
+      }
       
       // Update profile with basic tech levels
       await updateProfileData('profile', {
@@ -77,6 +112,8 @@ export const TechFluencySection: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -143,20 +180,54 @@ export const TechFluencySection: React.FC = () => {
           </h4>
           
           <div className="space-y-3">
-            {techExperienceLevels.map((level) => (
-              <div key={level.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="radio"
-                  id={`tech-${level.value}`}
-                  value={level.value}
-                  {...register('technical_experience_level')}
-                  className="w-4 h-4 text-primary"
-                />
-                <Label htmlFor={`tech-${level.value}`} className="cursor-pointer">
-                  {level.label}
-                </Label>
-              </div>
-            ))}
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="tech-beginner"
+                value="beginner"
+                {...register('technical_experience_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="tech-beginner" className="cursor-pointer">
+                Beginner - Basic computer skills
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="tech-intermediate"
+                value="intermediate"
+                {...register('technical_experience_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="tech-intermediate" className="cursor-pointer">
+                Intermediate - Comfortable with most software
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="tech-advanced"
+                value="advanced"
+                {...register('technical_experience_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="tech-advanced" className="cursor-pointer">
+                Advanced - Power user, some technical skills
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="tech-expert"
+                value="expert"
+                {...register('technical_experience_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="tech-expert" className="cursor-pointer">
+                Expert - Strong technical background
+              </Label>
+            </div>
           </div>
         </div>
 
@@ -168,20 +239,66 @@ export const TechFluencySection: React.FC = () => {
           </h4>
           
           <div className="space-y-3">
-            {aiFamiliarityLevels.map((level) => (
-              <div key={level.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="radio"
-                  id={`ai-${level.value}`}
-                  value={level.value}
-                  {...register('ai_familiarity_level')}
-                  className="w-4 h-4 text-primary"
-                />
-                <Label htmlFor={`ai-${level.value}`} className="cursor-pointer">
-                  {level.label}
-                </Label>
-              </div>
-            ))}
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="ai-none"
+                value="none"
+                {...register('ai_familiarity_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="ai-none" className="cursor-pointer">
+                No experience with AI tools
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="ai-basic"
+                value="basic"
+                {...register('ai_familiarity_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="ai-basic" className="cursor-pointer">
+                Basic - Used ChatGPT or similar occasionally
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="ai-intermediate"
+                value="intermediate"
+                {...register('ai_familiarity_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="ai-intermediate" className="cursor-pointer">
+                Intermediate - Regular AI tool user
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="ai-advanced"
+                value="advanced"
+                {...register('ai_familiarity_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="ai-advanced" className="cursor-pointer">
+                Advanced - Integrate AI into workflows
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="radio"
+                id="ai-expert"
+                value="expert"
+                {...register('ai_familiarity_level')}
+                className="w-4 h-4 text-primary"
+              />
+              <Label htmlFor="ai-expert" className="cursor-pointer">
+                Expert - Develop or customize AI solutions
+              </Label>
+            </div>
           </div>
         </div>
 
@@ -191,7 +308,11 @@ export const TechFluencySection: React.FC = () => {
             AI Use Cases You're Interested In <span className="text-red-500">*</span>
           </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {aiInterests.map((interest) => (
+            {[
+              'Content Creation', 'Code Generation', 'Data Analysis', 'Design & Art',
+              'Research & Writing', 'Automation', 'Customer Service', 'Marketing',
+              'Education & Training', 'Healthcare', 'Finance', 'Gaming'
+            ].map((interest) => (
               <div key={interest} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`interest-${interest}`}
@@ -214,7 +335,11 @@ export const TechFluencySection: React.FC = () => {
             AI Tools You've Used <span className="text-red-500">*</span>
           </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {aiModels.map((model) => (
+            {[
+              'ChatGPT', 'Claude', 'GPT-4', 'Gemini', 'Midjourney', 'DALL-E',
+              'Stable Diffusion', 'GitHub Copilot', 'Cursor', 'Perplexity',
+              'Notion AI', 'Jasper', 'Copy.ai', 'Other'
+            ].map((model) => (
               <div key={model} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`model-${model}`}
@@ -235,7 +360,10 @@ export const TechFluencySection: React.FC = () => {
         <div className="space-y-4">
           <Label className="text-lg font-medium">Programming Languages (Optional)</Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {programmingLanguages.map((language) => (
+            {[
+              'JavaScript', 'Python', 'Java', 'TypeScript', 'C#', 'C++',
+              'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin', 'SQL', 'HTML/CSS'
+            ].map((language) => (
               <div key={language} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`lang-${language}`}
@@ -273,10 +401,10 @@ export const TechFluencySection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete()}
+            disabled={!isSectionComplete() || isSubmitting}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save & Continue
+            {isSubmitting ? 'Saving...' : 'Save & Continue'}
           </Button>
         </div>
       </form>

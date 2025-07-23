@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { CompletionCelebration } from './CompletionCelebration';
+import { validateRequiredFields } from '@/utils/dataValidation';
 
 interface SkillsInterestsFormData {
   bio: string;
@@ -21,6 +22,7 @@ export const SkillsInterestsSection: React.FC = () => {
   const { profileData, skillsData, updateProfileData } = useProfile();
   const { toast } = useToast();
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, setValue, watch } = useForm<SkillsInterestsFormData>({
     defaultValues: {
@@ -33,7 +35,10 @@ export const SkillsInterestsSection: React.FC = () => {
   });
 
   const onSubmit = async (data: SkillsInterestsFormData) => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
       console.log('Submitting skills & interests data:', data);
       
       // Update profile data
@@ -65,6 +70,8 @@ export const SkillsInterestsSection: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -155,9 +162,10 @@ export const SkillsInterestsSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+            disabled={isSubmitting}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Complete Profile
+            {isSubmitting ? 'Completing...' : 'Complete Profile'}
           </Button>
         </div>
       </form>

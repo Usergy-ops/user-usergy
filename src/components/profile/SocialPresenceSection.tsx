@@ -19,6 +19,7 @@ export const SocialPresenceSection: React.FC = () => {
   const { profileData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, watch } = useForm<SocialPresenceFormData>({
     defaultValues: {
@@ -44,6 +45,8 @@ export const SocialPresenceSection: React.FC = () => {
   };
 
   const onSubmit = async (data: SocialPresenceFormData) => {
+    if (isSubmitting) return;
+    
     // Validate all URLs before submitting
     const urlErrors: Record<string, string> = {};
     Object.entries(data).forEach(([field, url]) => {
@@ -58,6 +61,7 @@ export const SocialPresenceSection: React.FC = () => {
     }
 
     try {
+      setIsSubmitting(true);
       console.log('Submitting social presence data:', data);
       
       await updateProfileData('profile', {
@@ -79,6 +83,8 @@ export const SocialPresenceSection: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -167,9 +173,10 @@ export const SocialPresenceSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+            disabled={isSubmitting}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save & Continue
+            {isSubmitting ? 'Saving...' : 'Save & Continue'}
           </Button>
         </div>
       </form>

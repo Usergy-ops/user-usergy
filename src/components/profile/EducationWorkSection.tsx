@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Briefcase, Building } from 'lucide-react';
+import { validateRequiredFields } from '@/utils/dataValidation';
 
 interface EducationWorkFormData {
   education_level: string;
@@ -22,6 +23,7 @@ interface EducationWorkFormData {
 export const EducationWorkSection: React.FC = () => {
   const { profileData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<EducationWorkFormData>({
     defaultValues: {
@@ -42,8 +44,22 @@ export const EducationWorkSection: React.FC = () => {
   };
 
   const onSubmit = async (data: EducationWorkFormData) => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
       console.log('Submitting education & work data:', data);
+      
+      // Validate required fields
+      const missing = validateRequiredFields(data, ['education_level']);
+      if (missing.length > 0) {
+        toast({
+          title: "Required fields missing",
+          description: `Please fill in: ${missing.join(', ')}`,
+          variant: "destructive"
+        });
+        return;
+      }
       
       await updateProfileData('profile', {
         ...data,
@@ -64,6 +80,8 @@ export const EducationWorkSection: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,11 +146,14 @@ export const EducationWorkSection: React.FC = () => {
                   <SelectValue placeholder="Select education level" />
                 </SelectTrigger>
                 <SelectContent>
-                  {educationLevels.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="High School">High School</SelectItem>
+                  <SelectItem value="Some College">Some College</SelectItem>
+                  <SelectItem value="Associate Degree">Associate Degree</SelectItem>
+                  <SelectItem value="Bachelor's Degree">Bachelor's Degree</SelectItem>
+                  <SelectItem value="Master's Degree">Master's Degree</SelectItem>
+                  <SelectItem value="Doctoral Degree">Doctoral Degree</SelectItem>
+                  <SelectItem value="Professional Degree">Professional Degree</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -193,11 +214,18 @@ export const EducationWorkSection: React.FC = () => {
                   <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
                 <SelectContent>
-                  {industries.map((industry) => (
-                    <SelectItem key={industry} value={industry}>
-                      {industry}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Technology">Technology</SelectItem>
+                  <SelectItem value="Healthcare">Healthcare</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Education">Education</SelectItem>
+                  <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                  <SelectItem value="Retail">Retail</SelectItem>
+                  <SelectItem value="Construction">Construction</SelectItem>
+                  <SelectItem value="Transportation">Transportation</SelectItem>
+                  <SelectItem value="Entertainment">Entertainment</SelectItem>
+                  <SelectItem value="Government">Government</SelectItem>
+                  <SelectItem value="Non-profit">Non-profit</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -212,11 +240,15 @@ export const EducationWorkSection: React.FC = () => {
                   <SelectValue placeholder="Select work role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {workRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Individual Contributor">Individual Contributor</SelectItem>
+                  <SelectItem value="Team Lead">Team Lead</SelectItem>
+                  <SelectItem value="Manager">Manager</SelectItem>
+                  <SelectItem value="Senior Manager">Senior Manager</SelectItem>
+                  <SelectItem value="Director">Director</SelectItem>
+                  <SelectItem value="VP/Executive">VP/Executive</SelectItem>
+                  <SelectItem value="Founder/CEO">Founder/CEO</SelectItem>
+                  <SelectItem value="Consultant">Consultant</SelectItem>
+                  <SelectItem value="Freelancer">Freelancer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -231,11 +263,11 @@ export const EducationWorkSection: React.FC = () => {
                   <SelectValue placeholder="Select company size" />
                 </SelectTrigger>
                 <SelectContent>
-                  {companySizes.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="1-10 employees">1-10 employees</SelectItem>
+                  <SelectItem value="11-50 employees">11-50 employees</SelectItem>
+                  <SelectItem value="51-200 employees">51-200 employees</SelectItem>
+                  <SelectItem value="201-1000 employees">201-1000 employees</SelectItem>
+                  <SelectItem value="1000+ employees">1000+ employees</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -250,11 +282,14 @@ export const EducationWorkSection: React.FC = () => {
                   <SelectValue placeholder="Select income range" />
                 </SelectTrigger>
                 <SelectContent>
-                  {incomeRanges.map((range) => (
-                    <SelectItem key={range} value={range}>
-                      {range}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Under $25,000">Under $25,000</SelectItem>
+                  <SelectItem value="$25,000 - $50,000">$25,000 - $50,000</SelectItem>
+                  <SelectItem value="$50,000 - $75,000">$50,000 - $75,000</SelectItem>
+                  <SelectItem value="$75,000 - $100,000">$75,000 - $100,000</SelectItem>
+                  <SelectItem value="$100,000 - $150,000">$100,000 - $150,000</SelectItem>
+                  <SelectItem value="$150,000 - $200,000">$150,000 - $200,000</SelectItem>
+                  <SelectItem value="$200,000+">$200,000+</SelectItem>
+                  <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -264,10 +299,10 @@ export const EducationWorkSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete()}
+            disabled={!isSectionComplete() || isSubmitting}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save & Continue
+            {isSubmitting ? 'Saving...' : 'Save & Continue'}
           </Button>
         </div>
       </form>
