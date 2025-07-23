@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, User, Apple, Monitor, Smartphone, Tablet, Laptop } from 'lucide-react';
+import { Upload, User } from 'lucide-react';
 
 interface BasicProfileFormData {
   full_name: string;
@@ -39,6 +39,45 @@ export const BasicProfileSection: React.FC = () => {
       timezone: profileData.timezone || '',
     }
   });
+
+  // Load form data from localStorage on component mount to prevent data loss
+  useEffect(() => {
+    const savedFormData = localStorage.getItem('basicProfileFormData');
+    if (savedFormData) {
+      try {
+        const parsedData = JSON.parse(savedFormData);
+        Object.keys(parsedData).forEach(key => {
+          if (parsedData[key] !== undefined && parsedData[key] !== null && parsedData[key] !== '') {
+            setValue(key as keyof BasicProfileFormData, parsedData[key]);
+          }
+        });
+      } catch (error) {
+        console.error('Error loading saved form data:', error);
+      }
+    }
+  }, [setValue]);
+
+  // Save form data to localStorage whenever form values change
+  useEffect(() => {
+    const subscription = watch((value) => {
+      localStorage.setItem('basicProfileFormData', JSON.stringify(value));
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
+  // Update form values when profileData changes (from database)
+  useEffect(() => {
+    if (profileData) {
+      setValue('full_name', profileData.full_name || '');
+      setValue('phone_number', profileData.phone_number || '');
+      setValue('date_of_birth', profileData.date_of_birth || '');
+      setValue('age', profileData.age || 0);
+      setValue('gender', profileData.gender || '');
+      setValue('country', profileData.country || '');
+      setValue('city', profileData.city || '');
+      setValue('timezone', profileData.timezone || '');
+    }
+  }, [profileData, setValue]);
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -99,8 +138,8 @@ export const BasicProfileSection: React.FC = () => {
       formData.gender &&
       formData.country &&
       formData.city?.trim() &&
-      formData.timezone &&
-      profileData.avatar_url
+      formData.timezone
+      // Removed avatar_url requirement to make profile picture optional
     );
   };
 
@@ -110,6 +149,9 @@ export const BasicProfileSection: React.FC = () => {
         ...data,
         section_1_completed: true
       });
+      
+      // Clear saved form data after successful submission
+      localStorage.removeItem('basicProfileFormData');
       
       toast({
         title: "Basic profile saved!",
@@ -174,7 +216,7 @@ export const BasicProfileSection: React.FC = () => {
         </p>
       </div>
 
-      {/* Profile Picture Upload */}
+      {/* Profile Picture Upload - Now Optional */}
       <div className="flex flex-col items-center space-y-4">
         <div className="relative">
           <Avatar className="w-24 h-24 border-4 border-primary/20">
@@ -204,7 +246,7 @@ export const BasicProfileSection: React.FC = () => {
         />
         
         <p className="text-sm text-muted-foreground text-center">
-          Click to upload your profile picture <span className="text-red-500">*</span><br />
+          Click to upload your profile picture (optional)<br />
           <span className="text-xs">JPG, PNG up to 5MB</span>
         </p>
       </div>
@@ -229,7 +271,7 @@ export const BasicProfileSection: React.FC = () => {
             )}
           </div>
 
-          {/* Phone Number - Now Optional */}
+          {/* Phone Number - Optional */}
           <div className="space-y-2">
             <Label htmlFor="phone_number" className="text-sm font-medium">
               Phone Number

@@ -13,6 +13,9 @@ import { CompletionCelebration } from '@/components/profile/CompletionCelebratio
 import { ChevronLeft } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
+// Component cache to prevent remounting
+const componentCache = new Map();
+
 const ProfileCompletion = () => {
   const { user } = useAuth();
   const { 
@@ -89,13 +92,44 @@ const ProfileCompletion = () => {
     return <CompletionCelebration />;
   }
 
+  // Use cached components or create new ones to prevent remounting
+  const getSectionComponent = (id: number) => {
+    if (!componentCache.has(id)) {
+      let component;
+      switch (id) {
+        case 1:
+          component = <BasicProfileSection />;
+          break;
+        case 2:
+          component = <DevicesSection />;
+          break;
+        case 3:
+          component = <EducationWorkSection />;
+          break;
+        case 4:
+          component = <TechFluencySection />;
+          break;
+        case 5:
+          component = <SocialPresenceSection />;
+          break;
+        case 6:
+          component = <SkillsInterestsSection />;
+          break;
+        default:
+          component = <div>Section not found</div>;
+      }
+      componentCache.set(id, component);
+    }
+    return componentCache.get(id);
+  };
+
   const sections = [
-    { id: 1, title: "Basic Profile", component: <BasicProfileSection /> },
-    { id: 2, title: "Devices & Tech", component: <DevicesSection /> },
-    { id: 3, title: "Education & Work", component: <EducationWorkSection /> },
-    { id: 4, title: "AI & Tech Fluency", component: <TechFluencySection /> },
-    { id: 5, title: "Social Presence", component: <SocialPresenceSection /> },
-    { id: 6, title: "Skills & Interests", component: <SkillsInterestsSection /> }
+    { id: 1, title: "Basic Profile" },
+    { id: 2, title: "Devices & Tech" },
+    { id: 3, title: "Education & Work" },
+    { id: 4, title: "AI & Tech Fluency" },
+    { id: 5, title: "Social Presence" },
+    { id: 6, title: "Skills & Interests" }
   ];
 
   const currentSection = sections.find(s => s.id === currentStep);
@@ -150,9 +184,14 @@ const ProfileCompletion = () => {
               </div>
             </div>
 
-            {/* Section Component */}
+            {/* Section Component - Rendered conditionally to prevent remounting */}
             <div className="mb-8">
-              {currentSection?.component}
+              {currentStep === 1 && getSectionComponent(1)}
+              {currentStep === 2 && getSectionComponent(2)}
+              {currentStep === 3 && getSectionComponent(3)}
+              {currentStep === 4 && getSectionComponent(4)}
+              {currentStep === 5 && getSectionComponent(5)}
+              {currentStep === 6 && getSectionComponent(6)}
             </div>
 
             {/* Navigation */}

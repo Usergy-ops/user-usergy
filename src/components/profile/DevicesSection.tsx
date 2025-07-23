@@ -1,12 +1,12 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Smartphone, Laptop, Monitor, Mail, Music, Video, Users } from 'lucide-react';
+import { Smartphone, Laptop, Monitor, Mail, Music, Video, Watch, Tablet, Tv, Apple, Zap, Command, Computer } from 'lucide-react';
 
 interface DevicesFormData {
   operating_systems: string[];
@@ -34,6 +34,31 @@ export const DevicesSection: React.FC = () => {
     }
   });
 
+  // Load form data from localStorage on component mount
+  useEffect(() => {
+    const savedFormData = localStorage.getItem('devicesFormData');
+    if (savedFormData) {
+      try {
+        const parsedData = JSON.parse(savedFormData);
+        Object.keys(parsedData).forEach(key => {
+          if (parsedData[key] && Array.isArray(parsedData[key])) {
+            setValue(key as keyof DevicesFormData, parsedData[key]);
+          }
+        });
+      } catch (error) {
+        console.error('Error loading saved devices form data:', error);
+      }
+    }
+  }, [setValue]);
+
+  // Save form data to localStorage whenever form values change
+  useEffect(() => {
+    const subscription = watch((value) => {
+      localStorage.setItem('devicesFormData', JSON.stringify(value));
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
   const isSectionComplete = () => {
     const formData = watch();
     return !!(
@@ -48,6 +73,9 @@ export const DevicesSection: React.FC = () => {
     try {
       await updateProfileData('devices', data);
       await updateProfileData('profile', { section_2_completed: true });
+      
+      // Clear saved form data after successful submission
+      localStorage.removeItem('devicesFormData');
       
       toast({
         title: "Device preferences saved!",
@@ -74,21 +102,23 @@ export const DevicesSection: React.FC = () => {
     }
   };
 
+  // Updated operating systems with Lucide icons
   const operatingSystems = [
-    { value: 'windows', label: 'Windows', icon: '🪟' },
-    { value: 'macos', label: 'macOS', icon: '🍎' },
-    { value: 'linux', label: 'Linux', icon: '🐧' },
-    { value: 'android', label: 'Android', icon: '🤖' },
-    { value: 'ios', label: 'iOS', icon: '📱' }
+    { value: 'windows', label: 'Windows', icon: Computer },
+    { value: 'macos', label: 'macOS', icon: Apple },
+    { value: 'linux', label: 'Linux', icon: Command },
+    { value: 'android', label: 'Android', icon: Smartphone },
+    { value: 'ios', label: 'iOS', icon: Apple }
   ];
 
+  // Updated devices with Watch icon for smartwatch
   const devices = [
     { value: 'smartphone', label: 'Smartphone', icon: Smartphone },
     { value: 'laptop', label: 'Laptop', icon: Laptop },
     { value: 'desktop', label: 'Desktop', icon: Monitor },
-    { value: 'tablet', label: 'Tablet', icon: Smartphone },
-    { value: 'smartwatch', label: 'Smartwatch', icon: Smartphone },
-    { value: 'smart-tv', label: 'Smart TV', icon: Monitor }
+    { value: 'tablet', label: 'Tablet', icon: Tablet },
+    { value: 'smartwatch', label: 'Smartwatch', icon: Watch },
+    { value: 'smart-tv', label: 'Smart TV', icon: Tv }
   ];
 
   const mobileManufacturers = [
@@ -130,21 +160,24 @@ export const DevicesSection: React.FC = () => {
             Operating Systems <span className="text-red-500">*</span>
           </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {operatingSystems.map((os) => (
-              <div key={os.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id={`os-${os.value}`}
-                  checked={watch('operating_systems')?.includes(os.value)}
-                  onCheckedChange={(checked) => 
-                    handleCheckboxChange('operating_systems', os.value, checked as boolean)
-                  }
-                />
-                <Label htmlFor={`os-${os.value}`} className="flex items-center space-x-2 cursor-pointer">
-                  <span className="text-lg">{os.icon}</span>
-                  <span>{os.label}</span>
-                </Label>
-              </div>
-            ))}
+            {operatingSystems.map((os) => {
+              const IconComponent = os.icon;
+              return (
+                <div key={os.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <Checkbox
+                    id={`os-${os.value}`}
+                    checked={watch('operating_systems')?.includes(os.value)}
+                    onCheckedChange={(checked) => 
+                      handleCheckboxChange('operating_systems', os.value, checked as boolean)
+                    }
+                  />
+                  <Label htmlFor={`os-${os.value}`} className="flex items-center space-x-2 cursor-pointer">
+                    <IconComponent className="w-5 h-5 text-primary" />
+                    <span>{os.label}</span>
+                  </Label>
+                </div>
+              );
+            })}
           </div>
         </div>
 
