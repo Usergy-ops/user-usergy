@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -29,143 +30,177 @@ export const BasicProfileSection: React.FC = () => {
   // Use refs for persistent state across tab switches
   const initialLoadComplete = useRef(false);
   const hasFormData = useRef(false);
+  
+  // Add component-level data persistence
+  const [componentMounted, setComponentMounted] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
-    defaultValues: {
-      full_name: profileData.full_name || '',
-      phone_number: profileData.phone_number || '',
-      date_of_birth: profileData.date_of_birth || '',
-      age: profileData.age || 0,
-      gender: profileData.gender || '',
-      country: profileData.country || '',
-      city: profileData.city || '',
-      timezone: profileData.timezone || '',
-    }
+  const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<BasicProfileFormData>({
+    // Remove defaultValues - we'll set them manually after loading
+    mode: 'onChange',
+    shouldFocusError: false
   });
 
-  // Check sessionStorage for backup data and load from database if needed
   useEffect(() => {
-    const componentName = 'basicProfile';
-    const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
+    setComponentMounted(true);
+    return () => setComponentMounted(false);
+  }, []);
+
+  // Single, comprehensive useEffect for data loading
+  useEffect(() => {
+    let isMounted = true;
     
-    if (backupData && !initialLoadComplete.current && !hasFormData.current) {
+    const loadFormData = async () => {
+      // Prevent multiple loads
+      if (initialLoadComplete.current) return;
+      
       try {
-        const parsedBackup = JSON.parse(backupData);
-        const hasBackupData = Object.values(parsedBackup).some(value => {
-          if (Array.isArray(value)) return value.length > 0;
-          if (typeof value === 'string') return value.trim() !== '';
-          if (typeof value === 'number') return value > 0;
-          return false;
-        });
+        // Step 1: Check sessionStorage first (highest priority)
+        const componentName = 'basicProfile';
+        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
         
-        if (hasBackupData) {
-          // Load from backup if it has data
-          Object.keys(parsedBackup).forEach(key => {
-            if (parsedBackup[key] !== undefined && parsedBackup[key] !== null) {
-              setValue(key as any, parsedBackup[key], { shouldDirty: false });
-            }
-          });
-          hasFormData.current = true;
-          initialLoadComplete.current = true;
-          return;
-        }
-      } catch (error) {
-        console.error('Error loading backup data:', error);
-      }
-    }
-
-    // Only load from database if we haven't loaded initially AND form is empty
-    const currentFormData = watch();
-    const formHasData = Object.values(currentFormData).some(value => {
-      if (typeof value === 'string') return value.trim() !== '';
-      if (typeof value === 'number') return value > 0;
-      return false;
-    });
-
-    // If form already has data, don't overwrite it
-    if (formHasData) {
-      hasFormData.current = true;
-      return;
-    }
-
-    // Only load from database if this is the first load and form is empty
-    if (profileData && !initialLoadComplete.current && !hasFormData.current) {
-      setTimeout(() => {
-        setValue('full_name', profileData.full_name || '', { shouldDirty: false });
-        setValue('phone_number', profileData.phone_number || '', { shouldDirty: false });
-        setValue('date_of_birth', profileData.date_of_birth || '', { shouldDirty: false });
-        setValue('age', profileData.age || 0, { shouldDirty: false });
-        setValue('gender', profileData.gender || '', { shouldDirty: false });
-        setValue('country', profileData.country || '', { shouldDirty: false });
-        setValue('city', profileData.city || '', { shouldDirty: false });
-        setValue('timezone', profileData.timezone || '', { shouldDirty: false });
-        initialLoadComplete.current = true;
-      }, 100);
-    }
-  }, [profileData, setValue, watch]);
-
-  // Updated auto-save logic to respect existing form data
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    const subscription = watch((value, { name }) => {
-      // Only auto-save if initial load is complete and we have form data
-      if (name && value[name] !== undefined && initialLoadComplete.current) {
-        hasFormData.current = true;
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(async () => {
+        if (backupData) {
           try {
-            await updateProfileData('profile', { [name]: value[name] });
+            const parsedBackup = JSON.parse(backupData);
+            const hasBackupData = Object.values(parsedBackup).some(value => {
+              if (typeof value === 'string') return value.trim() !== '';
+              if (typeof value === 'number') return value > 0;
+              return false;
+            });
+            
+            if (hasBackupData && isMounted) {
+              console.log('Loading from sessionStorage backup');
+              Object.keys(parsedBackup).forEach(key => {
+                setValue(key as keyof BasicProfileFormData, parsedBackup[key], { shouldDirty: false, shouldTouch: false });
+              });
+              hasFormData.current = true;
+              initialLoadComplete.current = true;
+              return;
+            }
+          } catch (error) {
+            console.error('Error parsing backup data:', error);
+          }
+        }
+        
+        // Step 2: Load from database if no backup data
+        if (profileData && Object.keys(profileData).length > 0 && isMounted) {
+          console.log('Loading from database');
+          setValue('full_name', profileData.full_name || '', { shouldDirty: false, shouldTouch: false });
+          setValue('phone_number', profileData.phone_number || '', { shouldDirty: false, shouldTouch: false });
+          setValue('date_of_birth', profileData.date_of_birth || '', { shouldDirty: false, shouldTouch: false });
+          setValue('age', profileData.age || 0, { shouldDirty: false, shouldTouch: false });
+          setValue('gender', profileData.gender || '', { shouldDirty: false, shouldTouch: false });
+          setValue('country', profileData.country || '', { shouldDirty: false, shouldTouch: false });
+          setValue('city', profileData.city || '', { shouldDirty: false, shouldTouch: false });
+          setValue('timezone', profileData.timezone || '', { shouldDirty: false, shouldTouch: false });
+          
+          hasFormData.current = true;
+        }
+        
+        initialLoadComplete.current = true;
+        
+      } catch (error) {
+        console.error('Error loading form data:', error);
+      }
+    };
+    
+    // Load data immediately, but only once
+    loadFormData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array - run only once
+
+  // SEPARATE useEffect for auto-save with proper debouncing
+  useEffect(() => {
+    if (!initialLoadComplete.current) return;
+    
+    let saveTimeout: NodeJS.Timeout;
+    
+    const subscription = watch((formData) => {
+      // Only save if we have meaningful data
+      const hasData = Object.values(formData).some(value => {
+        if (typeof value === 'string') return value.trim() !== '';
+        if (typeof value === 'number') return value > 0;
+        return false;
+      });
+      
+      if (hasData) {
+        hasFormData.current = true;
+        
+        // Save to sessionStorage immediately
+        const componentName = 'basicProfile';
+        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(formData));
+        
+        // Debounced database save
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+          try {
+            // Only save non-empty values to database
+            const dataToSave: any = {};
+            Object.entries(formData).forEach(([key, value]) => {
+              if (typeof value === 'string' && value.trim() !== '') {
+                dataToSave[key] = value;
+              } else if (typeof value === 'number' && value > 0) {
+                dataToSave[key] = value;
+              }
+            });
+            
+            if (Object.keys(dataToSave).length > 0) {
+              await updateProfileData('profile', dataToSave);
+            }
           } catch (error) {
             console.error('Auto-save failed:', error);
           }
-        }, 1000);
+        }, 2000); // Increased debounce time
       }
     });
     
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(saveTimeout);
       subscription.unsubscribe();
     };
   }, [watch, updateProfileData]);
 
-  // Handle page visibility changes for tab switching
+  // Add emergency recovery on focus
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Page became visible again - don't reload data if form has content
-        const currentFormData = watch();
-        const formHasData = Object.values(currentFormData).some(value => {
-          if (Array.isArray(value)) return value.length > 0;
-          if (typeof value === 'string') return value.trim() !== '';
-          if (typeof value === 'number') return value > 0;
-          return false;
-        });
+    const handleWindowFocus = () => {
+      if (hasFormData.current) {
+        // Force re-validate form state
+        const componentName = 'basicProfile';
+        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
         
-        if (formHasData) {
-          hasFormData.current = true;
+        if (backupData) {
+          try {
+            const parsedBackup = JSON.parse(backupData);
+            Object.keys(parsedBackup).forEach(key => {
+              const currentValue = watch(key as keyof BasicProfileFormData);
+              if (!currentValue || (typeof currentValue === 'string' && currentValue.trim() === '')) {
+                setValue(key as keyof BasicProfileFormData, parsedBackup[key], { shouldDirty: false });
+              }
+            });
+          } catch (error) {
+            console.error('Error recovering data on focus:', error);
+          }
         }
       }
     };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [watch]);
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [watch, setValue]);
 
-  // Save form data to sessionStorage as backup
-  useEffect(() => {
-    const subscription = watch((value) => {
-      if (hasFormData.current || initialLoadComplete.current) {
-        const componentName = 'basicProfile';
-        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(value));
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [watch]);
+  // Only render form after component is properly mounted
+  if (!componentMounted) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -232,20 +267,18 @@ export const BasicProfileSection: React.FC = () => {
 
   const onSubmit = async (data: BasicProfileFormData) => {
     try {
+      // Don't clear refs here - let the data persist
       await updateProfileData('profile', {
         ...data,
         section_1_completed: true
       });
-      
-      // Clear backup data after successful submit
-      sessionStorage.removeItem('usergy_basicProfile_backup');
       
       toast({
         title: "Basic profile saved!",
         description: "Your basic information has been updated successfully.",
       });
 
-      // Move to next step
+      // Move to next step without clearing data
       setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({

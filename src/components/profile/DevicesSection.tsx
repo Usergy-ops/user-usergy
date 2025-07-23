@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -24,136 +25,167 @@ export const DevicesSection: React.FC = () => {
   // Use refs for persistent state across tab switches
   const initialLoadComplete = useRef(false);
   const hasFormData = useRef(false);
+  
+  // Add component-level data persistence
+  const [componentMounted, setComponentMounted] = useState(false);
 
-  const { handleSubmit, setValue, watch } = useForm<DevicesFormData>({
-    defaultValues: {
-      operating_systems: deviceData.operating_systems || [],
-      devices_owned: deviceData.devices_owned || [],
-      mobile_manufacturers: deviceData.mobile_manufacturers || [],
-      desktop_manufacturers: deviceData.desktop_manufacturers || [],
-      email_clients: deviceData.email_clients || [],
-      streaming_subscriptions: deviceData.streaming_subscriptions || [],
-      music_subscriptions: deviceData.music_subscriptions || [],
-    }
+  const { handleSubmit, setValue, watch, reset } = useForm<DevicesFormData>({
+    mode: 'onChange',
+    shouldFocusError: false
   });
 
-  // Check sessionStorage for backup data and load from database if needed
   useEffect(() => {
-    const componentName = 'devices';
-    const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
+    setComponentMounted(true);
+    return () => setComponentMounted(false);
+  }, []);
+
+  // Single, comprehensive useEffect for data loading
+  useEffect(() => {
+    let isMounted = true;
     
-    if (backupData && !initialLoadComplete.current && !hasFormData.current) {
+    const loadFormData = async () => {
+      if (initialLoadComplete.current) return;
+      
       try {
-        const parsedBackup = JSON.parse(backupData);
-        const hasBackupData = Object.values(parsedBackup).some(value => {
-          if (Array.isArray(value)) return value.length > 0;
-          return false;
-        });
+        // Step 1: Check sessionStorage first
+        const componentName = 'devices';
+        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
         
-        if (hasBackupData) {
-          // Load from backup if it has data
-          Object.keys(parsedBackup).forEach(key => {
-            if (parsedBackup[key] !== undefined && parsedBackup[key] !== null) {
-              setValue(key as any, parsedBackup[key], { shouldDirty: false });
-            }
-          });
-          hasFormData.current = true;
-          initialLoadComplete.current = true;
-          return;
-        }
-      } catch (error) {
-        console.error('Error loading backup data:', error);
-      }
-    }
-
-    // Check if form already has data
-    const currentFormData = watch();
-    const formHasData = Object.values(currentFormData).some(value => {
-      if (Array.isArray(value)) return value.length > 0;
-      return false;
-    });
-
-    // If form already has data, don't overwrite it
-    if (formHasData) {
-      hasFormData.current = true;
-      return;
-    }
-
-    // Only load from database if this is the first load and form is empty
-    if (deviceData && !initialLoadComplete.current && !hasFormData.current) {
-      setTimeout(() => {
-        setValue('operating_systems', deviceData.operating_systems || [], { shouldDirty: false });
-        setValue('devices_owned', deviceData.devices_owned || [], { shouldDirty: false });
-        setValue('mobile_manufacturers', deviceData.mobile_manufacturers || [], { shouldDirty: false });
-        setValue('desktop_manufacturers', deviceData.desktop_manufacturers || [], { shouldDirty: false });
-        setValue('email_clients', deviceData.email_clients || [], { shouldDirty: false });
-        setValue('streaming_subscriptions', deviceData.streaming_subscriptions || [], { shouldDirty: false });
-        setValue('music_subscriptions', deviceData.music_subscriptions || [], { shouldDirty: false });
-        initialLoadComplete.current = true;
-      }, 100);
-    }
-  }, [deviceData, setValue, watch]);
-
-  // Updated auto-save logic to respect existing form data
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    const subscription = watch((value, { name }) => {
-      // Only auto-save if initial load is complete and we have form data
-      if (name && value[name] !== undefined && initialLoadComplete.current) {
-        hasFormData.current = true;
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(async () => {
+        if (backupData) {
           try {
-            await updateProfileData('devices', { [name]: value[name] });
+            const parsedBackup = JSON.parse(backupData);
+            const hasBackupData = Object.values(parsedBackup).some(value => {
+              if (Array.isArray(value)) return value.length > 0;
+              return false;
+            });
+            
+            if (hasBackupData && isMounted) {
+              console.log('Loading devices from sessionStorage backup');
+              Object.keys(parsedBackup).forEach(key => {
+                setValue(key as keyof DevicesFormData, parsedBackup[key] || [], { shouldDirty: false, shouldTouch: false });
+              });
+              hasFormData.current = true;
+              initialLoadComplete.current = true;
+              return;
+            }
           } catch (error) {
-            console.error('Auto-save failed:', error);
+            console.error('Error parsing devices backup data:', error);
           }
-        }, 1000);
+        }
+        
+        // Step 2: Load from database if no backup
+        if (deviceData && Object.keys(deviceData).length > 0 && isMounted) {
+          console.log('Loading devices from database');
+          setValue('operating_systems', deviceData.operating_systems || [], { shouldDirty: false, shouldTouch: false });
+          setValue('devices_owned', deviceData.devices_owned || [], { shouldDirty: false, shouldTouch: false });
+          setValue('mobile_manufacturers', deviceData.mobile_manufacturers || [], { shouldDirty: false, shouldTouch: false });
+          setValue('desktop_manufacturers', deviceData.desktop_manufacturers || [], { shouldDirty: false, shouldTouch: false });
+          setValue('email_clients', deviceData.email_clients || [], { shouldDirty: false, shouldTouch: false });
+          setValue('streaming_subscriptions', deviceData.streaming_subscriptions || [], { shouldDirty: false, shouldTouch: false });
+          setValue('music_subscriptions', deviceData.music_subscriptions || [], { shouldDirty: false, shouldTouch: false });
+          
+          hasFormData.current = true;
+        }
+        
+        initialLoadComplete.current = true;
+        
+      } catch (error) {
+        console.error('Error loading devices form data:', error);
+      }
+    };
+    
+    loadFormData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array
+
+  // Auto-save for devices
+  useEffect(() => {
+    if (!initialLoadComplete.current) return;
+    
+    let saveTimeout: NodeJS.Timeout;
+    
+    const subscription = watch((formData) => {
+      const hasData = Object.values(formData).some(value => {
+        if (Array.isArray(value)) return value.length > 0;
+        return false;
+      });
+      
+      if (hasData) {
+        hasFormData.current = true;
+        
+        // Save to sessionStorage immediately
+        const componentName = 'devices';
+        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(formData));
+        
+        // Debounced database save
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+          try {
+            const dataToSave: any = {};
+            Object.entries(formData).forEach(([key, value]) => {
+              if (Array.isArray(value) && value.length > 0) {
+                dataToSave[key] = value;
+              }
+            });
+            
+            if (Object.keys(dataToSave).length > 0) {
+              await updateProfileData('devices', dataToSave);
+            }
+          } catch (error) {
+            console.error('Devices auto-save failed:', error);
+          }
+        }, 2000);
       }
     });
     
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(saveTimeout);
       subscription.unsubscribe();
     };
   }, [watch, updateProfileData]);
 
-  // Handle page visibility changes for tab switching
+  // Add emergency recovery on focus
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Page became visible again - don't reload data if form has content
-        const currentFormData = watch();
-        const formHasData = Object.values(currentFormData).some(value => {
-          if (Array.isArray(value)) return value.length > 0;
-          return false;
-        });
+    const handleWindowFocus = () => {
+      if (hasFormData.current) {
+        // Force re-validate form state
+        const componentName = 'devices';
+        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
         
-        if (formHasData) {
-          hasFormData.current = true;
+        if (backupData) {
+          try {
+            const parsedBackup = JSON.parse(backupData);
+            Object.keys(parsedBackup).forEach(key => {
+              const currentValue = watch(key as keyof DevicesFormData);
+              if (!currentValue || (Array.isArray(currentValue) && currentValue.length === 0)) {
+                setValue(key as keyof DevicesFormData, parsedBackup[key] || [], { shouldDirty: false });
+              }
+            });
+          } catch (error) {
+            console.error('Error recovering devices data on focus:', error);
+          }
         }
       }
     };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [watch]);
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [watch, setValue]);
 
-  // Save form data to sessionStorage as backup
-  useEffect(() => {
-    const subscription = watch((value) => {
-      if (hasFormData.current || initialLoadComplete.current) {
-        const componentName = 'devices';
-        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(value));
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [watch]);
+  // Only render form after component is properly mounted
+  if (!componentMounted) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const isSectionComplete = () => {
     const formData = watch();
@@ -170,15 +202,11 @@ export const DevicesSection: React.FC = () => {
       await updateProfileData('devices', data);
       await updateProfileData('profile', { section_2_completed: true });
       
-      // Clear backup data after successful submit
-      sessionStorage.removeItem('usergy_devices_backup');
-      
       toast({
         title: "Device preferences saved!",
         description: "Your tech ecosystem has been updated successfully.",
       });
 
-      // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
