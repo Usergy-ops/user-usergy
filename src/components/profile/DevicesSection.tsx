@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Smartphone, Laptop, Monitor, Mail, Music, Video } from 'lucide-react';
+import { Smartphone, Laptop, Monitor, Mail, Music, Video, Users } from 'lucide-react';
 
 interface DevicesFormData {
   operating_systems: string[];
@@ -18,7 +19,7 @@ interface DevicesFormData {
 }
 
 export const DevicesSection: React.FC = () => {
-  const { deviceData, updateProfileData } = useProfile();
+  const { deviceData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
 
   const { handleSubmit, setValue, watch } = useForm<DevicesFormData>({
@@ -33,6 +34,16 @@ export const DevicesSection: React.FC = () => {
     }
   });
 
+  const isSectionComplete = () => {
+    const formData = watch();
+    return !!(
+      formData.operating_systems?.length &&
+      formData.devices_owned?.length &&
+      formData.mobile_manufacturers?.length &&
+      formData.email_clients?.length
+    );
+  };
+
   const onSubmit = async (data: DevicesFormData) => {
     try {
       await updateProfileData('devices', data);
@@ -42,6 +53,9 @@ export const DevicesSection: React.FC = () => {
         title: "Device preferences saved!",
         description: "Your tech ecosystem has been updated successfully.",
       });
+
+      // Move to next step
+      setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
         title: "Error saving preferences",
@@ -112,7 +126,9 @@ export const DevicesSection: React.FC = () => {
         
         {/* Operating Systems */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">Operating Systems</Label>
+          <Label className="text-lg font-medium">
+            Operating Systems <span className="text-red-500">*</span>
+          </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {operatingSystems.map((os) => (
               <div key={os.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -134,7 +150,9 @@ export const DevicesSection: React.FC = () => {
 
         {/* Devices Owned */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">Devices You Own</Label>
+          <Label className="text-lg font-medium">
+            Devices You Own <span className="text-red-500">*</span>
+          </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {devices.map((device) => {
               const IconComponent = device.icon;
@@ -159,7 +177,9 @@ export const DevicesSection: React.FC = () => {
 
         {/* Mobile Manufacturers */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">Mobile Device Brands</Label>
+          <Label className="text-lg font-medium">
+            Mobile Device Brands <span className="text-red-500">*</span>
+          </Label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {mobileManufacturers.map((brand) => (
               <div key={brand} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
@@ -172,6 +192,30 @@ export const DevicesSection: React.FC = () => {
                 />
                 <Label htmlFor={`mobile-${brand}`} className="cursor-pointer text-sm">
                   {brand}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Email Clients */}
+        <div className="space-y-4">
+          <Label className="text-lg font-medium flex items-center space-x-2">
+            <Mail className="w-5 h-5 text-primary" />
+            <span>Email Clients <span className="text-red-500">*</span></span>
+          </Label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {emailClients.map((client) => (
+              <div key={client} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
+                <Checkbox
+                  id={`email-${client}`}
+                  checked={watch('email_clients')?.includes(client)}
+                  onCheckedChange={(checked) => 
+                    handleCheckboxChange('email_clients', client, checked as boolean)
+                  }
+                />
+                <Label htmlFor={`email-${client}`} className="cursor-pointer text-sm">
+                  {client}
                 </Label>
               </div>
             ))}
@@ -233,7 +277,8 @@ export const DevicesSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+            disabled={!isSectionComplete()}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save & Continue
           </Button>

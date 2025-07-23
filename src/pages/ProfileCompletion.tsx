@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +10,6 @@ import { TechFluencySection } from '@/components/profile/TechFluencySection';
 import { SocialPresenceSection } from '@/components/profile/SocialPresenceSection';
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
-import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -20,9 +20,53 @@ const ProfileCompletion = () => {
     setCurrentStep, 
     isProfileComplete, 
     profileData, 
+    deviceData,
+    techFluencyData,
     loading,
     calculateCompletion 
   } = useProfile();
+
+  // Calculate real-time completion percentage
+  const calculateRealTimeCompletion = () => {
+    const mandatoryFields = {
+      // Basic Profile (8 fields)
+      full_name: profileData.full_name,
+      avatar_url: profileData.avatar_url,
+      country: profileData.country,
+      city: profileData.city,
+      phone_number: profileData.phone_number,
+      gender: profileData.gender,
+      age: profileData.age,
+      timezone: profileData.timezone,
+      
+      // Devices & Tech (4 fields)
+      operating_systems: deviceData.operating_systems,
+      devices_owned: deviceData.devices_owned,
+      mobile_manufacturers: deviceData.mobile_manufacturers,
+      email_clients: deviceData.email_clients,
+      
+      // Education & Work (1 field)
+      education_level: profileData.education_level,
+      
+      // AI & Tech Fluency (4 fields)
+      technical_experience_level: profileData.technical_experience_level,
+      ai_familiarity_level: profileData.ai_familiarity_level,
+      ai_tools_used: techFluencyData.ai_models_used,
+      ai_interests: techFluencyData.ai_interests,
+    };
+
+    const totalFields = Object.keys(mandatoryFields).length;
+    const completedFields = Object.values(mandatoryFields).filter(value => {
+      if (Array.isArray(value)) {
+        return value && value.length > 0;
+      }
+      return value && value.toString().trim() !== '';
+    }).length;
+
+    return Math.round((completedFields / totalFields) * 100);
+  };
+
+  const realTimeCompletion = calculateRealTimeCompletion();
 
   useEffect(() => {
     if (user) {
@@ -77,7 +121,7 @@ const ProfileCompletion = () => {
       <ProfileProgressBar 
         currentStep={currentStep}
         totalSteps={sections.length}
-        completionPercentage={profileData.completion_percentage || 0}
+        completionPercentage={realTimeCompletion}
       />
 
       {/* Main Content */}
@@ -140,33 +184,32 @@ const ProfileCompletion = () => {
 
             {/* Navigation */}
             <div className="flex items-center justify-between pt-8 border-t border-border">
-              <Button
-                variant="outline"
+              <button
                 onClick={handlePrevious}
                 disabled={isFirstStep}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 px-4 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Previous</span>
-              </Button>
+              </button>
 
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
-                  {profileData.completion_percentage || 0}% complete
+                  {realTimeCompletion}% complete
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {isLastStep ? "Almost done!" : `${sections.length - currentStep} more steps`}
                 </p>
               </div>
 
-              <Button
+              <button
                 onClick={handleNext}
                 disabled={isLastStep}
-                className="flex items-center space-x-2 bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+                className="flex items-center space-x-2 px-4 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span>Continue</span>
                 <ChevronRight className="w-4 h-4" />
-              </Button>
+              </button>
             </div>
           </div>
 

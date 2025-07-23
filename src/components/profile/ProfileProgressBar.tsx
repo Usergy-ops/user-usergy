@@ -1,5 +1,7 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
+import { useProfile } from '@/contexts/ProfileContext';
 
 interface ProfileProgressBarProps {
   currentStep: number;
@@ -12,6 +14,53 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
   totalSteps,
   completionPercentage
 }) => {
+  const { profileData, deviceData, techFluencyData } = useProfile();
+  const [realTimeCompletion, setRealTimeCompletion] = useState(completionPercentage);
+
+  // Calculate real-time completion percentage
+  useEffect(() => {
+    const calculateRealTimeCompletion = () => {
+      const mandatoryFields = {
+        // Basic Profile (8 fields)
+        full_name: profileData.full_name,
+        avatar_url: profileData.avatar_url,
+        country: profileData.country,
+        city: profileData.city,
+        phone_number: profileData.phone_number,
+        gender: profileData.gender,
+        age: profileData.age,
+        timezone: profileData.timezone,
+        
+        // Devices & Tech (4 fields)
+        operating_systems: deviceData.operating_systems,
+        devices_owned: deviceData.devices_owned,
+        mobile_manufacturers: deviceData.mobile_manufacturers,
+        email_clients: deviceData.email_clients,
+        
+        // Education & Work (1 field)
+        education_level: profileData.education_level,
+        
+        // AI & Tech Fluency (4 fields)
+        technical_experience_level: profileData.technical_experience_level,
+        ai_familiarity_level: profileData.ai_familiarity_level,
+        ai_tools_used: techFluencyData.ai_models_used,
+        ai_interests: techFluencyData.ai_interests,
+      };
+
+      const totalFields = Object.keys(mandatoryFields).length;
+      const completedFields = Object.values(mandatoryFields).filter(value => {
+        if (Array.isArray(value)) {
+          return value && value.length > 0;
+        }
+        return value && value.toString().trim() !== '';
+      }).length;
+
+      return Math.round((completedFields / totalFields) * 100);
+    };
+
+    setRealTimeCompletion(calculateRealTimeCompletion());
+  }, [profileData, deviceData, techFluencyData]);
+
   return (
     <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto px-4 py-4">
@@ -25,16 +74,16 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold bg-gradient-to-r from-primary-start to-primary-end bg-clip-text text-transparent">
-                {completionPercentage}%
+                {realTimeCompletion}%
               </div>
               <div className="text-xs text-muted-foreground">
-                {completionPercentage >= 100 ? 'Complete!' : 'Almost there!'}
+                {realTimeCompletion >= 100 ? 'Complete!' : 'Almost there!'}
               </div>
             </div>
           </div>
           
           <Progress 
-            value={completionPercentage} 
+            value={realTimeCompletion} 
             className="h-3 bg-muted"
           />
           

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -18,7 +19,7 @@ interface SkillsInterestsFormData {
 }
 
 export const SkillsInterestsSection: React.FC = () => {
-  const { profileData, skillsData, updateProfileData } = useProfile();
+  const { profileData, skillsData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
 
   const { register, handleSubmit, setValue, watch } = useForm<SkillsInterestsFormData>({
@@ -51,6 +52,9 @@ export const SkillsInterestsSection: React.FC = () => {
         title: "Profile completed!",
         description: "Your Explorer profile is now complete.",
       });
+
+      // Move to next step (completion)
+      setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
         title: "Error completing profile",

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -20,7 +21,7 @@ interface EducationWorkFormData {
 }
 
 export const EducationWorkSection: React.FC = () => {
-  const { profileData, updateProfileData } = useProfile();
+  const { profileData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<EducationWorkFormData>({
@@ -36,6 +37,11 @@ export const EducationWorkSection: React.FC = () => {
     }
   });
 
+  const isSectionComplete = () => {
+    const formData = watch();
+    return !!(formData.education_level);
+  };
+
   const onSubmit = async (data: EducationWorkFormData) => {
     try {
       await updateProfileData('profile', {
@@ -47,6 +53,9 @@ export const EducationWorkSection: React.FC = () => {
         title: "Education & work info saved!",
         description: "Your professional information has been updated successfully.",
       });
+
+      // Move to next step
+      setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
         title: "Error saving information",
@@ -58,7 +67,7 @@ export const EducationWorkSection: React.FC = () => {
 
   const educationLevels = [
     'High School', 'Some College', 'Associate Degree', 'Bachelor\'s Degree', 
-    'Master\'s Degree', 'Doctoral Degree', 'Other'
+    'Master\'s Degree', 'Doctoral Degree', 'Professional Degree', 'Other'
   ];
 
   const industries = [
@@ -106,7 +115,9 @@ export const EducationWorkSection: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Education Level</Label>
+              <Label className="text-sm font-medium">
+                Highest Level of Education <span className="text-red-500">*</span>
+              </Label>
               <Select 
                 value={watch('education_level')} 
                 onValueChange={(value) => setValue('education_level', value)}
@@ -251,7 +262,8 @@ export const EducationWorkSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+            disabled={!isSectionComplete()}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save & Continue
           </Button>

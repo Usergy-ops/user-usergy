@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -15,12 +16,12 @@ interface TechFluencyFormData {
   ai_familiarity_level: string;
   ai_interests: string[];
   ai_models_used: string[];
-  programming_languages: Record<string, string>;
+  programming_languages: string[];
   coding_experience_years: number;
 }
 
 export const TechFluencySection: React.FC = () => {
-  const { profileData, techFluencyData, updateProfileData } = useProfile();
+  const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
 
   const { register, handleSubmit, setValue, watch } = useForm<TechFluencyFormData>({
@@ -29,10 +30,20 @@ export const TechFluencySection: React.FC = () => {
       ai_familiarity_level: profileData.ai_familiarity_level || '',
       ai_interests: techFluencyData.ai_interests || [],
       ai_models_used: techFluencyData.ai_models_used || [],
-      programming_languages: techFluencyData.programming_languages || {},
+      programming_languages: techFluencyData.programming_languages || [],
       coding_experience_years: techFluencyData.coding_experience_years || 0,
     }
   });
+
+  const isSectionComplete = () => {
+    const formData = watch();
+    return !!(
+      formData.technical_experience_level &&
+      formData.ai_familiarity_level &&
+      formData.ai_interests?.length &&
+      formData.ai_models_used?.length
+    );
+  };
 
   const onSubmit = async (data: TechFluencyFormData) => {
     try {
@@ -55,6 +66,9 @@ export const TechFluencySection: React.FC = () => {
         title: "Tech fluency saved!",
         description: "Your technical expertise has been updated successfully.",
       });
+
+      // Move to next step
+      setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
         title: "Error saving tech fluency",
@@ -96,18 +110,13 @@ export const TechFluencySection: React.FC = () => {
     'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin', 'SQL', 'HTML/CSS'
   ];
 
-  const handleCheckboxChange = (field: 'ai_interests' | 'ai_models_used', value: string, checked: boolean) => {
+  const handleCheckboxChange = (field: 'ai_interests' | 'ai_models_used' | 'programming_languages', value: string, checked: boolean) => {
     const current = watch(field) || [];
     if (checked) {
       setValue(field, [...current, value]);
     } else {
       setValue(field, current.filter(item => item !== value));
     }
-  };
-
-  const handleLanguageProficiency = (language: string, proficiency: string) => {
-    const current = watch('programming_languages') || {};
-    setValue('programming_languages', { ...current, [language]: proficiency });
   };
 
   return (
@@ -128,7 +137,7 @@ export const TechFluencySection: React.FC = () => {
         <div className="space-y-4 p-6 border rounded-lg bg-muted/20">
           <h4 className="text-lg font-medium flex items-center space-x-2">
             <Code className="w-5 h-5 text-primary" />
-            <span>Technical Experience</span>
+            <span>Technical Experience <span className="text-red-500">*</span></span>
           </h4>
           
           <div className="space-y-3">
@@ -153,7 +162,7 @@ export const TechFluencySection: React.FC = () => {
         <div className="space-y-4 p-6 border rounded-lg bg-muted/20">
           <h4 className="text-lg font-medium flex items-center space-x-2">
             <Zap className="w-5 h-5 text-primary" />
-            <span>AI Familiarity</span>
+            <span>AI Familiarity <span className="text-red-500">*</span></span>
           </h4>
           
           <div className="space-y-3">
@@ -176,7 +185,9 @@ export const TechFluencySection: React.FC = () => {
 
         {/* AI Interests */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">AI Use Cases You're Interested In</Label>
+          <Label className="text-lg font-medium">
+            AI Use Cases You're Interested In <span className="text-red-500">*</span>
+          </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {aiInterests.map((interest) => (
               <div key={interest} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
@@ -197,7 +208,9 @@ export const TechFluencySection: React.FC = () => {
 
         {/* AI Models Used */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">AI Tools You've Used</Label>
+          <Label className="text-lg font-medium">
+            AI Tools You've Used <span className="text-red-500">*</span>
+          </Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {aiModels.map((model) => (
               <div key={model} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
@@ -219,24 +232,19 @@ export const TechFluencySection: React.FC = () => {
         {/* Programming Languages */}
         <div className="space-y-4">
           <Label className="text-lg font-medium">Programming Languages (Optional)</Label>
-          <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {programmingLanguages.map((language) => (
-              <div key={language} className="flex items-center justify-between p-3 border rounded-lg">
-                <span className="font-medium">{language}</span>
-                <Select
-                  value={watch('programming_languages')?.[language] || ''}
-                  onValueChange={(value) => handleLanguageProficiency(language, value)}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="beginner">Beginner</SelectItem>
-                    <SelectItem value="intermediate">Intermediate</SelectItem>
-                    <SelectItem value="advanced">Advanced</SelectItem>
-                    <SelectItem value="expert">Expert</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div key={language} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
+                <Checkbox
+                  id={`lang-${language}`}
+                  checked={watch('programming_languages')?.includes(language)}
+                  onCheckedChange={(checked) => 
+                    handleCheckboxChange('programming_languages', language, checked as boolean)
+                  }
+                />
+                <Label htmlFor={`lang-${language}`} className="cursor-pointer text-sm">
+                  {language}
+                </Label>
               </div>
             ))}
           </div>
@@ -263,7 +271,8 @@ export const TechFluencySection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+            disabled={!isSectionComplete()}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save & Continue
           </Button>

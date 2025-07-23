@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -13,13 +14,15 @@ interface BasicProfileFormData {
   full_name: string;
   phone_number: string;
   date_of_birth: string;
+  age: number;
   gender: string;
   country: string;
   city: string;
+  timezone: string;
 }
 
 export const BasicProfileSection: React.FC = () => {
-  const { profileData, updateProfileData, uploadProfilePicture } = useProfile();
+  const { profileData, updateProfileData, uploadProfilePicture, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -29,11 +32,78 @@ export const BasicProfileSection: React.FC = () => {
       full_name: profileData.full_name || '',
       phone_number: profileData.phone_number || '',
       date_of_birth: profileData.date_of_birth || '',
+      age: profileData.age || 0,
       gender: profileData.gender || '',
       country: profileData.country || '',
       city: profileData.city || '',
+      timezone: profileData.timezone || '',
     }
   });
+
+  const countries = [
+    "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
+    "Austria", "Azerbaijan", "Bahrain", "Bangladesh", "Belarus", "Belgium",
+    "Bolivia", "Brazil", "Bulgaria", "Cambodia", "Canada", "Chile", "China",
+    "Colombia", "Croatia", "Czech Republic", "Denmark", "Ecuador", "Egypt",
+    "Estonia", "Ethiopia", "Finland", "France", "Georgia", "Germany", "Ghana",
+    "Greece", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq",
+    "Ireland", "Israel", "Italy", "Japan", "Jordan", "Kazakhstan", "Kenya",
+    "Kuwait", "Latvia", "Lebanon", "Lithuania", "Malaysia", "Mexico",
+    "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Pakistan",
+    "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia",
+    "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
+    "Sri Lanka", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine",
+    "United Arab Emirates", "United Kingdom", "United States", "Uruguay",
+    "Venezuela", "Vietnam"
+  ];
+
+  const timezones = [
+    { value: "GMT-12:00", label: "(GMT-12:00) International Date Line West" },
+    { value: "GMT-11:00", label: "(GMT-11:00) Midway Island, Samoa" },
+    { value: "GMT-10:00", label: "(GMT-10:00) Hawaii" },
+    { value: "GMT-09:00", label: "(GMT-09:00) Alaska" },
+    { value: "GMT-08:00", label: "(GMT-08:00) Pacific Time (US & Canada)" },
+    { value: "GMT-07:00", label: "(GMT-07:00) Mountain Time (US & Canada)" },
+    { value: "GMT-06:00", label: "(GMT-06:00) Central Time (US & Canada)" },
+    { value: "GMT-05:00", label: "(GMT-05:00) Eastern Time (US & Canada)" },
+    { value: "GMT-04:00", label: "(GMT-04:00) Atlantic Time (Canada)" },
+    { value: "GMT-03:30", label: "(GMT-03:30) Newfoundland" },
+    { value: "GMT-03:00", label: "(GMT-03:00) Brazil, Buenos Aires" },
+    { value: "GMT-02:00", label: "(GMT-02:00) Mid-Atlantic" },
+    { value: "GMT-01:00", label: "(GMT-01:00) Azores, Cape Verde Islands" },
+    { value: "GMT+00:00", label: "(GMT+00:00) Western Europe Time, London" },
+    { value: "GMT+01:00", label: "(GMT+01:00) Central Europe Time, Paris" },
+    { value: "GMT+02:00", label: "(GMT+02:00) Eastern Europe Time, Cairo" },
+    { value: "GMT+03:00", label: "(GMT+03:00) Baghdad, Riyadh, Moscow" },
+    { value: "GMT+03:30", label: "(GMT+03:30) Tehran" },
+    { value: "GMT+04:00", label: "(GMT+04:00) Abu Dhabi, Muscat, Baku" },
+    { value: "GMT+04:30", label: "(GMT+04:30) Kabul" },
+    { value: "GMT+05:00", label: "(GMT+05:00) Ekaterinburg, Islamabad" },
+    { value: "GMT+05:30", label: "(GMT+05:30) Bombay, Calcutta, Madras, New Delhi" },
+    { value: "GMT+05:45", label: "(GMT+05:45) Kathmandu" },
+    { value: "GMT+06:00", label: "(GMT+06:00) Almaty, Dhaka, Colombo" },
+    { value: "GMT+07:00", label: "(GMT+07:00) Bangkok, Hanoi, Jakarta" },
+    { value: "GMT+08:00", label: "(GMT+08:00) Beijing, Perth, Singapore" },
+    { value: "GMT+09:00", label: "(GMT+09:00) Tokyo, Seoul, Osaka" },
+    { value: "GMT+09:30", label: "(GMT+09:30) Adelaide, Darwin" },
+    { value: "GMT+10:00", label: "(GMT+10:00) Eastern Australia, Guam" },
+    { value: "GMT+11:00", label: "(GMT+11:00) Magadan, Solomon Islands" },
+    { value: "GMT+12:00", label: "(GMT+12:00) Auckland, Wellington, Fiji" }
+  ];
+
+  const isSectionComplete = () => {
+    const formData = watch();
+    return !!(
+      formData.full_name?.trim() &&
+      formData.phone_number?.trim() &&
+      formData.age &&
+      formData.gender &&
+      formData.country &&
+      formData.city?.trim() &&
+      formData.timezone &&
+      profileData.avatar_url
+    );
+  };
 
   const onSubmit = async (data: BasicProfileFormData) => {
     try {
@@ -46,6 +116,9 @@ export const BasicProfileSection: React.FC = () => {
         title: "Basic profile saved!",
         description: "Your basic information has been updated successfully.",
       });
+
+      // Move to next step
+      setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
         title: "Error saving profile",
@@ -91,11 +164,6 @@ export const BasicProfileSection: React.FC = () => {
     }
   };
 
-  const countries = [
-    "United States", "Canada", "United Kingdom", "Germany", "France", "Australia", 
-    "Japan", "Singapore", "Netherlands", "Sweden", "Other"
-  ];
-
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -137,7 +205,7 @@ export const BasicProfileSection: React.FC = () => {
         />
         
         <p className="text-sm text-muted-foreground text-center">
-          Click to upload your profile picture<br />
+          Click to upload your profile picture <span className="text-red-500">*</span><br />
           <span className="text-xs">JPG, PNG up to 5MB</span>
         </p>
       </div>
@@ -149,7 +217,7 @@ export const BasicProfileSection: React.FC = () => {
           {/* Full Name */}
           <div className="space-y-2">
             <Label htmlFor="full_name" className="text-sm font-medium">
-              Full Name *
+              Full Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="full_name"
@@ -165,15 +233,18 @@ export const BasicProfileSection: React.FC = () => {
           {/* Phone Number */}
           <div className="space-y-2">
             <Label htmlFor="phone_number" className="text-sm font-medium">
-              Phone Number
+              Phone Number <span className="text-red-500">*</span>
             </Label>
             <Input
               id="phone_number"
-              {...register('phone_number')}
+              {...register('phone_number', { required: 'Phone number is required' })}
               className="bg-background"
               placeholder="+1 (555) 123-4567"
               type="tel"
             />
+            {errors.phone_number && (
+              <p className="text-sm text-destructive">{errors.phone_number.message}</p>
+            )}
           </div>
 
           {/* Date of Birth */}
@@ -189,9 +260,31 @@ export const BasicProfileSection: React.FC = () => {
             />
           </div>
 
+          {/* Age */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Age <span className="text-red-500">*</span>
+            </Label>
+            <Select 
+              value={watch('age')?.toString() || ''} 
+              onValueChange={(value) => setValue('age', parseInt(value))}
+            >
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select your age" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 83 }, (_, i) => i + 18).map(age => (
+                  <SelectItem key={age} value={age.toString()}>{age}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Gender */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Gender</Label>
+            <Label className="text-sm font-medium">
+              Gender <span className="text-red-500">*</span>
+            </Label>
             <Select 
               value={watch('gender')} 
               onValueChange={(value) => setValue('gender', value)}
@@ -210,7 +303,9 @@ export const BasicProfileSection: React.FC = () => {
 
           {/* Country */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Country *</Label>
+            <Label className="text-sm font-medium">
+              Country <span className="text-red-500">*</span>
+            </Label>
             <Select 
               value={watch('country')} 
               onValueChange={(value) => setValue('country', value)}
@@ -231,21 +326,47 @@ export const BasicProfileSection: React.FC = () => {
           {/* City */}
           <div className="space-y-2">
             <Label htmlFor="city" className="text-sm font-medium">
-              City
+              City <span className="text-red-500">*</span>
             </Label>
             <Input
               id="city"
-              {...register('city')}
+              {...register('city', { required: 'City is required' })}
               className="bg-background"
               placeholder="Your city"
             />
+            {errors.city && (
+              <p className="text-sm text-destructive">{errors.city.message}</p>
+            )}
+          </div>
+
+          {/* Timezone */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Timezone <span className="text-red-500">*</span>
+            </Label>
+            <Select 
+              value={watch('timezone')} 
+              onValueChange={(value) => setValue('timezone', value)}
+            >
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select your timezone" />
+              </SelectTrigger>
+              <SelectContent>
+                {timezones.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+            disabled={!isSectionComplete()}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save & Continue
           </Button>
