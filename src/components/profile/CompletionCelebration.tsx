@@ -6,25 +6,22 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Sparkles, Users, Zap, Loader2 } from 'lucide-react';
 
 export const CompletionCelebration: React.FC = () => {
-  const { profileData, isProfileComplete, loading } = useProfile();
+  const { profileData, isProfileComplete, loading, calculateCompletion } = useProfile();
   const navigate = useNavigate();
   const [isPolling, setIsPolling] = useState(false);
 
-  // Poll for profile completion if not complete yet
+  // Poll for profile completion and force recalculation
   useEffect(() => {
     if (!isProfileComplete && !loading) {
       setIsPolling(true);
-      const pollInterval = setInterval(() => {
-        // The useProfile context will automatically update isProfileComplete
-        // when the profile data changes, so we just need to check periodically
-        if (isProfileComplete) {
-          setIsPolling(false);
-          clearInterval(pollInterval);
-        }
-      }, 500);
+      const pollInterval = setInterval(async () => {
+        console.log('Polling: forcing completion recalculation...');
+        await calculateCompletion(); // Force recalculation and state update
+      }, 1000);
 
       // Clean up after 10 seconds to prevent infinite polling
       const timeout = setTimeout(() => {
+        console.log('Polling timeout reached, stopping...');
         setIsPolling(false);
         clearInterval(pollInterval);
       }, 10000);
@@ -33,8 +30,10 @@ export const CompletionCelebration: React.FC = () => {
         clearInterval(pollInterval);
         clearTimeout(timeout);
       };
+    } else {
+      setIsPolling(false);
     }
-  }, [isProfileComplete, loading]);
+  }, [isProfileComplete, loading, calculateCompletion]);
 
   const handleContinue = () => {
     if (isProfileComplete) {
@@ -43,6 +42,14 @@ export const CompletionCelebration: React.FC = () => {
   };
 
   const isButtonDisabled = !isProfileComplete || loading || isPolling;
+
+  // Debug logging
+  console.log('CompletionCelebration state:', {
+    isProfileComplete,
+    loading,
+    isPolling,
+    completionPercentage: profileData.completion_percentage
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
@@ -108,7 +115,7 @@ export const CompletionCelebration: React.FC = () => {
                 <CheckCircle className="w-8 h-8 text-success mx-auto mb-2" />
               )}
               <div className="text-2xl font-bold text-foreground">
-                {isButtonDisabled ? 'Processing...' : '100%'}
+                {isButtonDisabled ? `${profileData.completion_percentage || 0}%` : '100%'}
               </div>
               <div className="text-sm text-muted-foreground">Profile Complete</div>
             </div>
