@@ -20,12 +20,12 @@ export const ProfileSection6: React.FC<ProfileSection6Props> = ({ data }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleMultiSelect = (field: string, value: string, checked: boolean) => {
+  const handleMultiSelect = (field: 'product_categories', value: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: checked 
-        ? [...(prev[field as keyof typeof prev] || []), value]
-        : (prev[field as keyof typeof prev] || []).filter(item => item !== value)
+        ? [...prev[field], value]
+        : prev[field].filter(item => item !== value)
     }));
   };
 
