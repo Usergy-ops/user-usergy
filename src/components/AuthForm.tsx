@@ -1,5 +1,8 @@
+
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, Check, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface AuthFormProps {
@@ -11,10 +14,17 @@ interface AuthFormProps {
 export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = false }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showOtpLogin, setShowOtpLogin] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [emailValid, setEmailValid] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  
+  const { sendOTP, verifyOTP } = useAuth();
+  const { toast } = useToast();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,8 +66,84 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
     validatePassword(value);
   };
 
+  const handleSendOTP = async () => {
+    if (!validateEmail(email)) return;
+    
+    setOtpLoading(true);
+    try {
+      const { error } = await sendOTP(email);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to send OTP. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        setOtpSent(true);
+        toast({
+          title: "OTP Sent",
+          description: "Check your email for the verification code.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send OTP. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit OTP.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const { error } = await verifyOTP(email, otp);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Invalid OTP. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "OTP verified successfully!",
+        });
+        // Auth context will handle the redirect
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to verify OTP. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (showOtpLogin) {
+      if (otpSent) {
+        handleVerifyOTP();
+      } else {
+        handleSendOTP();
+      }
+      return;
+    }
     
     const isEmailValid = validateEmail(email);
     const isPasswordValid = mode === 'signin' || validatePassword(password);
@@ -67,7 +153,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
     }
   };
 
-  const isFormValid = emailValid && (mode === 'signin' ? password : password.length >= 8);
+  const isFormValid = showOtpLogin 
+    ? emailValid && (!otpSent || otp.length === 6)
+    : emailValid && (mode === 'signin' ? password : password.length >= 8);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -91,6 +179,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
               emailValid && "usergy-input-success"
             )}
             required
+            disabled={showOtpLogin && otpSent}
           />
           {emailValid && (
             <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
@@ -111,8 +200,28 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
         )}
       </div>
 
-      {/* Password Field (for Sign In or Sign Up) */}
-      {(mode === 'signin' || mode === 'signup') && (
+      {/* OTP Field (when OTP login is selected and OTP is sent) */}
+      {showOtpLogin && otpSent && (
+        <div className="space-y-2">
+          <div className="relative">
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Enter 6-digit code"
+              className="usergy-input w-full text-center text-2xl font-bold tracking-widest"
+              maxLength={6}
+              required
+            />
+          </div>
+          <label className="block text-sm font-medium text-muted-foreground ml-1">
+            Enter the verification code sent to your email
+          </label>
+        </div>
+      )}
+
+      {/* Password Field (for traditional login/signup) */}
+      {!showOtpLogin && (mode === 'signin' || mode === 'signup') && (
         <div className="space-y-2">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -149,8 +258,25 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
         </div>
       )}
 
-      {/* Forgot Password Link (Sign In only) */}
+      {/* Toggle between password and OTP login */}
       {mode === 'signin' && (
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setShowOtpLogin(!showOtpLogin);
+              setOtpSent(false);
+              setOtp('');
+            }}
+            className="text-sm text-primary hover:text-primary-end transition-colors duration-300"
+          >
+            {showOtpLogin ? 'Use password instead' : 'Sign in with OTP'}
+          </button>
+        </div>
+      )}
+
+      {/* Forgot Password Link (Sign In with password only) */}
+      {mode === 'signin' && !showOtpLogin && (
         <div className="text-right">
           <button
             type="button"
@@ -164,19 +290,25 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={!isFormValid || isLoading}
+        disabled={!isFormValid || isLoading || otpLoading}
         className={cn(
           "w-full usergy-btn-primary text-lg font-semibold py-4 mt-8",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         )}
       >
-        {isLoading ? (
+        {(isLoading || otpLoading) ? (
           <div className="flex items-center justify-center space-x-2">
             <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
-            <span>Getting things ready...</span>
+            <span>
+              {otpLoading ? 'Processing...' : 'Getting things ready...'}
+            </span>
           </div>
         ) : (
-          mode === 'signup' ? 'Start Your Journey' : 'Welcome Back'
+          showOtpLogin ? (
+            otpSent ? 'Verify Code' : 'Send Verification Code'
+          ) : (
+            mode === 'signup' ? 'Start Your Journey' : 'Welcome Back'
+          )
         )}
       </button>
     </form>

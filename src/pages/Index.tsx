@@ -1,42 +1,97 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { AuthToggle } from '@/components/AuthToggle';
 import { AuthForm } from '@/components/AuthForm';
 import { GoogleAuthButton } from '@/components/UsergyCTA';
 import { NetworkNodes } from '@/components/NetworkNodes';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import heroIllustration from '@/assets/usergy-hero-illustration.png';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [isLoading, setIsLoading] = useState(false);
+  const { signUp, signIn, signInWithGoogle, user, loading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/profile-completion');
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Don't render if user is authenticated (will redirect)
+  if (user) {
+    return null;
+  }
 
   const handleAuthSubmit = async (email: string, password?: string) => {
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      let result;
+      if (authMode === 'signup') {
+        result = await signUp(email, password || '');
+      } else {
+        result = await signIn(email, password || '');
+      }
+
+      if (result.error) {
+        toast({
+          title: "Error",
+          description: result.error.message,
+          variant: "destructive"
+        });
+      } else if (authMode === 'signup') {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to complete your registration.",
+        });
+      }
+    } catch (error) {
       toast({
-        title: authMode === 'signup' ? "Welcome to Usergy!" : "Welcome back!",
-        description: authMode === 'signup' 
-          ? "Your journey as a digital explorer begins now." 
-          : "Great to see you again, explorer.",
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
       });
-    }, 2000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     
-    // Simulate Google auth
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Connected!",
-        description: "Successfully authenticated with Google.",
+        title: "Error",
+        description: "Failed to connect with Google. Please try again.",
+        variant: "destructive"
       });
-    }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
