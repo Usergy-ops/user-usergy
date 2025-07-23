@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message: string
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_familiarity_level: string | null
@@ -134,6 +167,186 @@ export type Database = {
           updated_at?: string
           user_id?: string
           work_role?: string | null
+        }
+        Relationships: []
+      }
+      project_applications: {
+        Row: {
+          applied_at: string
+          id: string
+          message: string | null
+          project_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string
+          id?: string
+          message?: string | null
+          project_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string
+          id?: string
+          message?: string | null
+          project_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_applications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_invitations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          invited_by: string
+          message: string | null
+          project_id: string
+          status: Database["public"]["Enums"]["invitation_status_enum"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          message?: string | null
+          project_id: string
+          status?: Database["public"]["Enums"]["invitation_status_enum"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          message?: string | null
+          project_id?: string
+          status?: Database["public"]["Enums"]["invitation_status_enum"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_invitations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_participants: {
+        Row: {
+          certificate_url: string | null
+          completed_at: string | null
+          completion_percentage: number | null
+          earned_amount: number | null
+          id: string
+          joined_at: string
+          project_id: string
+          rating: number | null
+          user_id: string
+        }
+        Insert: {
+          certificate_url?: string | null
+          completed_at?: string | null
+          completion_percentage?: number | null
+          earned_amount?: number | null
+          id?: string
+          joined_at?: string
+          project_id: string
+          rating?: number | null
+          user_id: string
+        }
+        Update: {
+          certificate_url?: string | null
+          completed_at?: string | null
+          completion_percentage?: number | null
+          earned_amount?: number | null
+          id?: string
+          joined_at?: string
+          project_id?: string
+          rating?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_participants_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          category: Database["public"]["Enums"]["project_category_enum"]
+          client_avatar_url: string | null
+          client_name: string
+          created_at: string
+          current_participants: number | null
+          deadline: string | null
+          description: string
+          difficulty_level: Database["public"]["Enums"]["difficulty_level_enum"]
+          id: string
+          is_public: boolean | null
+          max_participants: number | null
+          required_skills: string[] | null
+          reward_amount: number
+          status: Database["public"]["Enums"]["project_status_enum"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["project_category_enum"]
+          client_avatar_url?: string | null
+          client_name: string
+          created_at?: string
+          current_participants?: number | null
+          deadline?: string | null
+          description: string
+          difficulty_level: Database["public"]["Enums"]["difficulty_level_enum"]
+          id?: string
+          is_public?: boolean | null
+          max_participants?: number | null
+          required_skills?: string[] | null
+          reward_amount: number
+          status?: Database["public"]["Enums"]["project_status_enum"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["project_category_enum"]
+          client_avatar_url?: string | null
+          client_name?: string
+          created_at?: string
+          current_participants?: number | null
+          deadline?: string | null
+          description?: string
+          difficulty_level?: Database["public"]["Enums"]["difficulty_level_enum"]
+          id?: string
+          is_public?: boolean | null
+          max_participants?: number | null
+          required_skills?: string[] | null
+          reward_amount?: number
+          status?: Database["public"]["Enums"]["project_status_enum"]
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -375,7 +588,17 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      difficulty_level_enum: "beginner" | "intermediate" | "advanced" | "expert"
+      invitation_status_enum: "pending" | "accepted" | "declined" | "expired"
+      project_category_enum:
+        | "ai_ml"
+        | "mobile_apps"
+        | "web_platforms"
+        | "blockchain"
+        | "data_science"
+        | "ui_ux"
+        | "other"
+      project_status_enum: "active" | "completed" | "cancelled" | "pending"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -502,6 +725,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      difficulty_level_enum: ["beginner", "intermediate", "advanced", "expert"],
+      invitation_status_enum: ["pending", "accepted", "declined", "expired"],
+      project_category_enum: [
+        "ai_ml",
+        "mobile_apps",
+        "web_platforms",
+        "blockchain",
+        "data_science",
+        "ui_ux",
+        "other",
+      ],
+      project_status_enum: ["active", "completed", "cancelled", "pending"],
+    },
   },
 } as const
