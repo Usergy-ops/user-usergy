@@ -126,6 +126,24 @@ const safeConvertObject = (value: any): any => {
   return {};
 };
 
+// Convert programming_languages from jsonb to array
+const safeConvertProgrammingLanguages = (value: any): string[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  if (typeof value === 'object' && value !== null) {
+    // Handle if it's already a parsed object
+    return Array.isArray(value) ? value : [];
+  }
+  return [];
+};
+
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState<ProfileData>({});
@@ -186,11 +204,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         music_subscriptions: devices ? safeConvertArray(devices.music_subscriptions) : [],
       });
 
-      // Set tech fluency data
+      // Set tech fluency data with proper programming_languages conversion
       setTechFluencyData({
         ai_interests: techFluency ? safeConvertArray(techFluency.ai_interests) : [],
         ai_models_used: techFluency ? safeConvertArray(techFluency.ai_models_used) : [],
-        programming_languages: techFluency ? safeConvertArray(techFluency.programming_languages) : [],
+        programming_languages: techFluency ? safeConvertProgrammingLanguages(techFluency.programming_languages) : [],
         coding_experience_years: techFluency?.coding_experience_years || 0,
       });
 
@@ -240,6 +258,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           !(Array.isArray(value) && value.length === 0)
         )
       );
+
+      console.log(`[ProfileContext] Clean data for ${section}:`, cleanData);
 
       // Save to database using simplified service
       switch (section) {

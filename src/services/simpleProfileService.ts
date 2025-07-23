@@ -59,10 +59,10 @@ export class SimpleProfileService {
     try {
       console.log('[SimpleProfileService] Saving tech fluency data:', data);
       
-      // Convert programming_languages array to proper format
+      // Convert programming_languages array to jsonb format for database
       const processedData = {
         ...data,
-        programming_languages: data.programming_languages || []
+        programming_languages: data.programming_languages ? JSON.stringify(data.programming_languages) : null
       };
       
       const { error } = await supabase
