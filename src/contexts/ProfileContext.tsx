@@ -100,6 +100,44 @@ export const useProfile = () => {
   return context;
 };
 
+// Helper function to safely convert Json to expected types
+const convertJsonToType = (value: any, expectedType: 'string[]' | 'object'): any => {
+  if (value === null || value === undefined) {
+    return expectedType === 'string[]' ? [] : {};
+  }
+  
+  if (expectedType === 'string[]') {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+  
+  if (expectedType === 'object') {
+    if (typeof value === 'object' && value !== null) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+  
+  return value;
+};
+
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState<ProfileData>({});
@@ -139,12 +177,47 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabase.from('user_social_presence').select('*').eq('user_id', user.id).maybeSingle()
       ]);
 
-      // Set data with fallbacks
+      // Set data with proper type conversion
       setProfileData(profileResult.data || {});
-      setDeviceData(devicesResult.data || {});
-      setTechFluencyData(techFluencyResult.data || {});
-      setSkillsData(skillsResult.data || {});
-      setSocialPresenceData(socialPresenceResult.data || {});
+      
+      // Convert device data arrays from Json to string[]
+      const deviceDataConverted = devicesResult.data ? {
+        ...devicesResult.data,
+        operating_systems: convertJsonToType(devicesResult.data.operating_systems, 'string[]'),
+        devices_owned: convertJsonToType(devicesResult.data.devices_owned, 'string[]'),
+        mobile_manufacturers: convertJsonToType(devicesResult.data.mobile_manufacturers, 'string[]'),
+        desktop_manufacturers: convertJsonToType(devicesResult.data.desktop_manufacturers, 'string[]'),
+        email_clients: convertJsonToType(devicesResult.data.email_clients, 'string[]'),
+        streaming_subscriptions: convertJsonToType(devicesResult.data.streaming_subscriptions, 'string[]'),
+        music_subscriptions: convertJsonToType(devicesResult.data.music_subscriptions, 'string[]'),
+      } : {};
+      setDeviceData(deviceDataConverted);
+
+      // Convert tech fluency data arrays from Json to string[]
+      const techFluencyDataConverted = techFluencyResult.data ? {
+        ...techFluencyResult.data,
+        ai_interests: convertJsonToType(techFluencyResult.data.ai_interests, 'string[]'),
+        ai_models_used: convertJsonToType(techFluencyResult.data.ai_models_used, 'string[]'),
+        programming_languages: convertJsonToType(techFluencyResult.data.programming_languages, 'string[]'),
+      } : {};
+      setTechFluencyData(techFluencyDataConverted);
+
+      // Convert skills data
+      const skillsDataConverted = skillsResult.data ? {
+        ...skillsResult.data,
+        skills: convertJsonToType(skillsResult.data.skills, 'object'),
+        interests: convertJsonToType(skillsResult.data.interests, 'string[]'),
+        product_categories: convertJsonToType(skillsResult.data.product_categories, 'string[]'),
+      } : {};
+      setSkillsData(skillsDataConverted);
+
+      // Convert social presence data
+      const socialPresenceDataConverted = socialPresenceResult.data ? {
+        ...socialPresenceResult.data,
+        other_social_networks: convertJsonToType(socialPresenceResult.data.other_social_networks, 'object'),
+        additional_links: convertJsonToType(socialPresenceResult.data.additional_links, 'string[]'),
+      } : {};
+      setSocialPresenceData(socialPresenceDataConverted);
 
       console.log('Profile data loaded successfully');
     } catch (error) {
