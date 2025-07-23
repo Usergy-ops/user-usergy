@@ -106,7 +106,7 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
 
   try {
     const emailResponse = await resend.emails.send({
-      from: "Usergy <noreply@usergy.com>",
+      from: "Usergy <swaroop@usergy.ai>",
       to: [email],
       subject: subject,
       html: htmlContent,

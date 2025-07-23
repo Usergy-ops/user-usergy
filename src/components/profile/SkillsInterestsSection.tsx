@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -50,8 +49,9 @@ export const SkillsInterestsSection: React.FC = () => {
         description: "Your Explorer profile is now complete.",
       });
 
-      // Move to completion step (step 7) to trigger celebration
-      setCurrentStep(7);
+      // FIXED: Keep current step at 6 instead of setting to 7
+      // The celebration screen will be triggered by the completion percentage, not step number
+      // This ensures we don't have "Step 7 of 6" bug
     } catch (error) {
       toast({
         title: "Error completing profile",

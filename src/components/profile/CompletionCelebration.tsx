@@ -99,7 +99,7 @@ export const CompletionCelebration: React.FC = () => {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA - FIXED: Removed auto-redirect, only manual redirect */}
         <div className="space-y-4">
           <Button 
             onClick={handleContinue}

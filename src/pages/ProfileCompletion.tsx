@@ -26,7 +26,7 @@ const ProfileCompletion = () => {
     calculateCompletion 
   } = useProfile();
 
-  // Calculate real-time completion percentage using CORRECT field names
+  // Calculate real-time completion percentage using correct field names
   const calculateRealTimeCompletion = () => {
     const mandatoryFields = {
       // Basic Profile (7 fields - using actual database field names)
@@ -85,8 +85,8 @@ const ProfileCompletion = () => {
     );
   }
 
-  // Show celebration component only when profile is complete AND user is at the final step
-  if (isProfileComplete && currentStep > 6) {
+  // FIXED: Show celebration component when profile is complete AND user is at step 6
+  if (isProfileComplete && currentStep === 6) {
     return <CompletionCelebration />;
   }
 

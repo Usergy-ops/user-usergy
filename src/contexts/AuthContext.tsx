@@ -56,11 +56,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Starting sign up process for:', email);
       
-      // Call our edge function to generate OTP with proper error handling
+      // Call our edge function to generate OTP - FIXED: Remove password parameter for generate action
       const { data, error } = await supabase.functions.invoke('auth-otp', {
         body: {
           email,
-          password,
           action: 'generate'
         }
       });
