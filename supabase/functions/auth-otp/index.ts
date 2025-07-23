@@ -13,7 +13,13 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+// Initialize Resend with proper error handling
+const resendApiKey = Deno.env.get('RESEND_API_KEY');
+if (!resendApiKey) {
+  console.error('RESEND_API_KEY is not set in environment variables');
+}
+
+const resend = new Resend(resendApiKey);
 
 interface OTPRequest {
   email: string;
@@ -27,6 +33,10 @@ const generateOTP = (): string => {
 };
 
 const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resend' = 'welcome') => {
+  if (!resendApiKey) {
+    throw new Error('RESEND_API_KEY is not configured');
+  }
+
   const subject = type === 'welcome' 
     ? "Welcome to Usergy - Verify Your Email" 
     : "Your New Usergy Verification Code";
@@ -118,6 +128,15 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { email, action, otp, password }: OTPRequest = await req.json();
     console.log(`Processing ${action} action for email:`, email);
+
+    // Check if Resend API key is configured
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: "Email service is not configured. Please contact support." }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     switch (action) {
       case 'generate': {

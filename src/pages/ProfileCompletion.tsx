@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -73,11 +74,13 @@ const ProfileCompletion = () => {
     }
   }, [user, calculateCompletion]);
 
-  // Redirect to dashboard if profile is complete
+  // Fix the redirect logic - check for profile completion and redirect immediately
   useEffect(() => {
     if (isProfileComplete) {
       console.log('Profile is complete, redirecting to dashboard');
-      navigate('/dashboard');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 100); // Small delay to ensure state is updated
     }
   }, [isProfileComplete, navigate]);
 
@@ -93,7 +96,7 @@ const ProfileCompletion = () => {
     );
   }
 
-  // Show completion celebration if profile is complete
+  // If profile is complete, show celebration component briefly before redirect
   if (isProfileComplete) {
     return <CompletionCelebration />;
   }
