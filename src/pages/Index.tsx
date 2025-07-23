@@ -9,14 +9,22 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
-  const [pendingSignup, setPendingSignup] = useState<{ email: string; password: string } | null>(null);
-  const { toast } = useToast();
-  const { user, signUp, signIn } = useAuth();
+  const [pendingSignup, setPendingSignup] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+  const {
+    toast
+  } = useToast();
+  const {
+    user,
+    signUp,
+    signIn
+  } = useAuth();
   const navigate = useNavigate();
 
   // Redirect authenticated users to appropriate page
@@ -26,16 +34,14 @@ const Index = () => {
       navigate('/profile-completion');
     }
   }, [user, navigate]);
-
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
-    
     setIsLoading(true);
-    
     if (authMode === 'signup') {
       console.log('Attempting signup for:', email);
-      const { error } = await signUp(email, password);
-      
+      const {
+        error
+      } = await signUp(email, password);
       if (error) {
         console.error('Signup failed:', error);
         toast({
@@ -45,7 +51,10 @@ const Index = () => {
         });
       } else {
         console.log('Signup successful, showing OTP verification');
-        setPendingSignup({ email, password });
+        setPendingSignup({
+          email,
+          password
+        });
         setShowOTPVerification(true);
         toast({
           title: "Check your email!",
@@ -54,12 +63,13 @@ const Index = () => {
       }
     } else {
       console.log('Attempting signin for:', email);
-      const { error } = await signIn(email, password);
-      
+      const {
+        error
+      } = await signIn(email, password);
       if (error) {
         console.error('Signin failed:', error);
         toast({
-          title: "Sign in failed", 
+          title: "Sign in failed",
           description: error,
           variant: "destructive"
         });
@@ -71,24 +81,21 @@ const Index = () => {
         });
       }
     }
-    
     setIsLoading(false);
   };
-
   const handleGoogleAuth = async () => {
     setIsLoading(true);
-    
     try {
       console.log('Attempting Google OAuth');
       const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signInWithOAuth({
+      const {
+        error
+      } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl
         }
       });
-
       if (error) {
         console.error('Google auth failed:', error);
         toast({
@@ -105,10 +112,8 @@ const Index = () => {
         variant: "destructive"
       });
     }
-    
     setIsLoading(false);
   };
-
   const handleOTPSuccess = () => {
     console.log('OTP verification successful');
     setShowOTPVerification(false);
@@ -118,15 +123,12 @@ const Index = () => {
       description: "Your account has been created successfully."
     });
   };
-
   const handleBackToSignup = () => {
     console.log('Going back to signup form');
     setShowOTPVerification(false);
     setPendingSignup(null);
   };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+  return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
       {/* Animated Background Elements */}
       <NetworkNodes />
       
@@ -162,10 +164,7 @@ const Index = () => {
                     Meets Insight
                   </span>
                 </h1>
-                <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">
-                  Join a community of digital pioneers shaping tomorrow's products. 
-                  Your expertise matters—help build the future, one product at a time.
-                </p>
+                <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">Join a community of digital pioneers shaping tomorrow's products. Your expertise matters - help build the future, one product at a time.</p>
               </div>
 
               {/* Trust Indicators */}
@@ -193,39 +192,22 @@ const Index = () => {
                 
                 {/* Form Header */}
                 <div className="text-center mb-8">
-                  {!showOTPVerification && (
-                    <AuthToggle mode={authMode} onToggle={setAuthMode} />
-                  )}
+                  {!showOTPVerification && <AuthToggle mode={authMode} onToggle={setAuthMode} />}
                   
                   <div className="mt-6">
                     <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
-                      {showOTPVerification 
-                        ? 'Verify your email'
-                        : authMode === 'signup' 
-                          ? 'Welcome to where innovation finds its voice' 
-                          : 'Welcome back to the community'
-                      }
+                      {showOTPVerification ? 'Verify your email' : authMode === 'signup' ? 'Welcome to where innovation finds its voice' : 'Welcome back to the community'}
                     </h2>
                     <p className="text-muted-foreground">
-                      {showOTPVerification
-                        ? 'Enter the verification code we sent to your email'
-                        : authMode === 'signup'
-                          ? 'Join thousands of digital explorers already making an impact'
-                          : "We're excited to see you again, explorer"
-                      }
+                      {showOTPVerification ? 'Enter the verification code we sent to your email' : authMode === 'signup' ? 'Join thousands of digital explorers already making an impact' : "We're excited to see you again, explorer"}
                     </p>
                   </div>
                 </div>
 
                 {/* Google Auth (only show if not in OTP verification) */}
-                {!showOTPVerification && (
-                  <>
+                {!showOTPVerification && <>
                     <div className="mb-6">
-                      <GoogleAuthButton 
-                        mode={authMode} 
-                        onClick={handleGoogleAuth}
-                        isLoading={isLoading}
-                      />
+                      <GoogleAuthButton mode={authMode} onClick={handleGoogleAuth} isLoading={isLoading} />
                     </div>
 
                     {/* Divider */}
@@ -237,65 +219,37 @@ const Index = () => {
                         <span className="px-4 bg-card text-muted-foreground">or continue with email</span>
                       </div>
                     </div>
-                  </>
-                )}
+                  </>}
 
                 {/* Email Form or OTP Verification */}
-                {showOTPVerification && pendingSignup ? (
-                  <OTPVerification
-                    email={pendingSignup.email}
-                    password={pendingSignup.password}
-                    onBack={handleBackToSignup}
-                    onSuccess={handleOTPSuccess}
-                  />
-                ) : (
-                  <AuthForm 
-                    mode={authMode} 
-                    onSubmit={handleAuthSubmit}
-                    isLoading={isLoading}
-                  />
-                )}
+                {showOTPVerification && pendingSignup ? <OTPVerification email={pendingSignup.email} password={pendingSignup.password} onBack={handleBackToSignup} onSuccess={handleOTPSuccess} /> : <AuthForm mode={authMode} onSubmit={handleAuthSubmit} isLoading={isLoading} />}
 
                 {/* Footer Links (only show if not in OTP verification) */}
-                {!showOTPVerification && (
-                  <div className="mt-8 text-center space-y-4">
+                {!showOTPVerification && <div className="mt-8 text-center space-y-4">
                     <div className="text-sm text-muted-foreground">
-                      {authMode === 'signup' ? (
-                        <span>
+                      {authMode === 'signup' ? <span>
                           Already part of our community?{' '}
-                          <button 
-                            onClick={() => setAuthMode('signin')}
-                            className="text-primary hover:text-primary-end font-medium transition-colors duration-300"
-                          >
+                          <button onClick={() => setAuthMode('signin')} className="text-primary hover:text-primary-end font-medium transition-colors duration-300">
                             Welcome back
                           </button>
-                        </span>
-                      ) : (
-                        <span>
+                        </span> : <span>
                           New here? We'd love to have you{' '}
-                          <button 
-                            onClick={() => setAuthMode('signup')}
-                            className="text-primary hover:text-primary-end font-medium transition-colors duration-300"
-                          >
+                          <button onClick={() => setAuthMode('signup')} className="text-primary hover:text-primary-end font-medium transition-colors duration-300">
                             join us
                           </button>
-                        </span>
-                      )}
+                        </span>}
                     </div>
                     
                     <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
                       <a href="#" className="hover:text-foreground transition-colors duration-300">Privacy Policy</a>
                       <a href="#" className="hover:text-foreground transition-colors duration-300">Terms of Service</a>
                     </div>
-                  </div>
-                )}
+                  </div>}
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
