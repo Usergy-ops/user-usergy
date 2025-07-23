@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Starting sign up process for:', email);
       
-      // Call our edge function to generate OTP
+      // Call our edge function to generate OTP with proper error handling
       const { data, error } = await supabase.functions.invoke('auth-otp', {
         body: {
           email,
@@ -72,16 +72,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: error.message || 'Failed to send verification code' };
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('Sign up data error:', data.error);
         return { error: data.error };
       }
 
       console.log('Sign up successful, OTP sent');
       return { error: undefined };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign up exception:', error);
-      return { error: 'An unexpected error occurred' };
+      return { error: error.message || 'Failed to send verification code' };
     }
   };
 
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: error.message || 'Failed to verify code' };
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('OTP verification data error:', data.error);
         return { error: data.error };
       }
@@ -124,9 +124,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('User signed in successfully after OTP verification');
       return { error: undefined };
-    } catch (error) {
+    } catch (error: any) {
       console.error('OTP verification exception:', error);
-      return { error: 'An unexpected error occurred' };
+      return { error: error.message || 'Failed to verify code' };
     }
   };
 
@@ -148,16 +148,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: error.message || 'Failed to resend code' };
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('Resend OTP data error:', data.error);
         return { error: data.error };
       }
 
       console.log('OTP resent successfully');
       return { error: undefined };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Resend OTP exception:', error);
-      return { error: 'An unexpected error occurred' };
+      return { error: error.message || 'Failed to resend code' };
     }
   };
 
@@ -177,9 +177,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Sign in successful');
       return { error: undefined };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign in exception:', error);
-      return { error: 'An unexpected error occurred' };
+      return { error: error.message || 'An unexpected error occurred' };
     }
   };
 
@@ -205,9 +205,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Password reset email sent');
       return { error: undefined };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Reset password exception:', error);
-      return { error: 'An unexpected error occurred' };
+      return { error: error.message || 'An unexpected error occurred' };
     }
   };
 

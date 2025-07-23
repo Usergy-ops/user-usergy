@@ -50,8 +50,8 @@ export const SkillsInterestsSection: React.FC = () => {
         description: "Your Explorer profile is now complete.",
       });
 
-      // Move to next step (completion)
-      setCurrentStep(currentStep + 1);
+      // Move to completion step (step 7) to trigger celebration
+      setCurrentStep(7);
     } catch (error) {
       toast({
         title: "Error completing profile",

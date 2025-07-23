@@ -17,18 +17,17 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
   const { profileData, deviceData, techFluencyData } = useProfile();
   const [realTimeCompletion, setRealTimeCompletion] = useState(completionPercentage);
 
-  // Calculate real-time completion percentage
+  // Calculate real-time completion percentage using CORRECT field names
   useEffect(() => {
     const calculateRealTimeCompletion = () => {
       const mandatoryFields = {
-        // Basic Profile (8 fields)
+        // Basic Profile (7 fields - using actual database field names)
         full_name: profileData.full_name,
         avatar_url: profileData.avatar_url,
         country: profileData.country,
         city: profileData.city,
-        phone_number: profileData.phone_number,
         gender: profileData.gender,
-        age: profileData.age,
+        date_of_birth: profileData.date_of_birth,
         timezone: profileData.timezone,
         
         // Devices & Tech (4 fields)
@@ -40,10 +39,10 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
         // Education & Work (1 field)
         education_level: profileData.education_level,
         
-        // AI & Tech Fluency (4 fields)
+        // AI & Tech Fluency (4 fields - using actual database field names)
         technical_experience_level: profileData.technical_experience_level,
         ai_familiarity_level: profileData.ai_familiarity_level,
-        ai_tools_used: techFluencyData.ai_models_used,
+        ai_models_used: techFluencyData.ai_models_used,
         ai_interests: techFluencyData.ai_interests,
       };
 

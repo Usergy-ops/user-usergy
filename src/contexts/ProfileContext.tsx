@@ -111,16 +111,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Calculate completion percentage based on mandatory fields
+  // Calculate completion percentage based on mandatory fields using CORRECT field names
   const calculateMandatoryCompletion = useCallback(() => {
     const mandatoryFields = {
-      // Basic Profile (7 fields - phone_number is now optional)
+      // Basic Profile (7 fields - using actual database field names)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
       city: profileData.city,
       gender: profileData.gender,
-      age: profileData.age,
+      date_of_birth: profileData.date_of_birth,
       timezone: profileData.timezone,
       
       // Devices & Tech (4 fields)
@@ -132,10 +132,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Education & Work (1 field)
       education_level: profileData.education_level,
       
-      // AI & Tech Fluency (4 fields)
+      // AI & Tech Fluency (4 fields - using actual database field names)
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_tools_used: techFluencyData.ai_models_used,
+      ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
     };
 

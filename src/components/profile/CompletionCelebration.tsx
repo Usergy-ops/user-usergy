@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -12,15 +12,6 @@ export const CompletionCelebration: React.FC = () => {
   const handleContinue = () => {
     navigate('/dashboard');
   };
-
-  // Auto-redirect after 3 seconds if user doesn't click the button
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigate('/dashboard');
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
@@ -120,10 +111,6 @@ export const CompletionCelebration: React.FC = () => {
           
           <p className="text-sm text-muted-foreground">
             Welcome to where innovation meets insight, {profileData.full_name}!
-          </p>
-          
-          <p className="text-xs text-muted-foreground opacity-75">
-            Redirecting automatically in a few seconds...
           </p>
         </div>
       </div>

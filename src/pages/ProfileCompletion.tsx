@@ -11,11 +11,10 @@ import { SocialPresenceSection } from '@/components/profile/SocialPresenceSectio
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
 const ProfileCompletion = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { 
     currentStep, 
     setCurrentStep, 
@@ -27,16 +26,16 @@ const ProfileCompletion = () => {
     calculateCompletion 
   } = useProfile();
 
-  // Calculate real-time completion percentage
+  // Calculate real-time completion percentage using CORRECT field names
   const calculateRealTimeCompletion = () => {
     const mandatoryFields = {
-      // Basic Profile (7 fields - phone_number is now optional)
+      // Basic Profile (7 fields - using actual database field names)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
       city: profileData.city,
       gender: profileData.gender,
-      age: profileData.age,
+      date_of_birth: profileData.date_of_birth,
       timezone: profileData.timezone,
       
       // Devices & Tech (4 fields)
@@ -48,10 +47,10 @@ const ProfileCompletion = () => {
       // Education & Work (1 field)
       education_level: profileData.education_level,
       
-      // AI & Tech Fluency (4 fields)
+      // AI & Tech Fluency (4 fields - using actual database field names)
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_tools_used: techFluencyData.ai_models_used,
+      ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
     };
 
@@ -74,16 +73,6 @@ const ProfileCompletion = () => {
     }
   }, [user, calculateCompletion]);
 
-  // Fix the redirect logic - check for profile completion and redirect immediately
-  useEffect(() => {
-    if (isProfileComplete) {
-      console.log('Profile is complete, redirecting to dashboard');
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 100); // Small delay to ensure state is updated
-    }
-  }, [isProfileComplete, navigate]);
-
   if (!user) {
     return <Navigate to="/" replace />;
   }
@@ -96,8 +85,8 @@ const ProfileCompletion = () => {
     );
   }
 
-  // If profile is complete, show celebration component briefly before redirect
-  if (isProfileComplete) {
+  // Show celebration component only when profile is complete AND user is at the final step
+  if (isProfileComplete && currentStep > 6) {
     return <CompletionCelebration />;
   }
 
