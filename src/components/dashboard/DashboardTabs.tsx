@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Briefcase, Mail, Search, Archive } from 'lucide-react';
+import { Briefcase, Mail, Search, Archive, BarChart3 } from 'lucide-react';
 import { YourProjectsTab } from './tabs/YourProjectsTab';
 import { InvitationsTab } from './tabs/InvitationsTab';
 import { BrowseProjectsTab } from './tabs/BrowseProjectsTab';
 import { PastProjectsTab } from './tabs/PastProjectsTab';
+import { AnalyticsTab } from './tabs/AnalyticsTab';
 
 export const DashboardTabs: React.FC = () => {
   const [activeTab, setActiveTab] = useState('projects');
@@ -13,6 +14,7 @@ export const DashboardTabs: React.FC = () => {
     { id: 'projects', label: 'Your Projects', icon: Briefcase, count: 3 },
     { id: 'invitations', label: 'Invitations', icon: Mail, count: 2, badge: true },
     { id: 'browse', label: 'Browse Public Projects', icon: Search, count: 24 },
+    { id: 'analytics', label: 'Analytics & Insights', icon: BarChart3, count: 0 },
     { id: 'history', label: 'Your Past Projects', icon: Archive, count: 12 }
   ];
 
@@ -55,6 +57,7 @@ export const DashboardTabs: React.FC = () => {
         {activeTab === 'projects' && <YourProjectsTab />}
         {activeTab === 'invitations' && <InvitationsTab />}
         {activeTab === 'browse' && <BrowseProjectsTab />}
+        {activeTab === 'analytics' && <AnalyticsTab />}
         {activeTab === 'history' && <PastProjectsTab />}
       </div>
     </div>

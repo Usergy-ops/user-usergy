@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, MapPin, DollarSign, Clock, Users, Star, Heart, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -329,7 +328,7 @@ export const BrowseProjectsTab: React.FC = () => {
                     <Checkbox 
                       id="remote"
                       checked={remoteOnly}
-                      onCheckedChange={setRemoteOnly}
+                      onCheckedChange={(checked) => setRemoteOnly(checked === true)}
                     />
                     <label htmlFor="remote" className="text-sm">Remote Only</label>
                   </div>
@@ -337,7 +336,7 @@ export const BrowseProjectsTab: React.FC = () => {
                     <Checkbox 
                       id="collaboration"
                       checked={collaborationOnly}
-                      onCheckedChange={setCollaborationOnly}
+                      onCheckedChange={(checked) => setCollaborationOnly(checked === true)}
                     />
                     <label htmlFor="collaboration" className="text-sm">Team Collaboration</label>
                   </div>

@@ -33,7 +33,7 @@ export const YourProjectsTab: React.FC = () => {
       difficulty: 'Medium',
       estimatedTime: '2-3 hours',
       tags: ['AI', 'Food', 'Machine Learning'],
-      urgency: 'high',
+      urgency: 'high' as const,
       collaboration: true,
       teamSize: 5,
       feedback: 4.8
@@ -54,7 +54,7 @@ export const YourProjectsTab: React.FC = () => {
       difficulty: 'High',
       estimatedTime: '4-5 hours',
       tags: ['Mobile', 'Security', 'Banking'],
-      urgency: 'medium',
+      urgency: 'medium' as const,
       collaboration: false,
       teamSize: 1,
       feedback: 4.9
@@ -75,7 +75,7 @@ export const YourProjectsTab: React.FC = () => {
       difficulty: 'Easy',
       estimatedTime: '1-2 hours',
       tags: ['UX', 'E-commerce', 'Mobile'],
-      urgency: 'low',
+      urgency: 'low' as const,
       collaboration: true,
       teamSize: 3,
       feedback: 4.7
@@ -96,7 +96,7 @@ export const YourProjectsTab: React.FC = () => {
       difficulty: 'Medium',
       estimatedTime: '3-4 hours',
       tags: ['IoT', 'Smart Home', 'Voice Control'],
-      urgency: 'medium',
+      urgency: 'medium' as const,
       collaboration: true,
       teamSize: 4,
       feedback: 4.6
