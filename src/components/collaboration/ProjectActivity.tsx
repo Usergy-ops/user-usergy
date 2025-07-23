@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Activity, User, FileText, CheckCircle, MessageSquare, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -95,7 +94,9 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
       }, async (payload) => {
         const newActivity = payload.new;
         
+        // Validate that all required fields are present
         if (!newActivity.id || !newActivity.user_id || !newActivity.activity_type || !newActivity.description || !newActivity.created_at) {
+          console.warn('Incomplete activity data received:', newActivity);
           return;
         }
 
@@ -106,9 +107,14 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
           .eq('user_id', newActivity.user_id)
           .single();
 
+        // Create complete ProjectActivityItem object
         const typedActivity: ProjectActivityItem = {
-          ...newActivity,
+          id: newActivity.id,
+          user_id: newActivity.user_id,
           activity_type: newActivity.activity_type as ActivityType,
+          description: newActivity.description,
+          data: newActivity.data,
+          created_at: newActivity.created_at,
           user: profile || {
             full_name: 'Unknown User',
             avatar_url: null

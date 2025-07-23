@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Paperclip, Reply, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -116,7 +115,9 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
       }, async (payload) => {
         const newMessage = payload.new;
         
+        // Validate that all required fields are present
         if (!newMessage.id || !newMessage.sender_id || !newMessage.content || !newMessage.message_type || !newMessage.created_at) {
+          console.warn('Incomplete message data received:', newMessage);
           return;
         }
 
@@ -127,9 +128,16 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
           .eq('user_id', newMessage.sender_id)
           .single();
 
+        // Create complete Message object
         const typedMessage: Message = {
-          ...newMessage,
+          id: newMessage.id,
+          content: newMessage.content,
+          sender_id: newMessage.sender_id,
           message_type: newMessage.message_type as MessageType,
+          file_url: newMessage.file_url,
+          file_name: newMessage.file_name,
+          reply_to: newMessage.reply_to,
+          created_at: newMessage.created_at,
           sender: profile || {
             full_name: 'Unknown User',
             avatar_url: null
