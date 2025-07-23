@@ -58,6 +58,8 @@ export const SocialPresenceSection: React.FC = () => {
     }
 
     try {
+      console.log('Submitting social presence data:', data);
+      
       await updateProfileData('profile', {
         ...data,
         section_5_completed: true
@@ -71,9 +73,10 @@ export const SocialPresenceSection: React.FC = () => {
       // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
+      console.error('Error saving social presence data:', error);
       toast({
         title: "Error saving profiles",
-        description: "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     }

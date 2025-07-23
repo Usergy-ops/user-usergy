@@ -339,6 +339,22 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const validateData = (section: string, data: any) => {
+    if (!data || typeof data !== 'object') {
+      throw new Error(`Invalid data provided for section: ${section}`);
+    }
+
+    // Remove undefined values and empty strings
+    const cleanData = Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+
+    return cleanData;
+  };
+
   const updateProfileData = async (section: string, data: any) => {
     if (!user) {
       console.error('No user found, cannot update profile data');
@@ -348,12 +364,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       console.log(`Updating ${section} data:`, data);
       
+      const cleanData = validateData(section, data);
+      
+      if (Object.keys(cleanData).length === 0) {
+        console.warn(`No valid data to save for section: ${section}`);
+        return;
+      }
+
       switch (section) {
         case 'profile':
-          const { completion_percentage, ...profileDataToSave } = data;
-          
           // First update local state
-          setProfileData(prev => ({ ...prev, ...data }));
+          setProfileData(prev => ({ ...prev, ...cleanData }));
+          
+          // Separate completion fields from profile data
+          const { completion_percentage, ...profileDataToSave } = cleanData;
           
           // Then save to database
           const { error: profileError } = await supabase
@@ -373,14 +397,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         case 'devices':
           // First update local state
-          setDeviceData(prev => ({ ...prev, ...data }));
+          setDeviceData(prev => ({ ...prev, ...cleanData }));
           
           // Then save to database
           const { error: devicesError } = await supabase
             .from('user_devices')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             });
           
           if (devicesError) {
@@ -392,14 +416,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         case 'tech_fluency':
           // First update local state
-          setTechFluencyData(prev => ({ ...prev, ...data }));
+          setTechFluencyData(prev => ({ ...prev, ...cleanData }));
           
           // Then save to database
           const { error: techError } = await supabase
             .from('user_tech_fluency')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             });
           
           if (techError) {
@@ -411,14 +435,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         case 'skills':
           // First update local state
-          setSkillsData(prev => ({ ...prev, ...data }));
+          setSkillsData(prev => ({ ...prev, ...cleanData }));
           
           // Then save to database
           const { error: skillsError } = await supabase
             .from('user_skills')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             });
           
           if (skillsError) {
@@ -430,14 +454,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         case 'social_presence':
           // First update local state
-          setSocialPresenceData(prev => ({ ...prev, ...data }));
+          setSocialPresenceData(prev => ({ ...prev, ...cleanData }));
           
           // Then save to database
           const { error: socialError } = await supabase
             .from('user_social_presence')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             });
           
           if (socialError) {
@@ -454,7 +478,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log(`Successfully updated ${section} data`);
     } catch (error) {
-      console.error('Error updating profile data:', error);
+      console.error(`Error updating ${section} data:`, error);
       throw error;
     }
   };

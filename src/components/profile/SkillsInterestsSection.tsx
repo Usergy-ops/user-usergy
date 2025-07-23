@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -33,6 +34,8 @@ export const SkillsInterestsSection: React.FC = () => {
 
   const onSubmit = async (data: SkillsInterestsFormData) => {
     try {
+      console.log('Submitting skills & interests data:', data);
+      
       // Update profile data
       await updateProfileData('profile', {
         bio: data.bio,
@@ -59,7 +62,7 @@ export const SkillsInterestsSection: React.FC = () => {
       console.error('Profile completion error:', error);
       toast({
         title: "Error completing profile",
-        description: "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     }

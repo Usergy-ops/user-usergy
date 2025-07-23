@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -47,6 +46,8 @@ export const TechFluencySection: React.FC = () => {
 
   const onSubmit = async (data: TechFluencyFormData) => {
     try {
+      console.log('Submitting tech fluency data:', data);
+      
       // Update profile with basic tech levels
       await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
@@ -70,9 +71,10 @@ export const TechFluencySection: React.FC = () => {
       // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
+      console.error('Error saving tech fluency data:', error);
       toast({
         title: "Error saving tech fluency",
-        description: "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     }

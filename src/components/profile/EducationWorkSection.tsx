@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -44,6 +43,8 @@ export const EducationWorkSection: React.FC = () => {
 
   const onSubmit = async (data: EducationWorkFormData) => {
     try {
+      console.log('Submitting education & work data:', data);
+      
       await updateProfileData('profile', {
         ...data,
         section_3_completed: true
@@ -57,9 +58,10 @@ export const EducationWorkSection: React.FC = () => {
       // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
+      console.error('Error saving education & work data:', error);
       toast({
         title: "Error saving information",
-        description: "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     }
