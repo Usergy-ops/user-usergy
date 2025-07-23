@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +9,7 @@ import { ProfileProvider } from "@/contexts/ProfileContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import ProfileCompletion from "./pages/ProfileCompletion";
-import Dashboard from "./pages/Dashboard";
+import UserDashboard from "./pages/UserDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,7 +36,7 @@ const App = () => (
                 path="/dashboard" 
                 element={
                   <ProtectedRoute requireCompleteProfile={true}>
-                    <Dashboard />
+                    <UserDashboard />
                   </ProtectedRoute>
                 } 
               />

@@ -1,124 +1,67 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Usergy Design System - Premium SaaS Platform */
-
 @layer base {
   :root {
-    /* Usergy Brand Colors */
     --background: 0 0% 100%;
-    --foreground: 225 15% 20%;
-
-    /* Brand Primary - Blue Gradient */
-    --primary-start: 195 100% 50%; /* #00C6FB */
-    --primary-end: 217 100% 46%;   /* #005BEA */
-    --primary: 217 100% 46%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Brand Accent - Strategic Red */
-    --accent-red: 352 100% 64%; /* #FF4757 */
-    --accent-red-foreground: 0 0% 100%;
-
-    /* Success - Teal matching logo nodes */
-    --success: 168 76% 42%;
-    --success-foreground: 0 0% 100%;
-
-    /* Neutrals */
-    --secondary: 220 13% 91%;
-    --secondary-foreground: 225 15% 35%;
-    
-    --muted: 220 13% 91%;
-    --muted-foreground: 220 9% 46%;
-
-    --accent: 220 13% 91%;
-    --accent-foreground: 225 15% 35%;
-
+    --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
-    --card-foreground: 225 15% 20%;
-
+    --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 225 15% 20%;
-
-    --destructive: 352 100% 64%;
-    --destructive-foreground: 0 0% 100%;
-
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 220.9 39.3% 11%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 217 100% 46%;
-
-    --radius: 0.75rem;
-
-    /* Custom Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary-start)), hsl(var(--primary-end)));
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 13% 98%));
-    --gradient-hero: linear-gradient(135deg, hsl(195 100% 50% / 0.1), hsl(217 100% 46% / 0.1));
-
-    /* Shadows */
-    --shadow-soft: 0 2px 8px hsl(217 100% 46% / 0.08);
-    --shadow-medium: 0 4px 16px hsl(217 100% 46% / 0.12);
-    --shadow-strong: 0 8px 32px hsl(217 100% 46% / 0.16);
-    --shadow-glow: 0 0 40px hsl(195 100% 50% / 0.3);
-
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --ring: 224 71.4% 4.1%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
+    /* Custom Usergy Colors */
+    --primary-start: 199 100% 50%;
+    --primary-end: 220 100% 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 210 20% 98%;
+    --primary-foreground: 220.9 39.3% 11%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 216 12.2% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
@@ -126,102 +69,22 @@
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground font-inter;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
 
-@layer components {
-  /* Usergy Component Patterns */
-  .usergy-gradient {
-    background: var(--gradient-primary);
-  }
-
-  .usergy-shadow-soft {
-    box-shadow: var(--shadow-soft);
-  }
-
-  .usergy-shadow-medium {
-    box-shadow: var(--shadow-medium);
-  }
-
-  .usergy-shadow-glow {
-    box-shadow: var(--shadow-glow);
-  }
-
-  .usergy-input {
-    @apply bg-background border-2 border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
-  }
-
-  .usergy-input-error {
-    @apply border-destructive focus:border-destructive focus:ring-destructive/20;
-  }
-
-  .usergy-input-success {
-    @apply border-success focus:border-success focus:ring-success/20;
-  }
-
-  .usergy-btn-primary {
-    @apply px-6 py-3 rounded-xl font-semibold text-primary-foreground transition-all duration-300 usergy-gradient hover:scale-[1.02] active:scale-[0.98] usergy-shadow-medium hover:usergy-shadow-glow;
-  }
-
-  .usergy-btn-secondary {
-    @apply px-6 py-3 rounded-xl font-semibold bg-background border-2 border-border text-foreground transition-all duration-300 hover:border-primary hover:text-primary hover:scale-[1.02] active:scale-[0.98] usergy-shadow-soft;
-  }
-
-  .floating-node {
-    @apply absolute rounded-full opacity-60 animate-pulse;
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .network-line {
-    @apply absolute opacity-30;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary-start)), transparent);
-  }
-}
-
-@layer utilities {
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .animate-float-delayed {
-    animation: float 6s ease-in-out infinite;
-    animation-delay: 2s;
-  }
-
-  .animate-float-slow {
-    animation: float 8s ease-in-out infinite;
-    animation-delay: 4s;
-  }
-
-  .animate-pulse-slow {
-    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-slide-up {
-    animation: slideUp 0.6s ease-out;
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 0.8s ease-out;
-  }
-}
-
+/* Custom animations */
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-20px) rotate(180deg);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
-@keyframes slideUp {
+@keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -229,11 +92,46 @@
   }
 }
 
-@keyframes fadeIn {
+@keyframes slide-up {
   from {
     opacity: 0;
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.8s ease-out;
+}
+
+/* Custom shadow for Usergy branding */
+.usergy-shadow-strong {
+  box-shadow: 0 25px 50px -12px rgba(0, 198, 251, 0.15), 0 25px 50px -12px rgba(0, 91, 234, 0.15);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Gradient text utilities */
+.gradient-text-primary {
+  background: linear-gradient(135deg, hsl(var(--primary-start)), hsl(var(--primary-end)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
