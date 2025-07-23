@@ -17,60 +17,8 @@ const ProfileCompletion = () => {
   const { 
     currentStep, 
     setCurrentStep, 
-    isProfileComplete, 
-    profileData, 
-    deviceData,
-    techFluencyData,
-    loading,
-    calculateCompletion 
+    loading
   } = useProfile();
-
-  // Calculate real-time completion percentage using correct field names
-  const calculateRealTimeCompletion = () => {
-    const mandatoryFields = {
-      // Basic Profile (7 fields - using actual database field names)
-      full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
-      country: profileData.country,
-      city: profileData.city,
-      gender: profileData.gender,
-      date_of_birth: profileData.date_of_birth,
-      timezone: profileData.timezone,
-      
-      // Devices & Tech (4 fields)
-      operating_systems: deviceData.operating_systems,
-      devices_owned: deviceData.devices_owned,
-      mobile_manufacturers: deviceData.mobile_manufacturers,
-      email_clients: deviceData.email_clients,
-      
-      // Education & Work (1 field)
-      education_level: profileData.education_level,
-      
-      // AI & Tech Fluency (4 fields - using actual database field names)
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_models_used: techFluencyData.ai_models_used,
-      ai_interests: techFluencyData.ai_interests,
-    };
-
-    const totalFields = Object.keys(mandatoryFields).length;
-    const completedFields = Object.values(mandatoryFields).filter(value => {
-      if (Array.isArray(value)) {
-        return value && value.length > 0;
-      }
-      return value && value.toString().trim() !== '';
-    }).length;
-
-    return Math.round((completedFields / totalFields) * 100);
-  };
-
-  const realTimeCompletion = calculateRealTimeCompletion();
-
-  useEffect(() => {
-    if (user) {
-      calculateCompletion();
-    }
-  }, [user, calculateCompletion]);
 
   if (!user) {
     return <Navigate to="/" replace />;
@@ -82,11 +30,6 @@ const ProfileCompletion = () => {
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
-  }
-
-  // If profile is complete, redirect to dashboard
-  if (isProfileComplete) {
-    return <Navigate to="/dashboard" replace />;
   }
 
   const sections = [

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -82,10 +83,8 @@ interface ProfileContextType {
   socialPresenceData: SocialPresenceData;
   loading: boolean;
   currentStep: number;
-  isProfileComplete: boolean;
   updateProfileData: (section: string, data: any) => Promise<void>;
   setCurrentStep: (step: number) => void;
-  calculateCompletion: () => Promise<number | undefined>;
   uploadProfilePicture: (file: File) => Promise<string>;
   autoSaveData: () => Promise<void>;
 }
@@ -109,47 +108,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [socialPresenceData, setSocialPresenceData] = useState<SocialPresenceData>({});
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
-
-  // Calculate completion percentage based on mandatory fields using CORRECT field names
-  const calculateMandatoryCompletion = useCallback(() => {
-    const mandatoryFields = {
-      // Basic Profile (7 fields - using actual database field names)
-      full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
-      country: profileData.country,
-      city: profileData.city,
-      gender: profileData.gender,
-      date_of_birth: profileData.date_of_birth,
-      timezone: profileData.timezone,
-      
-      // Devices & Tech (4 fields)
-      operating_systems: deviceData.operating_systems,
-      devices_owned: deviceData.devices_owned,
-      mobile_manufacturers: deviceData.mobile_manufacturers,
-      email_clients: deviceData.email_clients,
-      
-      // Education & Work (1 field)
-      education_level: profileData.education_level,
-      
-      // AI & Tech Fluency (4 fields - using actual database field names)
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_models_used: techFluencyData.ai_models_used,
-      ai_interests: techFluencyData.ai_interests,
-    };
-
-    const totalFields = Object.keys(mandatoryFields).length;
-    const completedFields = Object.values(mandatoryFields).filter(value => {
-      if (Array.isArray(value)) {
-        return value && value.length > 0;
-      }
-      return value && value.toString().trim() !== '';
-    }).length;
-
-    return Math.round((completedFields / totalFields) * 100);
-  }, [profileData, deviceData, techFluencyData]);
-
-  const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
 
   // Load current step from localStorage to maintain state across tabs
   useEffect(() => {
@@ -472,48 +430,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       console.log(`Successfully updated ${section} data`);
-      
-      // Recalculate completion percentage
-      await calculateCompletion();
     } catch (error) {
       console.error('Error updating profile data:', error);
-      throw error;
-    }
-  };
-
-  const calculateCompletion = async () => {
-    if (!user) return;
-
-    try {
-      console.log('Calculating completion percentage...');
-      
-      // First reload all data to ensure we have the latest from DB
-      await loadProfileData();
-      
-      const completionPercentage = calculateMandatoryCompletion();
-      
-      console.log('Calculated completion percentage:', completionPercentage);
-      
-      // Update the completion percentage in the profiles table
-      const { error } = await supabase
-        .from('profiles')
-        .update({ completion_percentage: completionPercentage })
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error updating completion percentage:', error);
-        throw error;
-      }
-
-      // Update local state immediately
-      setProfileData(prev => ({ ...prev, completion_percentage: completionPercentage }));
-      
-      console.log('Completion percentage updated successfully:', completionPercentage);
-      
-      // Return the completion percentage so callers can use it
-      return completionPercentage;
-    } catch (error) {
-      console.error('Error calculating completion:', error);
       throw error;
     }
   };
@@ -547,10 +465,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     socialPresenceData,
     loading,
     currentStep,
-    isProfileComplete,
     updateProfileData,
     setCurrentStep,
-    calculateCompletion,
     uploadProfilePicture,
     autoSaveData
   };
