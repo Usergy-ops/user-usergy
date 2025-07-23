@@ -114,12 +114,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Calculate completion percentage based on mandatory fields
   const calculateMandatoryCompletion = useCallback(() => {
     const mandatoryFields = {
-      // Basic Profile (8 fields)
+      // Basic Profile (7 fields - phone_number is now optional)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
       city: profileData.city,
-      phone_number: profileData.phone_number,
       gender: profileData.gender,
       age: profileData.age,
       timezone: profileData.timezone,
@@ -152,6 +151,19 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [profileData, deviceData, techFluencyData]);
 
   const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
+
+  // Load current step from localStorage to maintain state across tabs
+  useEffect(() => {
+    const savedStep = localStorage.getItem('profileCurrentStep');
+    if (savedStep) {
+      setCurrentStep(parseInt(savedStep));
+    }
+  }, []);
+
+  // Save current step to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('profileCurrentStep', currentStep.toString());
+  }, [currentStep]);
 
   useEffect(() => {
     if (user) {

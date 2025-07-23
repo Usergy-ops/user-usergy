@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ProfileProgressBar } from '@/components/profile/ProfileProgressBar';
+import { Header } from '@/components/Header';
 import { BasicProfileSection } from '@/components/profile/BasicProfileSection';
 import { DevicesSection } from '@/components/profile/DevicesSection';
 import { EducationWorkSection } from '@/components/profile/EducationWorkSection';
@@ -10,7 +10,7 @@ import { TechFluencySection } from '@/components/profile/TechFluencySection';
 import { SocialPresenceSection } from '@/components/profile/SocialPresenceSection';
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 const ProfileCompletion = () => {
@@ -29,12 +29,11 @@ const ProfileCompletion = () => {
   // Calculate real-time completion percentage
   const calculateRealTimeCompletion = () => {
     const mandatoryFields = {
-      // Basic Profile (8 fields)
+      // Basic Profile (7 fields - phone_number is now optional)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
       city: profileData.city,
-      phone_number: profileData.phone_number,
       gender: profileData.gender,
       age: profileData.age,
       timezone: profileData.timezone,
@@ -101,7 +100,6 @@ const ProfileCompletion = () => {
 
   const currentSection = sections.find(s => s.id === currentStep);
   const isFirstStep = currentStep === 1;
-  const isLastStep = currentStep === sections.length;
 
   const handlePrevious = () => {
     if (!isFirstStep) {
@@ -109,20 +107,10 @@ const ProfileCompletion = () => {
     }
   };
 
-  const handleNext = () => {
-    if (!isLastStep) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Progress Bar */}
-      <ProfileProgressBar 
-        currentStep={currentStep}
-        totalSteps={sections.length}
-        completionPercentage={realTimeCompletion}
-      />
+      {/* Header */}
+      <Header />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
@@ -130,21 +118,6 @@ const ProfileCompletion = () => {
           
           {/* Header */}
           <div className="text-center mb-8 animate-fade-in">
-            <div className="inline-flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-start to-primary-end rounded-xl flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="6" r="3" />
-                  <circle cx="18" cy="18" r="3" />
-                  <path d="M8.5 14l7-4" stroke="white" strokeWidth="2" />
-                  <path d="M8.5 10l7 4" stroke="white" strokeWidth="2" />
-                </svg>
-              </div>
-              <span className="text-4xl font-bold bg-gradient-to-r from-primary-start to-primary-end bg-clip-text text-transparent">
-                Usergy
-              </span>
-            </div>
-            
             <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
               Complete Your Explorer Profile
             </h1>
@@ -195,29 +168,12 @@ const ProfileCompletion = () => {
 
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
-                  {realTimeCompletion}% complete
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isLastStep ? "Almost done!" : `${sections.length - currentStep} more steps`}
+                  Your progress is automatically saved
                 </p>
               </div>
 
-              <button
-                onClick={handleNext}
-                disabled={isLastStep}
-                className="flex items-center space-x-2 px-4 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <span>Continue</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <div></div>
             </div>
-          </div>
-
-          {/* Save Notice */}
-          <div className="text-center mt-6">
-            <p className="text-sm text-muted-foreground">
-              Your progress is automatically saved every 10 seconds
-            </p>
           </div>
         </div>
       </div>

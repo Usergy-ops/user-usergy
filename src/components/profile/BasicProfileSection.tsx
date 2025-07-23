@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, User } from 'lucide-react';
+import { Upload, User, Apple, Monitor, Smartphone, Tablet, Laptop } from 'lucide-react';
 
 interface BasicProfileFormData {
   full_name: string;
@@ -95,7 +95,6 @@ export const BasicProfileSection: React.FC = () => {
     const formData = watch();
     return !!(
       formData.full_name?.trim() &&
-      formData.phone_number?.trim() &&
       formData.age &&
       formData.gender &&
       formData.country &&
@@ -230,21 +229,18 @@ export const BasicProfileSection: React.FC = () => {
             )}
           </div>
 
-          {/* Phone Number */}
+          {/* Phone Number - Now Optional */}
           <div className="space-y-2">
             <Label htmlFor="phone_number" className="text-sm font-medium">
-              Phone Number <span className="text-red-500">*</span>
+              Phone Number
             </Label>
             <Input
               id="phone_number"
-              {...register('phone_number', { required: 'Phone number is required' })}
+              {...register('phone_number')}
               className="bg-background"
               placeholder="+1 (555) 123-4567"
               type="tel"
             />
-            {errors.phone_number && (
-              <p className="text-sm text-destructive">{errors.phone_number.message}</p>
-            )}
           </div>
 
           {/* Date of Birth */}
