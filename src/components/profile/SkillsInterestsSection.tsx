@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -48,8 +47,11 @@ export const SkillsInterestsSection: React.FC = () => {
         product_categories: data.product_categories,
       });
 
-      // Recalculate completion
+      // Recalculate completion and wait for it to finish
       await calculateCompletion();
+      
+      // Force a small delay to ensure state updates have propagated
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       toast({
         title: "Profile completed!",
@@ -57,9 +59,8 @@ export const SkillsInterestsSection: React.FC = () => {
       });
 
       // Navigate to dashboard after successful completion
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      // Using replace to prevent going back to profile completion
+      navigate('/dashboard', { replace: true });
 
     } catch (error) {
       console.error('Profile completion error:', error);

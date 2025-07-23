@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -86,7 +85,7 @@ interface ProfileContextType {
   isProfileComplete: boolean;
   updateProfileData: (section: string, data: any) => Promise<void>;
   setCurrentStep: (step: number) => void;
-  calculateCompletion: () => Promise<void>;
+  calculateCompletion: () => Promise<number | undefined>;
   uploadProfilePicture: (file: File) => Promise<string>;
   autoSaveData: () => Promise<void>;
 }
@@ -395,14 +394,24 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const completionPercentage = calculateMandatoryCompletion();
       
       // Update the completion percentage in the profiles table
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ completion_percentage: completionPercentage })
         .eq('user_id', user.id);
 
+      if (error) {
+        console.error('Error updating completion percentage:', error);
+        throw error;
+      }
+
+      // Update local state immediately
       setProfileData(prev => ({ ...prev, completion_percentage: completionPercentage }));
+      
+      // Return the completion percentage so callers can use it
+      return completionPercentage;
     } catch (error) {
       console.error('Error calculating completion:', error);
+      throw error;
     }
   };
 
