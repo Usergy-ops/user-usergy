@@ -72,7 +72,7 @@ export const EducationWorkSection: React.FC = () => {
       console.error('Error saving education & work data:', error);
       toast({
         title: "Error saving information",
-        description: "There was an error saving your information. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     } finally {

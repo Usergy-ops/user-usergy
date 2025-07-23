@@ -89,7 +89,7 @@ export const TechFluencySection: React.FC = () => {
       console.error('Error saving tech fluency data:', error);
       toast({
         title: "Error saving tech fluency",
-        description: "There was an error saving your information. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     } finally {

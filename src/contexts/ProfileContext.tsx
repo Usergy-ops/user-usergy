@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { ProfileService } from '@/services/profileService';
+import { SimpleProfileService } from '@/services/simpleProfileService';
 
 interface ProfileData {
   // Basic Profile
@@ -100,7 +100,7 @@ export const useProfile = () => {
   return context;
 };
 
-// Safe data conversion helper
+// Safe data conversion helpers
 const safeConvertArray = (value: any): string[] => {
   if (Array.isArray(value)) return value;
   if (typeof value === 'string') {
@@ -156,7 +156,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(true);
       console.log('[ProfileContext] Loading profile data for user:', user.id);
 
-      // Load all data in parallel with error handling
+      // Load all data in parallel
       const [profileResult, devicesResult, techFluencyResult, skillsResult, socialPresenceResult] = await Promise.allSettled([
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_devices').select('*').eq('user_id', user.id).maybeSingle(),
@@ -165,7 +165,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabase.from('user_social_presence').select('*').eq('user_id', user.id).maybeSingle()
       ]);
 
-      // Safely extract data from results
+      // Safely extract data
       const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
       const devices = devicesResult.status === 'fulfilled' ? devicesResult.value.data : null;
       const techFluency = techFluencyResult.status === 'fulfilled' ? techFluencyResult.value.data : null;
@@ -175,7 +175,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Set profile data
       setProfileData(profile || {});
       
-      // Set device data with safe conversion
+      // Set device data
       setDeviceData({
         operating_systems: devices ? safeConvertArray(devices.operating_systems) : [],
         devices_owned: devices ? safeConvertArray(devices.devices_owned) : [],
@@ -186,7 +186,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         music_subscriptions: devices ? safeConvertArray(devices.music_subscriptions) : [],
       });
 
-      // Set tech fluency data with safe conversion
+      // Set tech fluency data
       setTechFluencyData({
         ai_interests: techFluency ? safeConvertArray(techFluency.ai_interests) : [],
         ai_models_used: techFluency ? safeConvertArray(techFluency.ai_models_used) : [],
@@ -194,14 +194,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         coding_experience_years: techFluency?.coding_experience_years || 0,
       });
 
-      // Set skills data with safe conversion
+      // Set skills data
       setSkillsData({
         skills: skills ? safeConvertObject(skills.skills) : {},
         interests: skills ? safeConvertArray(skills.interests) : [],
         product_categories: skills ? safeConvertArray(skills.product_categories) : [],
       });
 
-      // Set social presence data with safe conversion
+      // Set social presence data
       setSocialPresenceData({
         other_social_networks: socialPresence ? safeConvertObject(socialPresence.other_social_networks) : {},
         additional_links: socialPresence ? safeConvertArray(socialPresence.additional_links) : [],
@@ -210,12 +210,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log('[ProfileContext] Profile data loaded successfully');
     } catch (error) {
       console.error('[ProfileContext] Error loading profile data:', error);
-      // Set empty defaults on error
-      setProfileData({});
-      setDeviceData({});
-      setTechFluencyData({});
-      setSkillsData({});
-      setSocialPresenceData({});
     } finally {
       setLoading(false);
     }
@@ -235,34 +229,47 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      console.log(`[ProfileContext] Updating ${section} data:`, data);
+      console.log(`[ProfileContext] Updating ${section} with data:`, data);
       
-      // Save to database using the service
-      await ProfileService.saveProfileData(section, data, user.id, user.email || '');
-      
-      // Update local state only after successful save
+      // Remove empty values
+      const cleanData = Object.fromEntries(
+        Object.entries(data).filter(([_, value]) => 
+          value !== undefined && 
+          value !== null && 
+          value !== '' &&
+          !(Array.isArray(value) && value.length === 0)
+        )
+      );
+
+      // Save to database using simplified service
       switch (section) {
         case 'profile':
-          setProfileData(prev => ({ ...prev, ...data }));
+          await SimpleProfileService.saveProfile(user.id, user.email || '', cleanData);
+          setProfileData(prev => ({ ...prev, ...cleanData }));
           break;
         case 'devices':
-          setDeviceData(prev => ({ ...prev, ...data }));
+          await SimpleProfileService.saveDevices(user.id, cleanData);
+          setDeviceData(prev => ({ ...prev, ...cleanData }));
           break;
         case 'tech_fluency':
-          setTechFluencyData(prev => ({ ...prev, ...data }));
+          await SimpleProfileService.saveTechFluency(user.id, cleanData);
+          setTechFluencyData(prev => ({ ...prev, ...cleanData }));
           break;
         case 'skills':
-          setSkillsData(prev => ({ ...prev, ...data }));
+          await SimpleProfileService.saveSkills(user.id, cleanData);
+          setSkillsData(prev => ({ ...prev, ...cleanData }));
           break;
         case 'social_presence':
-          setSocialPresenceData(prev => ({ ...prev, ...data }));
+          await SimpleProfileService.saveSocialPresence(user.id, cleanData);
+          setSocialPresenceData(prev => ({ ...prev, ...cleanData }));
           break;
+        default:
+          throw new Error(`Unknown section: ${section}`);
       }
 
-      console.log(`[ProfileContext] Successfully updated ${section} data`);
+      console.log(`[ProfileContext] Successfully updated ${section}`);
     } catch (error) {
-      console.error(`[ProfileContext] Error updating ${section} data:`, error);
-      // Re-throw the error so components can handle it
+      console.error(`[ProfileContext] Error updating ${section}:`, error);
       throw error;
     }
   };

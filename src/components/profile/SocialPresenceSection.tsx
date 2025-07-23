@@ -53,7 +53,7 @@ export const SocialPresenceSection: React.FC = () => {
       console.error('Error saving social presence data:', error);
       toast({
         title: "Error saving profiles",
-        description: "There was an error saving your social profiles. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     } finally {

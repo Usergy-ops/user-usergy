@@ -67,7 +67,7 @@ export const SkillsInterestsSection: React.FC = () => {
       console.error('Profile completion error:', error);
       toast({
         title: "Error completing profile",
-        description: "There was an error completing your profile. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     } finally {
