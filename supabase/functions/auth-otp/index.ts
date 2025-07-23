@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 import { Resend } from "npm:resend@2.0.0";
@@ -99,7 +98,7 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
         <!-- Footer -->
         <div style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0;">
           <p style="color: #64748b; font-size: 12px; margin: 0; text-align: center;">
-            This email was sent by Usergy. If you have questions, contact us at support@usergy.com
+            This email was sent by Usergy. If you have questions, contact us at support@user.usergy.ai
           </p>
         </div>
       </div>
@@ -109,7 +108,7 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
 
   try {
     const emailResponse = await resend.emails.send({
-      from: "Usergy <swaroop@usergy.ai>",
+      from: "Usergy <swaroop@user.usergy.ai>",
       to: [email],
       subject: subject,
       html: htmlContent,
