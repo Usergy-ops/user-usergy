@@ -11,11 +11,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
+type MessageType = 'text' | 'file' | 'image' | 'system';
+
 interface Message {
   id: string;
   content: string;
   sender_id: string;
-  message_type: 'text' | 'file' | 'image' | 'system';
+  message_type: MessageType;
   file_url?: string;
   file_name?: string;
   reply_to?: string;
@@ -64,7 +66,7 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
       if (error) throw error;
 
       // Get user profiles for the messages
-      const userIds = [...new Set(messagesData?.map(m => m.sender_id) || [])];
+      const userIds = [...new Set(messagesData?.map(m => m.sender_id).filter(Boolean) || [])];
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, avatar_url')
@@ -72,14 +74,23 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
 
       if (profilesError) throw profilesError;
 
-      // Combine messages with user profiles
-      const messagesWithUsers = messagesData?.map(message => ({
-        ...message,
-        sender: profiles?.find(p => p.user_id === message.sender_id) || {
-          full_name: 'Unknown User',
-          avatar_url: null
-        }
-      })) || [];
+      // Combine messages with user profiles and ensure proper typing
+      const messagesWithUsers: Message[] = (messagesData || [])
+        .filter(message => 
+          message.id && 
+          message.sender_id && 
+          message.content && 
+          message.message_type && 
+          message.created_at
+        )
+        .map(message => ({
+          ...message,
+          message_type: message.message_type as MessageType,
+          sender: profiles?.find(p => p.user_id === message.sender_id) || {
+            full_name: 'Unknown User',
+            avatar_url: null
+          }
+        }));
 
       setMessages(messagesWithUsers);
     } catch (error) {
@@ -103,22 +114,29 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`
       }, async (payload) => {
+        const newMessage = payload.new;
+        
+        if (!newMessage.id || !newMessage.sender_id || !newMessage.content || !newMessage.message_type || !newMessage.created_at) {
+          return;
+        }
+
         // Fetch the user profile for the new message
         const { data: profile } = await supabase
           .from('profiles')
           .select('user_id, full_name, avatar_url')
-          .eq('user_id', payload.new.sender_id)
+          .eq('user_id', newMessage.sender_id)
           .single();
 
-        const newMessage = {
-          ...payload.new,
+        const typedMessage: Message = {
+          ...newMessage,
+          message_type: newMessage.message_type as MessageType,
           sender: profile || {
             full_name: 'Unknown User',
             avatar_url: null
           }
         };
 
-        setMessages(prev => [...prev, newMessage]);
+        setMessages(prev => [...prev, typedMessage]);
       })
       .subscribe();
 
@@ -138,7 +156,7 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
           conversation_id: conversationId,
           sender_id: user.id,
           content: newMessage.trim(),
-          message_type: 'text' as const
+          message_type: 'text' as MessageType
         }]);
 
       if (error) throw error;

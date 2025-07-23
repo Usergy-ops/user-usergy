@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Activity, User, FileText, CheckCircle, MessageSquare, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,10 +9,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
+type ActivityType = 'created' | 'updated' | 'completed' | 'comment' | 'file_upload' | 'status_change';
+
 interface ProjectActivityItem {
   id: string;
   user_id: string;
-  activity_type: 'created' | 'updated' | 'completed' | 'comment' | 'file_upload' | 'status_change';
+  activity_type: ActivityType;
   description: string;
   data: any;
   created_at: string;
@@ -47,7 +50,7 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
       if (error) throw error;
 
       // Get user profiles for the activities
-      const userIds = [...new Set(activitiesData?.map(a => a.user_id) || [])];
+      const userIds = [...new Set(activitiesData?.map(a => a.user_id).filter(Boolean) || [])];
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, avatar_url')
@@ -55,14 +58,23 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
 
       if (profilesError) throw profilesError;
 
-      // Combine activities with user profiles
-      const activitiesWithUsers = activitiesData?.map(activity => ({
-        ...activity,
-        user: profiles?.find(p => p.user_id === activity.user_id) || {
-          full_name: 'Unknown User',
-          avatar_url: null
-        }
-      })) || [];
+      // Combine activities with user profiles and ensure proper typing
+      const activitiesWithUsers: ProjectActivityItem[] = (activitiesData || [])
+        .filter(activity => 
+          activity.id && 
+          activity.user_id && 
+          activity.activity_type && 
+          activity.description && 
+          activity.created_at
+        )
+        .map(activity => ({
+          ...activity,
+          activity_type: activity.activity_type as ActivityType,
+          user: profiles?.find(p => p.user_id === activity.user_id) || {
+            full_name: 'Unknown User',
+            avatar_url: null
+          }
+        }));
 
       setActivities(activitiesWithUsers);
     } catch (error) {
@@ -81,22 +93,29 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
         table: 'project_activities',
         filter: `project_id=eq.${projectId}`
       }, async (payload) => {
+        const newActivity = payload.new;
+        
+        if (!newActivity.id || !newActivity.user_id || !newActivity.activity_type || !newActivity.description || !newActivity.created_at) {
+          return;
+        }
+
         // Fetch the user profile for the new activity
         const { data: profile } = await supabase
           .from('profiles')
           .select('user_id, full_name, avatar_url')
-          .eq('user_id', payload.new.user_id)
+          .eq('user_id', newActivity.user_id)
           .single();
 
-        const newActivity = {
-          ...payload.new,
+        const typedActivity: ProjectActivityItem = {
+          ...newActivity,
+          activity_type: newActivity.activity_type as ActivityType,
           user: profile || {
             full_name: 'Unknown User',
             avatar_url: null
           }
         };
 
-        setActivities(prev => [newActivity, ...prev]);
+        setActivities(prev => [typedActivity, ...prev]);
       })
       .subscribe();
 

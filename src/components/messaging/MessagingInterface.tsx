@@ -20,7 +20,7 @@ export const MessagingInterface: React.FC = () => {
       <Card className="w-1/3 border-r">
         <ConversationList
           selectedConversationId={selectedConversation?.id}
-          onConversationSelect={handleConversationSelect}
+          onSelectConversation={handleConversationSelect}
         />
       </Card>
       

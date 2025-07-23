@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Bell, Check, X, MessageCircle, Briefcase, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,9 +10,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
+type NotificationType = 'message' | 'project_update' | 'invitation' | 'system';
+
 interface Notification {
   id: string;
-  type: 'message' | 'project_update' | 'invitation' | 'system';
+  type: NotificationType;
   title: string;
   message: string;
   data: any;
@@ -46,8 +49,27 @@ export const NotificationCenter: React.FC = () => {
 
       if (error) throw error;
 
-      setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.read_at).length || 0);
+      // Ensure proper typing with filtering and explicit casting
+      const typedNotifications: Notification[] = (data || [])
+        .filter(notification => 
+          notification.id && 
+          notification.type && 
+          notification.title && 
+          notification.message && 
+          notification.created_at
+        )
+        .map(notification => ({
+          id: notification.id,
+          type: notification.type as NotificationType,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data,
+          read_at: notification.read_at,
+          created_at: notification.created_at
+        }));
+
+      setNotifications(typedNotifications);
+      setUnreadCount(typedNotifications.filter(n => !n.read_at).length);
     } catch (error) {
       console.error('Error loading notifications:', error);
     } finally {
@@ -64,8 +86,23 @@ export const NotificationCenter: React.FC = () => {
         table: 'notifications',
         filter: `user_id=eq.${user?.id}`
       }, (payload) => {
-        const newNotification = payload.new as Notification;
-        setNotifications(prev => [newNotification, ...prev]);
+        const newNotification = payload.new;
+        
+        if (!newNotification.id || !newNotification.type || !newNotification.title || !newNotification.message || !newNotification.created_at) {
+          return;
+        }
+
+        const typedNotification: Notification = {
+          id: newNotification.id,
+          type: newNotification.type as NotificationType,
+          title: newNotification.title,
+          message: newNotification.message,
+          data: newNotification.data,
+          read_at: newNotification.read_at,
+          created_at: newNotification.created_at
+        };
+
+        setNotifications(prev => [typedNotification, ...prev]);
         setUnreadCount(prev => prev + 1);
       })
       .subscribe();
