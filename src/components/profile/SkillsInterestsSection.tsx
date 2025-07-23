@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { CompletionCelebration } from './CompletionCelebration';
 
 interface SkillsInterestsFormData {
   bio: string;
@@ -19,7 +20,7 @@ interface SkillsInterestsFormData {
 export const SkillsInterestsSection: React.FC = () => {
   const { profileData, skillsData, updateProfileData, calculateCompletion } = useProfile();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const { register, handleSubmit, setValue, watch } = useForm<SkillsInterestsFormData>({
     defaultValues: {
@@ -58,9 +59,8 @@ export const SkillsInterestsSection: React.FC = () => {
         description: "Your Explorer profile is now complete. Welcome to the community!",
       });
 
-      // Navigate to dashboard after successful completion
-      // Using replace to prevent going back to profile completion
-      navigate('/dashboard', { replace: true });
+      // Show celebration screen instead of navigating
+      setShowCelebration(true);
 
     } catch (error) {
       console.error('Profile completion error:', error);
@@ -71,6 +71,11 @@ export const SkillsInterestsSection: React.FC = () => {
       });
     }
   };
+
+  // If celebration should be shown, render the celebration component
+  if (showCelebration) {
+    return <CompletionCelebration />;
+  }
 
   const interests = [
     'Product Design', 'User Research', 'Data Analysis', 'Marketing', 'AI/ML',
@@ -156,7 +161,7 @@ export const SkillsInterestsSection: React.FC = () => {
             type="submit" 
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
           >
-            Complete Profile & Go to Dashboard
+            Complete Profile
           </Button>
         </div>
       </form>
