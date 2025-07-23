@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -7,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Briefcase, Building } from 'lucide-react';
-import { validateRequiredFields } from '@/utils/dataValidation';
 
 interface EducationWorkFormData {
   education_level: string;
@@ -25,7 +25,7 @@ export const EducationWorkSection: React.FC = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<EducationWorkFormData>({
+  const { register, handleSubmit, setValue, watch } = useForm<EducationWorkFormData>({
     defaultValues: {
       education_level: profileData.education_level || '',
       field_of_study: profileData.field_of_study || '',
@@ -38,24 +38,19 @@ export const EducationWorkSection: React.FC = () => {
     }
   });
 
-  const isSectionComplete = () => {
-    const formData = watch();
-    return !!(formData.education_level);
-  };
-
   const onSubmit = async (data: EducationWorkFormData) => {
     if (isSubmitting) return;
     
+    setIsSubmitting(true);
+    
     try {
-      setIsSubmitting(true);
       console.log('Submitting education & work data:', data);
       
-      // Validate required fields
-      const missing = validateRequiredFields(data, ['education_level']);
-      if (missing.length > 0) {
+      // Simple validation - only require education level
+      if (!data.education_level) {
         toast({
-          title: "Required fields missing",
-          description: `Please fill in: ${missing.join(', ')}`,
+          title: "Required field missing",
+          description: "Please select your education level",
           variant: "destructive"
         });
         return;
@@ -77,40 +72,13 @@ export const EducationWorkSection: React.FC = () => {
       console.error('Error saving education & work data:', error);
       toast({
         title: "Error saving information",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: "There was an error saving your information. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const educationLevels = [
-    'High School', 'Some College', 'Associate Degree', 'Bachelor\'s Degree', 
-    'Master\'s Degree', 'Doctoral Degree', 'Professional Degree', 'Other'
-  ];
-
-  const industries = [
-    'Technology', 'Healthcare', 'Finance', 'Education', 'Manufacturing', 
-    'Retail', 'Construction', 'Transportation', 'Entertainment', 'Government', 
-    'Non-profit', 'Other'
-  ];
-
-  const companySizes = [
-    '1-10 employees', '11-50 employees', '51-200 employees', 
-    '201-1000 employees', '1000+ employees'
-  ];
-
-  const workRoles = [
-    'Individual Contributor', 'Team Lead', 'Manager', 'Senior Manager', 
-    'Director', 'VP/Executive', 'Founder/CEO', 'Consultant', 'Freelancer'
-  ];
-
-  const incomeRanges = [
-    'Under $25,000', '$25,000 - $50,000', '$50,000 - $75,000', 
-    '$75,000 - $100,000', '$100,000 - $150,000', '$150,000 - $200,000', 
-    '$200,000+', 'Prefer not to say'
-  ];
 
   return (
     <div className="space-y-8">
@@ -299,7 +267,7 @@ export const EducationWorkSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete() || isSubmitting}
+            disabled={!watch('education_level') || isSubmitting}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Saving...' : 'Save & Continue'}

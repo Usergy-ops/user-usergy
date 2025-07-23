@@ -18,7 +18,6 @@ interface SocialPresenceFormData {
 export const SocialPresenceSection: React.FC = () => {
   const { profileData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, watch } = useForm<SocialPresenceFormData>({
@@ -30,38 +29,12 @@ export const SocialPresenceSection: React.FC = () => {
     }
   });
 
-  const validateURL = (url: string) => {
-    if (!url) return true; // Empty URLs are valid (optional fields)
-    const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-    return urlPattern.test(url);
-  };
-
-  const handleURLBlur = (field: string, value: string) => {
-    if (value && !validateURL(value)) {
-      setErrors(prev => ({ ...prev, [field]: 'Please enter a valid URL' }));
-    } else {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
   const onSubmit = async (data: SocialPresenceFormData) => {
     if (isSubmitting) return;
     
-    // Validate all URLs before submitting
-    const urlErrors: Record<string, string> = {};
-    Object.entries(data).forEach(([field, url]) => {
-      if (url && !validateURL(url)) {
-        urlErrors[field] = 'Please enter a valid URL';
-      }
-    });
-
-    if (Object.keys(urlErrors).length > 0) {
-      setErrors(urlErrors);
-      return;
-    }
-
+    setIsSubmitting(true);
+    
     try {
-      setIsSubmitting(true);
       console.log('Submitting social presence data:', data);
       
       await updateProfileData('profile', {
@@ -80,7 +53,7 @@ export const SocialPresenceSection: React.FC = () => {
       console.error('Error saving social presence data:', error);
       toast({
         title: "Error saving profiles",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: "There was an error saving your social profiles. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -110,11 +83,7 @@ export const SocialPresenceSection: React.FC = () => {
                 {...register('linkedin_url')}
                 placeholder="https://linkedin.com/in/your-profile"
                 className="mt-1"
-                onBlur={(e) => handleURLBlur('linkedin_url', e.target.value)}
               />
-              {errors.linkedin_url && (
-                <p className="text-red-500 text-sm mt-1">{errors.linkedin_url}</p>
-              )}
             </div>
           </div>
 
@@ -127,11 +96,7 @@ export const SocialPresenceSection: React.FC = () => {
                 {...register('github_url')}
                 placeholder="https://github.com/your-username"
                 className="mt-1"
-                onBlur={(e) => handleURLBlur('github_url', e.target.value)}
               />
-              {errors.github_url && (
-                <p className="text-red-500 text-sm mt-1">{errors.github_url}</p>
-              )}
             </div>
           </div>
 
@@ -144,11 +109,7 @@ export const SocialPresenceSection: React.FC = () => {
                 {...register('twitter_url')}
                 placeholder="https://twitter.com/your-username"
                 className="mt-1"
-                onBlur={(e) => handleURLBlur('twitter_url', e.target.value)}
               />
-              {errors.twitter_url && (
-                <p className="text-red-500 text-sm mt-1">{errors.twitter_url}</p>
-              )}
             </div>
           </div>
 
@@ -161,11 +122,7 @@ export const SocialPresenceSection: React.FC = () => {
                 {...register('portfolio_url')}
                 placeholder="https://your-website.com"
                 className="mt-1"
-                onBlur={(e) => handleURLBlur('portfolio_url', e.target.value)}
               />
-              {errors.portfolio_url && (
-                <p className="text-red-500 text-sm mt-1">{errors.portfolio_url}</p>
-              )}
             </div>
           </div>
         </div>

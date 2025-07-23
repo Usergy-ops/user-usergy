@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -9,7 +10,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { Brain, Code, Zap } from 'lucide-react';
-import { validateRequiredFields } from '@/utils/dataValidation';
 
 interface TechFluencyFormData {
   technical_experience_level: string;
@@ -36,48 +36,28 @@ export const TechFluencySection: React.FC = () => {
     }
   });
 
-  const isSectionComplete = () => {
-    const formData = watch();
-    return !!(
-      formData.technical_experience_level &&
-      formData.ai_familiarity_level &&
-      formData.ai_interests?.length &&
-      formData.ai_models_used?.length
-    );
-  };
-
   const onSubmit = async (data: TechFluencyFormData) => {
     if (isSubmitting) return;
     
+    setIsSubmitting(true);
+    
     try {
-      setIsSubmitting(true);
       console.log('Submitting tech fluency data:', data);
       
-      // Validate required fields
-      const missing = validateRequiredFields(data, ['technical_experience_level', 'ai_familiarity_level']);
-      if (missing.length > 0) {
+      // Simple validation
+      if (!data.technical_experience_level) {
         toast({
-          title: "Required fields missing",
-          description: `Please fill in: ${missing.join(', ')}`,
+          title: "Required field missing",
+          description: "Please select your technical experience level",
           variant: "destructive"
         });
         return;
       }
       
-      // Check required arrays
-      if (!data.ai_interests || data.ai_interests.length === 0) {
+      if (!data.ai_familiarity_level) {
         toast({
-          title: "Required selection missing",
-          description: "Please select at least one AI interest",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (!data.ai_models_used || data.ai_models_used.length === 0) {
-        toast({
-          title: "Required selection missing",
-          description: "Please select at least one AI tool you've used",
+          title: "Required field missing",
+          description: "Please select your AI familiarity level",
           variant: "destructive"
         });
         return;
@@ -109,45 +89,13 @@ export const TechFluencySection: React.FC = () => {
       console.error('Error saving tech fluency data:', error);
       toast({
         title: "Error saving tech fluency",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: "There was an error saving your information. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const techExperienceLevels = [
-    { value: 'beginner', label: 'Beginner - Basic computer skills' },
-    { value: 'intermediate', label: 'Intermediate - Comfortable with most software' },
-    { value: 'advanced', label: 'Advanced - Power user, some technical skills' },
-    { value: 'expert', label: 'Expert - Strong technical background' }
-  ];
-
-  const aiFamiliarityLevels = [
-    { value: 'none', label: 'No experience with AI tools' },
-    { value: 'basic', label: 'Basic - Used ChatGPT or similar occasionally' },
-    { value: 'intermediate', label: 'Intermediate - Regular AI tool user' },
-    { value: 'advanced', label: 'Advanced - Integrate AI into workflows' },
-    { value: 'expert', label: 'Expert - Develop or customize AI solutions' }
-  ];
-
-  const aiInterests = [
-    'Content Creation', 'Code Generation', 'Data Analysis', 'Design & Art',
-    'Research & Writing', 'Automation', 'Customer Service', 'Marketing',
-    'Education & Training', 'Healthcare', 'Finance', 'Gaming'
-  ];
-
-  const aiModels = [
-    'ChatGPT', 'Claude', 'GPT-4', 'Gemini', 'Midjourney', 'DALL-E',
-    'Stable Diffusion', 'GitHub Copilot', 'Cursor', 'Perplexity',
-    'Notion AI', 'Jasper', 'Copy.ai', 'Other'
-  ];
-
-  const programmingLanguages = [
-    'JavaScript', 'Python', 'Java', 'TypeScript', 'C#', 'C++',
-    'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin', 'SQL', 'HTML/CSS'
-  ];
 
   const handleCheckboxChange = (field: 'ai_interests' | 'ai_models_used' | 'programming_languages', value: string, checked: boolean) => {
     const current = watch(field) || [];
@@ -304,9 +252,7 @@ export const TechFluencySection: React.FC = () => {
 
         {/* AI Interests */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">
-            AI Use Cases You're Interested In <span className="text-red-500">*</span>
-          </Label>
+          <Label className="text-lg font-medium">AI Use Cases You're Interested In</Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
               'Content Creation', 'Code Generation', 'Data Analysis', 'Design & Art',
@@ -331,9 +277,7 @@ export const TechFluencySection: React.FC = () => {
 
         {/* AI Models Used */}
         <div className="space-y-4">
-          <Label className="text-lg font-medium">
-            AI Tools You've Used <span className="text-red-500">*</span>
-          </Label>
+          <Label className="text-lg font-medium">AI Tools You've Used</Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
               'ChatGPT', 'Claude', 'GPT-4', 'Gemini', 'Midjourney', 'DALL-E',
@@ -401,7 +345,7 @@ export const TechFluencySection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete() || isSubmitting}
+            disabled={!watch('technical_experience_level') || !watch('ai_familiarity_level') || isSubmitting}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Saving...' : 'Save & Continue'}

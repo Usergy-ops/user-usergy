@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { CompletionCelebration } from './CompletionCelebration';
-import { validateRequiredFields } from '@/utils/dataValidation';
 
 interface SkillsInterestsFormData {
   bio: string;
@@ -37,8 +36,9 @@ export const SkillsInterestsSection: React.FC = () => {
   const onSubmit = async (data: SkillsInterestsFormData) => {
     if (isSubmitting) return;
     
+    setIsSubmitting(true);
+    
     try {
-      setIsSubmitting(true);
       console.log('Submitting skills & interests data:', data);
       
       // Update profile data
@@ -67,7 +67,7 @@ export const SkillsInterestsSection: React.FC = () => {
       console.error('Profile completion error:', error);
       toast({
         title: "Error completing profile",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: "There was an error completing your profile. Please try again.",
         variant: "destructive"
       });
     } finally {

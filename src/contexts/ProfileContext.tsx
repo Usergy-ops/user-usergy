@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { handleProfileError } from '@/utils/profileErrors';
-import { validateAndCleanData } from '@/utils/dataValidation';
+import { ProfileService } from '@/services/profileService';
 
 interface ProfileData {
   // Basic Profile
@@ -109,12 +109,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [socialPresenceData, setSocialPresenceData] = useState<SocialPresenceData>({});
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
-  
-  // Add refs to prevent race conditions
-  const savingRef = useRef(false);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load current step from localStorage to maintain state across tabs
+  // Load current step from localStorage
   useEffect(() => {
     const savedStep = localStorage.getItem('profileCurrentStep');
     if (savedStep) {
@@ -122,10 +118,42 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Save current step to localStorage whenever it changes
+  // Save current step to localStorage
   useEffect(() => {
     localStorage.setItem('profileCurrentStep', currentStep.toString());
   }, [currentStep]);
+
+  const loadProfileData = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      console.log('Loading profile data for user:', user.id);
+
+      // Load all data in parallel
+      const [profileResult, devicesResult, techFluencyResult, skillsResult, socialPresenceResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_devices').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_tech_fluency').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_skills').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_social_presence').select('*').eq('user_id', user.id).maybeSingle()
+      ]);
+
+      // Set data with fallbacks
+      setProfileData(profileResult.data || {});
+      setDeviceData(devicesResult.data || {});
+      setTechFluencyData(techFluencyResult.data || {});
+      setSkillsData(skillsResult.data || {});
+      setSocialPresenceData(socialPresenceResult.data || {});
+
+      console.log('Profile data loaded successfully');
+    } catch (error) {
+      console.error('Error loading profile data:', error);
+      // Don't throw - just log and continue
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -133,393 +161,52 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } else {
       setLoading(false);
     }
-  }, [user]);
-
-  // Auto-save functionality with better conflict prevention
-  useEffect(() => {
-    if (!user) return;
-
-    const scheduleAutoSave = () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-      
-      autoSaveTimeoutRef.current = setTimeout(async () => {
-        if (!savingRef.current) {
-          await autoSaveData();
-        }
-        scheduleAutoSave();
-      }, 10000);
-    };
-
-    scheduleAutoSave();
-
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-    };
-  }, [user, profileData, deviceData, techFluencyData, skillsData, socialPresenceData]);
-
-  const loadProfileData = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      console.log('Loading profile data for user:', user.id);
-
-      // Load main profile data
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error loading profile:', profileError);
-        throw profileError;
-      }
-
-      if (profile) {
-        console.log('Loaded profile data:', profile);
-        setProfileData(profile);
-      }
-
-      // Load device data
-      const { data: devices, error: devicesError } = await supabase
-        .from('user_devices')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (devicesError && devicesError.code !== 'PGRST116') {
-        console.error('Error loading devices:', devicesError);
-        throw devicesError;
-      }
-
-      if (devices) {
-        console.log('Loaded device data:', devices);
-        setDeviceData(devices);
-      }
-
-      // Load tech fluency data
-      const { data: techFluency, error: techError } = await supabase
-        .from('user_tech_fluency')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (techError && techError.code !== 'PGRST116') {
-        console.error('Error loading tech fluency:', techError);
-        throw techError;
-      }
-
-      if (techFluency) {
-        console.log('Loaded tech fluency data:', techFluency);
-        // Handle programming_languages field type conversion
-        const processedTechFluency = {
-          ...techFluency,
-          programming_languages: Array.isArray(techFluency.programming_languages)
-            ? techFluency.programming_languages
-            : techFluency.programming_languages
-              ? (typeof techFluency.programming_languages === 'string' 
-                  ? JSON.parse(techFluency.programming_languages)
-                  : [])
-              : []
-        };
-        setTechFluencyData(processedTechFluency);
-      }
-
-      // Load skills data
-      const { data: skills, error: skillsError } = await supabase
-        .from('user_skills')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (skillsError && skillsError.code !== 'PGRST116') {
-        console.error('Error loading skills:', skillsError);
-        throw skillsError;
-      }
-
-      if (skills) {
-        console.log('Loaded skills data:', skills);
-        setSkillsData(skills);
-      }
-
-      // Load social presence data
-      const { data: socialPresence, error: socialError } = await supabase
-        .from('user_social_presence')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (socialError && socialError.code !== 'PGRST116') {
-        console.error('Error loading social presence:', socialError);
-        throw socialError;
-      }
-
-      if (socialPresence) {
-        console.log('Loaded social presence data:', socialPresence);
-        setSocialPresenceData(socialPresence);
-      }
-
-      console.log('Profile data loading completed successfully');
-
-    } catch (error) {
-      console.error('Error loading profile data:', error);
-      throw handleProfileError(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const autoSaveData = async () => {
-    if (!user || savingRef.current) return;
-
-    try {
-      console.log('Auto-saving profile data...');
-      savingRef.current = true;
-      
-      // Save profile data
-      if (Object.keys(profileData).length > 0) {
-        const cleanData = validateAndCleanData(profileData);
-        if (Object.keys(cleanData).length > 0) {
-          const { completion_percentage, ...dataToSave } = cleanData;
-          const { error } = await supabase
-            .from('profiles')
-            .upsert({ 
-              user_id: user.id, 
-              email: user.email || '',
-              ...dataToSave
-            });
-          
-          if (error) {
-            console.error('Error auto-saving profile:', error);
-            throw handleProfileError(error);
-          }
-        }
-      }
-
-      // Save other data sections
-      if (Object.keys(deviceData).length > 0) {
-        const cleanData = validateAndCleanData(deviceData);
-        if (Object.keys(cleanData).length > 0) {
-          const { error } = await supabase
-            .from('user_devices')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (error) {
-            console.error('Error auto-saving devices:', error);
-            throw handleProfileError(error);
-          }
-        }
-      }
-
-      if (Object.keys(techFluencyData).length > 0) {
-        const cleanData = validateAndCleanData(techFluencyData);
-        if (Object.keys(cleanData).length > 0) {
-          const { error } = await supabase
-            .from('user_tech_fluency')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (error) {
-            console.error('Error auto-saving tech fluency:', error);
-            throw handleProfileError(error);
-          }
-        }
-      }
-
-      if (Object.keys(skillsData).length > 0) {
-        const cleanData = validateAndCleanData(skillsData);
-        if (Object.keys(cleanData).length > 0) {
-          const { error } = await supabase
-            .from('user_skills')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (error) {
-            console.error('Error auto-saving skills:', error);
-            throw handleProfileError(error);
-          }
-        }
-      }
-
-      if (Object.keys(socialPresenceData).length > 0) {
-        const cleanData = validateAndCleanData(socialPresenceData);
-        if (Object.keys(cleanData).length > 0) {
-          const { error } = await supabase
-            .from('user_social_presence')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (error) {
-            console.error('Error auto-saving social presence:', error);
-            throw handleProfileError(error);
-          }
-        }
-      }
-
-      console.log('Auto-save completed successfully');
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-      // Don't throw here as it's background operation
-    } finally {
-      savingRef.current = false;
-    }
-  };
+  }, [user, loadProfileData]);
 
   const updateProfileData = async (section: string, data: any) => {
     if (!user) {
-      console.error('No user found, cannot update profile data');
-      throw handleProfileError(new Error('User not authenticated'));
-    }
-
-    if (savingRef.current) {
-      console.log('Save already in progress, waiting...');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      if (savingRef.current) {
-        throw handleProfileError(new Error('Another save operation is in progress'));
-      }
+      throw new Error('User not authenticated');
     }
 
     try {
       console.log(`Updating ${section} data:`, data);
-      savingRef.current = true;
       
-      const cleanData = validateAndCleanData(data);
+      // Save to database using the service
+      await ProfileService.saveProfileData(section, data, user.id, user.email || '');
       
-      if (Object.keys(cleanData).length === 0) {
-        console.warn(`No valid data to save for section: ${section}`);
-        return;
-      }
-
+      // Update local state only after successful save
       switch (section) {
         case 'profile':
-          // First update local state
-          setProfileData(prev => ({ ...prev, ...cleanData }));
-          
-          // Separate completion fields from profile data
-          const { completion_percentage, ...profileDataToSave } = cleanData;
-          
-          // Then save to database
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({ 
-              user_id: user.id, 
-              email: user.email || '',
-              ...profileDataToSave
-            });
-          
-          if (profileError) {
-            console.error('Error updating profile:', profileError);
-            throw handleProfileError(profileError);
-          }
-          
+          setProfileData(prev => ({ ...prev, ...data }));
           break;
-
         case 'devices':
-          // First update local state
-          setDeviceData(prev => ({ ...prev, ...cleanData }));
-          
-          // Then save to database
-          const { error: devicesError } = await supabase
-            .from('user_devices')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (devicesError) {
-            console.error('Error updating devices:', devicesError);
-            throw handleProfileError(devicesError);
-          }
-          
+          setDeviceData(prev => ({ ...prev, ...data }));
           break;
-
         case 'tech_fluency':
-          // First update local state
-          setTechFluencyData(prev => ({ ...prev, ...cleanData }));
-          
-          // Then save to database
-          const { error: techError } = await supabase
-            .from('user_tech_fluency')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (techError) {
-            console.error('Error updating tech fluency:', techError);
-            throw handleProfileError(techError);
-          }
-          
+          setTechFluencyData(prev => ({ ...prev, ...data }));
           break;
-
         case 'skills':
-          // First update local state
-          setSkillsData(prev => ({ ...prev, ...cleanData }));
-          
-          // Then save to database
-          const { error: skillsError } = await supabase
-            .from('user_skills')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (skillsError) {
-            console.error('Error updating skills:', skillsError);
-            throw handleProfileError(skillsError);
-          }
-          
+          setSkillsData(prev => ({ ...prev, ...data }));
           break;
-
         case 'social_presence':
-          // First update local state
-          setSocialPresenceData(prev => ({ ...prev, ...cleanData }));
-          
-          // Then save to database
-          const { error: socialError } = await supabase
-            .from('user_social_presence')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            });
-          
-          if (socialError) {
-            console.error('Error updating social presence:', socialError);
-            throw handleProfileError(socialError);
-          }
-          
+          setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;
-
-        default:
-          console.error(`Unknown section: ${section}`);
-          throw handleProfileError(new Error(`Unknown section: ${section}`));
       }
 
       console.log(`Successfully updated ${section} data`);
     } catch (error) {
       console.error(`Error updating ${section} data:`, error);
       throw error;
-    } finally {
-      savingRef.current = false;
     }
   };
 
+  const autoSaveData = async () => {
+    // Simplified auto-save - just a placeholder for now
+    console.log('Auto-save triggered');
+  };
+
   const uploadProfilePicture = async (file: File): Promise<string> => {
-    if (!user) throw handleProfileError(new Error('User not authenticated'));
+    if (!user) throw new Error('User not authenticated');
 
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/avatar.${fileExt}`;
@@ -529,7 +216,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .upload(fileName, file, { upsert: true });
 
     if (uploadError) {
-      throw handleProfileError(uploadError);
+      throw uploadError;
     }
 
     const { data } = supabase.storage
