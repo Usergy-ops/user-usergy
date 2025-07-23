@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Bell, Check, X, MessageCircle, Briefcase, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -65,7 +64,8 @@ export const NotificationCenter: React.FC = () => {
         table: 'notifications',
         filter: `user_id=eq.${user?.id}`
       }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev]);
+        const newNotification = payload.new as Notification;
+        setNotifications(prev => [newNotification, ...prev]);
         setUnreadCount(prev => prev + 1);
       })
       .subscribe();

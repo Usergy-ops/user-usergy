@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Users, Plus, Search } from 'lucide-react';
+import { MessageCircle, Plus, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,87 +13,103 @@ import { formatDistanceToNow } from 'date-fns';
 interface Conversation {
   id: string;
   title: string;
-  type: 'general' | 'private' | 'announcement' | 'project';
+  type: string;
   created_at: string;
-  updated_at: string;
-  unread_count: number;
   last_message?: {
     content: string;
-    sender_name: string;
     created_at: string;
+    sender: {
+      full_name: string;
+    };
   };
+  unread_count: number;
 }
 
 interface ConversationListProps {
+  onSelectConversation: (conversationId: string, title: string) => void;
   selectedConversationId?: string;
-  onConversationSelect: (conversationId: string, title: string) => void;
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
-  selectedConversationId,
-  onConversationSelect
+  onSelectConversation,
+  selectedConversationId
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    loadConversations();
+    if (user) {
+      loadConversations();
+      subscribeToConversations();
+    }
   }, [user]);
 
   const loadConversations = async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Get conversations where user is a participant
+      const { data: participantData, error: participantError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      if (participantError) throw participantError;
+
+      const conversationIds = participantData?.map(p => p.conversation_id) || [];
+
+      if (conversationIds.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get conversation details
+      const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          conversation_participants!inner (
-            user_id,
-            last_read_at
-          ),
-          messages (
-            content,
-            created_at,
-            sender:profiles!messages_sender_id_fkey (
-              full_name
-            )
-          )
-        `)
-        .eq('conversation_participants.user_id', user.id)
-        .order('updated_at', { ascending: false });
+        .select('*')
+        .in('id', conversationIds)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (conversationsError) throw conversationsError;
 
-      const processedConversations: Conversation[] = data?.map(conv => {
-        const lastMessage = conv.messages?.[conv.messages.length - 1];
-        const participantData = conv.conversation_participants.find(p => p.user_id === user.id);
-        const lastReadAt = participantData?.last_read_at;
-        
-        // Calculate unread count (simplified)
-        const unreadCount = conv.messages?.filter(
-          msg => new Date(msg.created_at) > new Date(lastReadAt || 0)
-        ).length || 0;
+      // Get latest message for each conversation
+      const conversationsWithMessages = await Promise.all(
+        (conversationsData || []).map(async (conv) => {
+          const { data: lastMessage } = await supabase
+            .from('messages')
+            .select('content, created_at, sender_id')
+            .eq('conversation_id', conv.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-        return {
-          id: conv.id,
-          title: conv.title || 'Untitled Conversation',
-          type: conv.type as 'general' | 'private' | 'announcement' | 'project',
-          created_at: conv.created_at,
-          updated_at: conv.updated_at,
-          unread_count: unreadCount,
-          last_message: lastMessage ? {
-            content: lastMessage.content,
-            sender_name: lastMessage.sender?.full_name || 'Unknown User',
-            created_at: lastMessage.created_at
-          } : undefined
-        };
-      }) || [];
+          let lastMessageWithSender = null;
+          if (lastMessage) {
+            const { data: senderProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('user_id', lastMessage.sender_id)
+              .single();
 
-      setConversations(processedConversations);
+            lastMessageWithSender = {
+              ...lastMessage,
+              sender: senderProfile || { full_name: 'Unknown User' }
+            };
+          }
+
+          return {
+            ...conv,
+            last_message: lastMessageWithSender,
+            unread_count: 0 // TODO: Implement unread count logic
+          };
+        })
+      );
+
+      setConversations(conversationsWithMessages);
     } catch (error) {
       console.error('Error loading conversations:', error);
       toast({
@@ -106,99 +122,99 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
   };
 
+  const subscribeToConversations = () => {
+    const channel = supabase
+      .channel(`conversations:${user?.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'conversations'
+      }, () => {
+        loadConversations();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'private':
-        return <Users className="w-4 h-4" />;
-      case 'announcement':
-        return <MessageCircle className="w-4 h-4" />;
-      default:
-        return <MessageCircle className="w-4 h-4" />;
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'private':
-        return 'bg-purple-100 text-purple-800';
-      case 'announcement':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="h-full flex flex-col">
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Messages</h2>
-          <Button size="sm">
+          <h2 className="text-lg font-semibold">Conversations</h2>
+          <Button size="sm" variant="outline">
             <Plus className="w-4 h-4 mr-2" />
             New
           </Button>
         </div>
-        <Input
-          placeholder="Search conversations..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full"
-        />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search conversations..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="space-y-1 p-2">
-          {filteredConversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              onClick={() => onConversationSelect(conversation.id, conversation.title)}
-              className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted ${
-                selectedConversationId === conversation.id ? 'bg-primary/10' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  {getTypeIcon(conversation.type)}
-                  <span className="font-medium text-sm">{conversation.title}</span>
+        {filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+            <MessageCircle className="w-8 h-8 mb-2" />
+            <p className="text-sm">No conversations yet</p>
+          </div>
+        ) : (
+          <div className="p-2">
+            {filteredConversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted ${
+                  selectedConversationId === conversation.id ? 'bg-primary/10' : ''
+                }`}
+                onClick={() => onSelectConversation(conversation.id, conversation.title)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-medium text-sm">{conversation.title}</h3>
+                  <div className="flex items-center space-x-2">
+                    {conversation.unread_count > 0 && (
+                      <Badge variant="destructive" className="px-2 py-1 text-xs">
+                        {conversation.unread_count}
+                      </Badge>
+                    )}
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className={getTypeColor(conversation.type)}>
-                    {conversation.type}
-                  </Badge>
-                  {conversation.unread_count > 0 && (
-                    <Badge className="bg-red-500">
-                      {conversation.unread_count}
-                    </Badge>
-                  )}
+                {conversation.last_message && (
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium">
+                      {conversation.last_message.sender.full_name}:
+                    </span>{' '}
+                    {conversation.last_message.content.substring(0, 50)}
+                    {conversation.last_message.content.length > 50 ? '...' : ''}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-1">
+                  {formatDistanceToNow(new Date(conversation.created_at), { addSuffix: true })}
                 </div>
               </div>
-              
-              {conversation.last_message && (
-                <div className="text-sm text-muted-foreground">
-                  <div className="truncate">
-                    <span className="font-medium">{conversation.last_message.sender_name}:</span>
-                    <span className="ml-1">{conversation.last_message.content}</span>
-                  </div>
-                  <div className="text-xs mt-1">
-                    {formatDistanceToNow(new Date(conversation.last_message.created_at), { addSuffix: true })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </ScrollArea>
     </div>
   );

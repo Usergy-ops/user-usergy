@@ -55,20 +55,33 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
 
   const loadMessages = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: messagesData, error } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey (
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+
+      // Get user profiles for the messages
+      const userIds = [...new Set(messagesData?.map(m => m.sender_id) || [])];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine messages with user profiles
+      const messagesWithUsers = messagesData?.map(message => ({
+        ...message,
+        sender: profiles?.find(p => p.user_id === message.sender_id) || {
+          full_name: 'Unknown User',
+          avatar_url: null
+        }
+      })) || [];
+
+      setMessages(messagesWithUsers);
     } catch (error) {
       console.error('Error loading messages:', error);
       toast({
@@ -89,24 +102,23 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
         schema: 'public',
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`
-      }, (payload) => {
-        // Fetch the new message with sender info
-        supabase
-          .from('messages')
-          .select(`
-            *,
-            sender:profiles!messages_sender_id_fkey (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('id', payload.new.id)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setMessages(prev => [...prev, data]);
-            }
-          });
+      }, async (payload) => {
+        // Fetch the user profile for the new message
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url')
+          .eq('user_id', payload.new.sender_id)
+          .single();
+
+        const newMessage = {
+          ...payload.new,
+          sender: profile || {
+            full_name: 'Unknown User',
+            avatar_url: null
+          }
+        };
+
+        setMessages(prev => [...prev, newMessage]);
       })
       .subscribe();
 
@@ -126,7 +138,7 @@ export const MessageThread: React.FC<MessageThreadProps> = ({ conversationId, ti
           conversation_id: conversationId,
           sender_id: user.id,
           content: newMessage.trim(),
-          message_type: 'text'
+          message_type: 'text' as const
         }]);
 
       if (error) throw error;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Activity, User, FileText, CheckCircle, MessageSquare, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,21 +37,34 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
 
   const loadActivities = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: activitiesData, error } = await supabase
         .from('project_activities')
-        .select(`
-          *,
-          user:profiles!project_activities_user_id_fkey (
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
-      setActivities(data || []);
+
+      // Get user profiles for the activities
+      const userIds = [...new Set(activitiesData?.map(a => a.user_id) || [])];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine activities with user profiles
+      const activitiesWithUsers = activitiesData?.map(activity => ({
+        ...activity,
+        user: profiles?.find(p => p.user_id === activity.user_id) || {
+          full_name: 'Unknown User',
+          avatar_url: null
+        }
+      })) || [];
+
+      setActivities(activitiesWithUsers);
     } catch (error) {
       console.error('Error loading activities:', error);
     } finally {
@@ -68,24 +80,23 @@ export const ProjectActivity: React.FC<ProjectActivityProps> = ({ projectId }) =
         schema: 'public',
         table: 'project_activities',
         filter: `project_id=eq.${projectId}`
-      }, (payload) => {
-        // Fetch the new activity with user info
-        supabase
-          .from('project_activities')
-          .select(`
-            *,
-            user:profiles!project_activities_user_id_fkey (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('id', payload.new.id)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setActivities(prev => [data, ...prev]);
-            }
-          });
+      }, async (payload) => {
+        // Fetch the user profile for the new activity
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url')
+          .eq('user_id', payload.new.user_id)
+          .single();
+
+        const newActivity = {
+          ...payload.new,
+          user: profile || {
+            full_name: 'Unknown User',
+            avatar_url: null
+          }
+        };
+
+        setActivities(prev => [newActivity, ...prev]);
       })
       .subscribe();
 
