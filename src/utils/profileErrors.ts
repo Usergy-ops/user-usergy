@@ -7,8 +7,9 @@ export class ProfileError extends Error {
 }
 
 export const handleProfileError = (error: any): ProfileError => {
-  console.error('Profile error:', error);
+  console.error('[ProfileError] Original error:', error);
   
+  // Handle Supabase specific errors
   if (error.code === 'PGRST116') {
     return new ProfileError('Profile not found', 'PROFILE_NOT_FOUND', error);
   }
@@ -18,15 +19,34 @@ export const handleProfileError = (error: any): ProfileError => {
   }
   
   if (error.message?.includes('violates row-level security')) {
-    return new ProfileError('Authentication required', 'AUTH_REQUIRED', error);
+    return new ProfileError('You do not have permission to perform this action', 'AUTH_REQUIRED', error);
   }
   
   if (error.message?.includes('violates not-null constraint')) {
-    return new ProfileError('Required field missing', 'REQUIRED_FIELD', error);
+    return new ProfileError('Required field is missing', 'REQUIRED_FIELD', error);
   }
   
+  if (error.message?.includes('violates foreign key constraint')) {
+    return new ProfileError('Invalid data reference', 'INVALID_REFERENCE', error);
+  }
+  
+  if (error.message?.includes('connection')) {
+    return new ProfileError('Connection error. Please check your internet connection and try again.', 'CONNECTION_ERROR', error);
+  }
+  
+  // Handle network errors
+  if (error.name === 'TypeError' && error.message?.includes('fetch')) {
+    return new ProfileError('Network error. Please try again.', 'NETWORK_ERROR', error);
+  }
+  
+  // Handle timeout errors
+  if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+    return new ProfileError('Request timed out. Please try again.', 'TIMEOUT_ERROR', error);
+  }
+  
+  // Default error
   return new ProfileError(
-    error.message || 'An unexpected error occurred',
+    error.message || 'An unexpected error occurred. Please try again.',
     'UNKNOWN_ERROR',
     error
   );

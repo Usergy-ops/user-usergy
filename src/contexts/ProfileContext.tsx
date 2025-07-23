@@ -100,42 +100,30 @@ export const useProfile = () => {
   return context;
 };
 
-// Helper function to safely convert Json to expected types
-const convertJsonToType = (value: any, expectedType: 'string[]' | 'object'): any => {
-  if (value === null || value === undefined) {
-    return expectedType === 'string[]' ? [] : {};
+// Safe data conversion helper
+const safeConvertArray = (value: any): string[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
-  
-  if (expectedType === 'string[]') {
-    if (Array.isArray(value)) {
-      return value;
+  return [];
+};
+
+const safeConvertObject = (value: any): any => {
+  if (typeof value === 'object' && value !== null) return value;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
     }
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
   }
-  
-  if (expectedType === 'object') {
-    if (typeof value === 'object' && value !== null) {
-      return value;
-    }
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  }
-  
-  return value;
+  return {};
 };
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -166,10 +154,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setLoading(true);
-      console.log('Loading profile data for user:', user.id);
+      console.log('[ProfileContext] Loading profile data for user:', user.id);
 
-      // Load all data in parallel
-      const [profileResult, devicesResult, techFluencyResult, skillsResult, socialPresenceResult] = await Promise.all([
+      // Load all data in parallel with error handling
+      const [profileResult, devicesResult, techFluencyResult, skillsResult, socialPresenceResult] = await Promise.allSettled([
         supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_devices').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_tech_fluency').select('*').eq('user_id', user.id).maybeSingle(),
@@ -177,52 +165,57 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabase.from('user_social_presence').select('*').eq('user_id', user.id).maybeSingle()
       ]);
 
-      // Set data with proper type conversion
-      setProfileData(profileResult.data || {});
+      // Safely extract data from results
+      const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
+      const devices = devicesResult.status === 'fulfilled' ? devicesResult.value.data : null;
+      const techFluency = techFluencyResult.status === 'fulfilled' ? techFluencyResult.value.data : null;
+      const skills = skillsResult.status === 'fulfilled' ? skillsResult.value.data : null;
+      const socialPresence = socialPresenceResult.status === 'fulfilled' ? socialPresenceResult.value.data : null;
+
+      // Set profile data
+      setProfileData(profile || {});
       
-      // Convert device data arrays from Json to string[]
-      const deviceDataConverted = devicesResult.data ? {
-        ...devicesResult.data,
-        operating_systems: convertJsonToType(devicesResult.data.operating_systems, 'string[]'),
-        devices_owned: convertJsonToType(devicesResult.data.devices_owned, 'string[]'),
-        mobile_manufacturers: convertJsonToType(devicesResult.data.mobile_manufacturers, 'string[]'),
-        desktop_manufacturers: convertJsonToType(devicesResult.data.desktop_manufacturers, 'string[]'),
-        email_clients: convertJsonToType(devicesResult.data.email_clients, 'string[]'),
-        streaming_subscriptions: convertJsonToType(devicesResult.data.streaming_subscriptions, 'string[]'),
-        music_subscriptions: convertJsonToType(devicesResult.data.music_subscriptions, 'string[]'),
-      } : {};
-      setDeviceData(deviceDataConverted);
+      // Set device data with safe conversion
+      setDeviceData({
+        operating_systems: devices ? safeConvertArray(devices.operating_systems) : [],
+        devices_owned: devices ? safeConvertArray(devices.devices_owned) : [],
+        mobile_manufacturers: devices ? safeConvertArray(devices.mobile_manufacturers) : [],
+        desktop_manufacturers: devices ? safeConvertArray(devices.desktop_manufacturers) : [],
+        email_clients: devices ? safeConvertArray(devices.email_clients) : [],
+        streaming_subscriptions: devices ? safeConvertArray(devices.streaming_subscriptions) : [],
+        music_subscriptions: devices ? safeConvertArray(devices.music_subscriptions) : [],
+      });
 
-      // Convert tech fluency data arrays from Json to string[]
-      const techFluencyDataConverted = techFluencyResult.data ? {
-        ...techFluencyResult.data,
-        ai_interests: convertJsonToType(techFluencyResult.data.ai_interests, 'string[]'),
-        ai_models_used: convertJsonToType(techFluencyResult.data.ai_models_used, 'string[]'),
-        programming_languages: convertJsonToType(techFluencyResult.data.programming_languages, 'string[]'),
-      } : {};
-      setTechFluencyData(techFluencyDataConverted);
+      // Set tech fluency data with safe conversion
+      setTechFluencyData({
+        ai_interests: techFluency ? safeConvertArray(techFluency.ai_interests) : [],
+        ai_models_used: techFluency ? safeConvertArray(techFluency.ai_models_used) : [],
+        programming_languages: techFluency ? safeConvertArray(techFluency.programming_languages) : [],
+        coding_experience_years: techFluency?.coding_experience_years || 0,
+      });
 
-      // Convert skills data
-      const skillsDataConverted = skillsResult.data ? {
-        ...skillsResult.data,
-        skills: convertJsonToType(skillsResult.data.skills, 'object'),
-        interests: convertJsonToType(skillsResult.data.interests, 'string[]'),
-        product_categories: convertJsonToType(skillsResult.data.product_categories, 'string[]'),
-      } : {};
-      setSkillsData(skillsDataConverted);
+      // Set skills data with safe conversion
+      setSkillsData({
+        skills: skills ? safeConvertObject(skills.skills) : {},
+        interests: skills ? safeConvertArray(skills.interests) : [],
+        product_categories: skills ? safeConvertArray(skills.product_categories) : [],
+      });
 
-      // Convert social presence data
-      const socialPresenceDataConverted = socialPresenceResult.data ? {
-        ...socialPresenceResult.data,
-        other_social_networks: convertJsonToType(socialPresenceResult.data.other_social_networks, 'object'),
-        additional_links: convertJsonToType(socialPresenceResult.data.additional_links, 'string[]'),
-      } : {};
-      setSocialPresenceData(socialPresenceDataConverted);
+      // Set social presence data with safe conversion
+      setSocialPresenceData({
+        other_social_networks: socialPresence ? safeConvertObject(socialPresence.other_social_networks) : {},
+        additional_links: socialPresence ? safeConvertArray(socialPresence.additional_links) : [],
+      });
 
-      console.log('Profile data loaded successfully');
+      console.log('[ProfileContext] Profile data loaded successfully');
     } catch (error) {
-      console.error('Error loading profile data:', error);
-      // Don't throw - just log and continue
+      console.error('[ProfileContext] Error loading profile data:', error);
+      // Set empty defaults on error
+      setProfileData({});
+      setDeviceData({});
+      setTechFluencyData({});
+      setSkillsData({});
+      setSocialPresenceData({});
     } finally {
       setLoading(false);
     }
@@ -242,7 +235,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      console.log(`Updating ${section} data:`, data);
+      console.log(`[ProfileContext] Updating ${section} data:`, data);
       
       // Save to database using the service
       await ProfileService.saveProfileData(section, data, user.id, user.email || '');
@@ -266,37 +259,43 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           break;
       }
 
-      console.log(`Successfully updated ${section} data`);
+      console.log(`[ProfileContext] Successfully updated ${section} data`);
     } catch (error) {
-      console.error(`Error updating ${section} data:`, error);
+      console.error(`[ProfileContext] Error updating ${section} data:`, error);
+      // Re-throw the error so components can handle it
       throw error;
     }
   };
 
   const autoSaveData = async () => {
-    // Simplified auto-save - just a placeholder for now
-    console.log('Auto-save triggered');
+    console.log('[ProfileContext] Auto-save triggered');
+    // Placeholder for auto-save functionality
   };
 
   const uploadProfilePicture = async (file: File): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/avatar.${fileExt}`;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('profile-pictures')
-      .upload(fileName, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, file, { upsert: true });
 
-    if (uploadError) {
-      throw uploadError;
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('[ProfileContext] Error uploading profile picture:', error);
+      throw error;
     }
-
-    const { data } = supabase.storage
-      .from('profile-pictures')
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
   };
 
   const value = {

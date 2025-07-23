@@ -14,8 +14,13 @@ export const validateAndCleanData = (data: any): any => {
     
     // Handle arrays
     if (Array.isArray(value)) {
-      if (value.length > 0) {
-        cleaned[key] = value.filter(item => item !== null && item !== undefined && item !== '');
+      const cleanedArray = value.filter(item => 
+        item !== null && 
+        item !== undefined && 
+        item !== ''
+      );
+      if (cleanedArray.length > 0) {
+        cleaned[key] = cleanedArray;
       }
     }
     // Handle objects (like JSONB fields)

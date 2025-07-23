@@ -1,82 +1,89 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { validateAndCleanData, validateRequiredFields } from '@/utils/dataValidation';
+import { handleProfileError } from '@/utils/profileErrors';
 
 export interface SimpleProfileData {
   [key: string]: any;
 }
 
 export class ProfileService {
-  private static savingInProgress = false;
-
   static async saveProfileData(section: string, data: SimpleProfileData, userId: string, userEmail: string) {
-    // Prevent concurrent saves
-    if (this.savingInProgress) {
-      throw new Error('Save already in progress');
-    }
-
-    this.savingInProgress = true;
-    
     try {
-      // Clean the data - remove null, undefined, and empty strings
-      const cleanedData: SimpleProfileData = {};
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          cleanedData[key] = value;
-        }
-      });
-
-      // If no valid data, don't save
+      console.log(`[ProfileService] Saving ${section} data for user ${userId}:`, data);
+      
+      // Clean and validate data
+      const cleanedData = validateAndCleanData(data);
+      
+      // If no valid data after cleaning, return success (nothing to save)
       if (Object.keys(cleanedData).length === 0) {
+        console.log(`[ProfileService] No valid data to save for ${section}`);
         return;
       }
 
       let result;
+      const baseData = { user_id: userId };
       
       switch (section) {
         case 'profile':
           result = await supabase
             .from('profiles')
             .upsert({ 
-              user_id: userId, 
+              ...baseData,
               email: userEmail,
               ...cleanedData
-            }, { onConflict: 'user_id' });
+            }, { 
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            });
           break;
 
         case 'devices':
           result = await supabase
             .from('user_devices')
             .upsert({ 
-              user_id: userId, 
+              ...baseData,
               ...cleanedData
-            }, { onConflict: 'user_id' });
+            }, { 
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            });
           break;
 
         case 'tech_fluency':
           result = await supabase
             .from('user_tech_fluency')
             .upsert({ 
-              user_id: userId, 
+              ...baseData,
               ...cleanedData
-            }, { onConflict: 'user_id' });
+            }, { 
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            });
           break;
 
         case 'skills':
           result = await supabase
             .from('user_skills')
             .upsert({ 
-              user_id: userId, 
+              ...baseData,
               ...cleanedData
-            }, { onConflict: 'user_id' });
+            }, { 
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            });
           break;
 
         case 'social_presence':
           result = await supabase
             .from('user_social_presence')
             .upsert({ 
-              user_id: userId, 
+              ...baseData,
               ...cleanedData
-            }, { onConflict: 'user_id' });
+            }, { 
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            });
           break;
 
         default:
@@ -84,13 +91,15 @@ export class ProfileService {
       }
 
       if (result.error) {
-        console.error(`Error saving ${section}:`, result.error);
-        throw new Error(`Failed to save ${section}: ${result.error.message}`);
+        console.error(`[ProfileService] Supabase error for ${section}:`, result.error);
+        throw handleProfileError(result.error);
       }
 
-      console.log(`Successfully saved ${section} data`);
-    } finally {
-      this.savingInProgress = false;
+      console.log(`[ProfileService] Successfully saved ${section} data`);
+      return result.data;
+    } catch (error) {
+      console.error(`[ProfileService] Error saving ${section}:`, error);
+      throw handleProfileError(error);
     }
   }
 }
