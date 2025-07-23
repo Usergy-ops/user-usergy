@@ -208,7 +208,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .maybeSingle();
 
       if (techFluency) {
-        setTechFluencyData(techFluency);
+        // Handle programming_languages field type conversion
+        const processedTechFluency = {
+          ...techFluency,
+          programming_languages: Array.isArray(techFluency.programming_languages)
+            ? techFluency.programming_languages
+            : techFluency.programming_languages
+              ? (typeof techFluency.programming_languages === 'string' 
+                  ? JSON.parse(techFluency.programming_languages)
+                  : [])
+              : []
+        };
+        setTechFluencyData(processedTechFluency);
       }
 
       // Load skills data
@@ -246,12 +257,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       // Save profile data
       if (Object.keys(profileData).length > 0) {
+        const { completion_percentage, ...dataToSave } = profileData;
         await supabase
           .from('profiles')
           .upsert({ 
             user_id: user.id, 
-            ...profileData,
-            updated_at: new Date().toISOString()
+            email: user.email || '',
+            ...dataToSave
           });
       }
 
@@ -261,8 +273,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .from('user_devices')
           .upsert({ 
             user_id: user.id, 
-            ...deviceData,
-            updated_at: new Date().toISOString()
+            ...deviceData
           });
       }
 
@@ -271,8 +282,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .from('user_tech_fluency')
           .upsert({ 
             user_id: user.id, 
-            ...techFluencyData,
-            updated_at: new Date().toISOString()
+            ...techFluencyData
           });
       }
 
@@ -281,8 +291,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .from('user_skills')
           .upsert({ 
             user_id: user.id, 
-            ...skillsData,
-            updated_at: new Date().toISOString()
+            ...skillsData
           });
       }
 
@@ -291,8 +300,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .from('user_social_presence')
           .upsert({ 
             user_id: user.id, 
-            ...socialPresenceData,
-            updated_at: new Date().toISOString()
+            ...socialPresenceData
           });
       }
 
@@ -308,12 +316,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       switch (section) {
         case 'profile':
+          const { completion_percentage, ...profileDataToSave } = data;
           await supabase
             .from('profiles')
             .upsert({ 
               user_id: user.id, 
-              ...data,
-              updated_at: new Date().toISOString()
+              email: user.email || '',
+              ...profileDataToSave
             });
           setProfileData(prev => ({ ...prev, ...data }));
           break;
@@ -323,8 +332,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_devices')
             .upsert({ 
               user_id: user.id, 
-              ...data,
-              updated_at: new Date().toISOString()
+              ...data
             });
           setDeviceData(prev => ({ ...prev, ...data }));
           break;
@@ -334,8 +342,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_tech_fluency')
             .upsert({ 
               user_id: user.id, 
-              ...data,
-              updated_at: new Date().toISOString()
+              ...data
             });
           setTechFluencyData(prev => ({ ...prev, ...data }));
           break;
@@ -345,8 +352,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_skills')
             .upsert({ 
               user_id: user.id, 
-              ...data,
-              updated_at: new Date().toISOString()
+              ...data
             });
           setSkillsData(prev => ({ ...prev, ...data }));
           break;
@@ -356,8 +362,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_social_presence')
             .upsert({ 
               user_id: user.id, 
-              ...data,
-              updated_at: new Date().toISOString()
+              ...data
             });
           setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;

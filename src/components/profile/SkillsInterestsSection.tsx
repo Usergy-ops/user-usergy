@@ -15,7 +15,6 @@ interface SkillsInterestsFormData {
   product_categories: string[];
   languages_spoken: string[];
   timezone: string;
-  availability_hours: string;
 }
 
 export const SkillsInterestsSection: React.FC = () => {
@@ -29,7 +28,6 @@ export const SkillsInterestsSection: React.FC = () => {
       product_categories: skillsData.product_categories || [],
       languages_spoken: profileData.languages_spoken || [],
       timezone: profileData.timezone || '',
-      availability_hours: profileData.availability_hours || '',
     }
   });
 
@@ -39,7 +37,6 @@ export const SkillsInterestsSection: React.FC = () => {
         bio: data.bio,
         languages_spoken: data.languages_spoken,
         timezone: data.timezone,
-        availability_hours: data.availability_hours,
         section_6_completed: true
       });
 
