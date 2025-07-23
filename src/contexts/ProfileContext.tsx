@@ -155,7 +155,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq('user_id', user.id)
         .single();
 
-      if (profileError) {
+      if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error loading profile:', profileError);
         throw profileError;
       }
@@ -172,7 +172,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (devicesError) {
+      if (devicesError && devicesError.code !== 'PGRST116') {
         console.error('Error loading devices:', devicesError);
         throw devicesError;
       }
@@ -189,7 +189,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (techError) {
+      if (techError && techError.code !== 'PGRST116') {
         console.error('Error loading tech fluency:', techError);
         throw techError;
       }
@@ -217,7 +217,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (skillsError) {
+      if (skillsError && skillsError.code !== 'PGRST116') {
         console.error('Error loading skills:', skillsError);
         throw skillsError;
       }
@@ -234,7 +234,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (socialError) {
+      if (socialError && socialError.code !== 'PGRST116') {
         console.error('Error loading social presence:', socialError);
         throw socialError;
       }
@@ -340,7 +340,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateProfileData = async (section: string, data: any) => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found, cannot update profile data');
+      throw new Error('User not authenticated');
+    }
 
     try {
       console.log(`Updating ${section} data:`, data);
@@ -348,6 +351,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       switch (section) {
         case 'profile':
           const { completion_percentage, ...profileDataToSave } = data;
+          
+          // First update local state
+          setProfileData(prev => ({ ...prev, ...data }));
+          
+          // Then save to database
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert({ 
@@ -358,13 +366,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
           if (profileError) {
             console.error('Error updating profile:', profileError);
-            throw profileError;
+            throw new Error(`Failed to save profile: ${profileError.message}`);
           }
           
-          setProfileData(prev => ({ ...prev, ...data }));
           break;
 
         case 'devices':
+          // First update local state
+          setDeviceData(prev => ({ ...prev, ...data }));
+          
+          // Then save to database
           const { error: devicesError } = await supabase
             .from('user_devices')
             .upsert({ 
@@ -374,13 +385,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
           if (devicesError) {
             console.error('Error updating devices:', devicesError);
-            throw devicesError;
+            throw new Error(`Failed to save devices: ${devicesError.message}`);
           }
           
-          setDeviceData(prev => ({ ...prev, ...data }));
           break;
 
         case 'tech_fluency':
+          // First update local state
+          setTechFluencyData(prev => ({ ...prev, ...data }));
+          
+          // Then save to database
           const { error: techError } = await supabase
             .from('user_tech_fluency')
             .upsert({ 
@@ -390,13 +404,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
           if (techError) {
             console.error('Error updating tech fluency:', techError);
-            throw techError;
+            throw new Error(`Failed to save tech fluency: ${techError.message}`);
           }
           
-          setTechFluencyData(prev => ({ ...prev, ...data }));
           break;
 
         case 'skills':
+          // First update local state
+          setSkillsData(prev => ({ ...prev, ...data }));
+          
+          // Then save to database
           const { error: skillsError } = await supabase
             .from('user_skills')
             .upsert({ 
@@ -406,13 +423,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
           if (skillsError) {
             console.error('Error updating skills:', skillsError);
-            throw skillsError;
+            throw new Error(`Failed to save skills: ${skillsError.message}`);
           }
           
-          setSkillsData(prev => ({ ...prev, ...data }));
           break;
 
         case 'social_presence':
+          // First update local state
+          setSocialPresenceData(prev => ({ ...prev, ...data }));
+          
+          // Then save to database
           const { error: socialError } = await supabase
             .from('user_social_presence')
             .upsert({ 
@@ -422,11 +442,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
           if (socialError) {
             console.error('Error updating social presence:', socialError);
-            throw socialError;
+            throw new Error(`Failed to save social presence: ${socialError.message}`);
           }
           
-          setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;
+
+        default:
+          console.error(`Unknown section: ${section}`);
+          throw new Error(`Unknown section: ${section}`);
       }
 
       console.log(`Successfully updated ${section} data`);
