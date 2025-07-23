@@ -17,15 +17,16 @@ const Index = () => {
   const { toast } = useToast();
   const { user, signUp, signIn } = useAuth();
 
-  // Redirect authenticated users
+  // Redirect authenticated users to appropriate page
   useEffect(() => {
     if (user) {
-      toast({
-        title: "Welcome back!",
-        description: "You're already signed in."
+      // Check if we need to redirect to profile completion or dashboard
+      import('@/contexts/ProfileContext').then(({ useProfile }) => {
+        // For now, redirect to profile completion - the ProtectedRoute will handle the logic
+        window.location.href = '/profile-completion';
       });
     }
-  }, [user, toast]);
+  }, [user]);
 
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
