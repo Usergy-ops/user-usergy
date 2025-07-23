@@ -188,56 +188,37 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setLoading(true);
-      console.log('Loading profile data for user:', user.id);
 
       // Load main profile data
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (profileError) {
-        console.error('Error loading profile:', profileError);
-        throw profileError;
-      }
-
       if (profile) {
-        console.log('Loaded profile data:', profile);
         setProfileData(profile);
       }
 
       // Load device data
-      const { data: devices, error: devicesError } = await supabase
+      const { data: devices } = await supabase
         .from('user_devices')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (devicesError) {
-        console.error('Error loading devices:', devicesError);
-        throw devicesError;
-      }
-
       if (devices) {
-        console.log('Loaded device data:', devices);
         setDeviceData(devices);
       }
 
       // Load tech fluency data
-      const { data: techFluency, error: techError } = await supabase
+      const { data: techFluency } = await supabase
         .from('user_tech_fluency')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (techError) {
-        console.error('Error loading tech fluency:', techError);
-        throw techError;
-      }
-
       if (techFluency) {
-        console.log('Loaded tech fluency data:', techFluency);
         // Handle programming_languages field type conversion
         const processedTechFluency = {
           ...techFluency,
@@ -253,40 +234,26 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       // Load skills data
-      const { data: skills, error: skillsError } = await supabase
+      const { data: skills } = await supabase
         .from('user_skills')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (skillsError) {
-        console.error('Error loading skills:', skillsError);
-        throw skillsError;
-      }
-
       if (skills) {
-        console.log('Loaded skills data:', skills);
         setSkillsData(skills);
       }
 
       // Load social presence data
-      const { data: socialPresence, error: socialError } = await supabase
+      const { data: socialPresence } = await supabase
         .from('user_social_presence')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (socialError) {
-        console.error('Error loading social presence:', socialError);
-        throw socialError;
-      }
-
       if (socialPresence) {
-        console.log('Loaded social presence data:', socialPresence);
         setSocialPresenceData(socialPresence);
       }
-
-      console.log('Profile data loading completed successfully');
 
     } catch (error) {
       console.error('Error loading profile data:', error);
@@ -299,83 +266,56 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
 
     try {
-      console.log('Auto-saving profile data...');
-      
       // Save profile data
       if (Object.keys(profileData).length > 0) {
         const { completion_percentage, ...dataToSave } = profileData;
-        const { error } = await supabase
+        await supabase
           .from('profiles')
           .upsert({ 
             user_id: user.id, 
             email: user.email || '',
             ...dataToSave
           });
-        
-        if (error) {
-          console.error('Error auto-saving profile:', error);
-          throw error;
-        }
       }
 
       // Save other data sections
       if (Object.keys(deviceData).length > 0) {
-        const { error } = await supabase
+        await supabase
           .from('user_devices')
           .upsert({ 
             user_id: user.id, 
             ...deviceData
           });
-        
-        if (error) {
-          console.error('Error auto-saving devices:', error);
-          throw error;
-        }
       }
 
       if (Object.keys(techFluencyData).length > 0) {
-        const { error } = await supabase
+        await supabase
           .from('user_tech_fluency')
           .upsert({ 
             user_id: user.id, 
             ...techFluencyData
           });
-        
-        if (error) {
-          console.error('Error auto-saving tech fluency:', error);
-          throw error;
-        }
       }
 
       if (Object.keys(skillsData).length > 0) {
-        const { error } = await supabase
+        await supabase
           .from('user_skills')
           .upsert({ 
             user_id: user.id, 
             ...skillsData
           });
-        
-        if (error) {
-          console.error('Error auto-saving skills:', error);
-          throw error;
-        }
       }
 
       if (Object.keys(socialPresenceData).length > 0) {
-        const { error } = await supabase
+        await supabase
           .from('user_social_presence')
           .upsert({ 
             user_id: user.id, 
             ...socialPresenceData
           });
-        
-        if (error) {
-          console.error('Error auto-saving social presence:', error);
-          throw error;
-        }
       }
 
-      console.log('Auto-save completed successfully');
+      console.log('Auto-save completed');
     } catch (error) {
       console.error('Auto-save failed:', error);
     }
@@ -385,94 +325,60 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
 
     try {
-      console.log(`Updating ${section} data:`, data);
-      
       switch (section) {
         case 'profile':
           const { completion_percentage, ...profileDataToSave } = data;
-          const { error: profileError } = await supabase
+          await supabase
             .from('profiles')
             .upsert({ 
               user_id: user.id, 
               email: user.email || '',
               ...profileDataToSave
             });
-          
-          if (profileError) {
-            console.error('Error updating profile:', profileError);
-            throw profileError;
-          }
-          
           setProfileData(prev => ({ ...prev, ...data }));
           break;
 
         case 'devices':
-          const { error: devicesError } = await supabase
+          await supabase
             .from('user_devices')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
-          
-          if (devicesError) {
-            console.error('Error updating devices:', devicesError);
-            throw devicesError;
-          }
-          
           setDeviceData(prev => ({ ...prev, ...data }));
           break;
 
         case 'tech_fluency':
-          const { error: techError } = await supabase
+          await supabase
             .from('user_tech_fluency')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
-          
-          if (techError) {
-            console.error('Error updating tech fluency:', techError);
-            throw techError;
-          }
-          
           setTechFluencyData(prev => ({ ...prev, ...data }));
           break;
 
         case 'skills':
-          const { error: skillsError } = await supabase
+          await supabase
             .from('user_skills')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
-          
-          if (skillsError) {
-            console.error('Error updating skills:', skillsError);
-            throw skillsError;
-          }
-          
           setSkillsData(prev => ({ ...prev, ...data }));
           break;
 
         case 'social_presence':
-          const { error: socialError } = await supabase
+          await supabase
             .from('user_social_presence')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
-          
-          if (socialError) {
-            console.error('Error updating social presence:', socialError);
-            throw socialError;
-          }
-          
           setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;
       }
 
-      console.log(`Successfully updated ${section} data`);
-      
       // Recalculate completion percentage
       await calculateCompletion();
     } catch (error) {
@@ -485,14 +391,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
 
     try {
-      console.log('Calculating completion percentage...');
-      
-      // First reload all data to ensure we have the latest from DB
-      await loadProfileData();
-      
       const completionPercentage = calculateMandatoryCompletion();
-      
-      console.log('Calculated completion percentage:', completionPercentage);
       
       // Update the completion percentage in the profiles table
       const { error } = await supabase
@@ -507,8 +406,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // Update local state immediately
       setProfileData(prev => ({ ...prev, completion_percentage: completionPercentage }));
-      
-      console.log('Completion percentage updated successfully:', completionPercentage);
       
       // Return the completion percentage so callers can use it
       return completionPercentage;
