@@ -26,6 +26,7 @@ export const BasicProfileSection: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [formLoaded, setFormLoaded] = useState(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
     defaultValues: {
@@ -40,44 +41,45 @@ export const BasicProfileSection: React.FC = () => {
     }
   });
 
-  // Load form data from localStorage on component mount to prevent data loss
+  // Fix form state synchronization with proper loading state
   useEffect(() => {
-    const savedFormData = localStorage.getItem('basicProfileFormData');
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData);
-        Object.keys(parsedData).forEach(key => {
-          if (parsedData[key] !== undefined && parsedData[key] !== null && parsedData[key] !== '') {
-            setValue(key as keyof BasicProfileFormData, parsedData[key]);
+    if (profileData && !formLoaded) {
+      setTimeout(() => {
+        setValue('full_name', profileData.full_name || '', { shouldDirty: false });
+        setValue('phone_number', profileData.phone_number || '', { shouldDirty: false });
+        setValue('date_of_birth', profileData.date_of_birth || '', { shouldDirty: false });
+        setValue('age', profileData.age || 0, { shouldDirty: false });
+        setValue('gender', profileData.gender || '', { shouldDirty: false });
+        setValue('country', profileData.country || '', { shouldDirty: false });
+        setValue('city', profileData.city || '', { shouldDirty: false });
+        setValue('timezone', profileData.timezone || '', { shouldDirty: false });
+        setFormLoaded(true);
+      }, 100);
+    }
+  }, [profileData, setValue, formLoaded]);
+
+  // Add real-time auto-save for input fields
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    const subscription = watch((value, { name }) => {
+      if (name && value[name] !== undefined && formLoaded) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(async () => {
+          try {
+            await updateProfileData('profile', { [name]: value[name] });
+          } catch (error) {
+            console.error('Auto-save failed:', error);
           }
-        });
-      } catch (error) {
-        console.error('Error loading saved form data:', error);
+        }, 1000);
       }
-    }
-  }, [setValue]);
-
-  // Save form data to localStorage whenever form values change
-  useEffect(() => {
-    const subscription = watch((value) => {
-      localStorage.setItem('basicProfileFormData', JSON.stringify(value));
     });
-    return () => subscription.unsubscribe();
-  }, [watch]);
-
-  // Update form values when profileData changes (from database)
-  useEffect(() => {
-    if (profileData) {
-      setValue('full_name', profileData.full_name || '');
-      setValue('phone_number', profileData.phone_number || '');
-      setValue('date_of_birth', profileData.date_of_birth || '');
-      setValue('age', profileData.age || 0);
-      setValue('gender', profileData.gender || '');
-      setValue('country', profileData.country || '');
-      setValue('city', profileData.city || '');
-      setValue('timezone', profileData.timezone || '');
-    }
-  }, [profileData, setValue]);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, [watch, updateProfileData, formLoaded]);
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -139,7 +141,6 @@ export const BasicProfileSection: React.FC = () => {
       formData.country &&
       formData.city?.trim() &&
       formData.timezone
-      // Removed avatar_url requirement to make profile picture optional
     );
   };
 
@@ -149,9 +150,6 @@ export const BasicProfileSection: React.FC = () => {
         ...data,
         section_1_completed: true
       });
-      
-      // Clear saved form data after successful submission
-      localStorage.removeItem('basicProfileFormData');
       
       toast({
         title: "Basic profile saved!",

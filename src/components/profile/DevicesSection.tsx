@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ interface DevicesFormData {
 export const DevicesSection: React.FC = () => {
   const { deviceData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
+  const [formLoaded, setFormLoaded] = useState(false);
 
   const { handleSubmit, setValue, watch } = useForm<DevicesFormData>({
     defaultValues: {
@@ -34,30 +35,44 @@ export const DevicesSection: React.FC = () => {
     }
   });
 
-  // Load form data from localStorage on component mount
+  // Fix form state synchronization with database data
   useEffect(() => {
-    const savedFormData = localStorage.getItem('devicesFormData');
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData);
-        Object.keys(parsedData).forEach(key => {
-          if (parsedData[key] && Array.isArray(parsedData[key])) {
-            setValue(key as keyof DevicesFormData, parsedData[key]);
-          }
-        });
-      } catch (error) {
-        console.error('Error loading saved devices form data:', error);
-      }
+    if (deviceData && !formLoaded) {
+      setTimeout(() => {
+        setValue('operating_systems', deviceData.operating_systems || [], { shouldDirty: false });
+        setValue('devices_owned', deviceData.devices_owned || [], { shouldDirty: false });
+        setValue('mobile_manufacturers', deviceData.mobile_manufacturers || [], { shouldDirty: false });
+        setValue('desktop_manufacturers', deviceData.desktop_manufacturers || [], { shouldDirty: false });
+        setValue('email_clients', deviceData.email_clients || [], { shouldDirty: false });
+        setValue('streaming_subscriptions', deviceData.streaming_subscriptions || [], { shouldDirty: false });
+        setValue('music_subscriptions', deviceData.music_subscriptions || [], { shouldDirty: false });
+        setFormLoaded(true);
+      }, 100);
     }
-  }, [setValue]);
+  }, [deviceData, setValue, formLoaded]);
 
-  // Save form data to localStorage whenever form values change
+  // Add real-time auto-save for device selections
   useEffect(() => {
-    const subscription = watch((value) => {
-      localStorage.setItem('devicesFormData', JSON.stringify(value));
+    let timeoutId: NodeJS.Timeout;
+    
+    const subscription = watch((value, { name }) => {
+      if (name && value[name] !== undefined && formLoaded) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(async () => {
+          try {
+            await updateProfileData('devices', { [name]: value[name] });
+          } catch (error) {
+            console.error('Auto-save failed:', error);
+          }
+        }, 1000);
+      }
     });
-    return () => subscription.unsubscribe();
-  }, [watch]);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, [watch, updateProfileData, formLoaded]);
 
   const isSectionComplete = () => {
     const formData = watch();
@@ -73,9 +88,6 @@ export const DevicesSection: React.FC = () => {
     try {
       await updateProfileData('devices', data);
       await updateProfileData('profile', { section_2_completed: true });
-      
-      // Clear saved form data after successful submission
-      localStorage.removeItem('devicesFormData');
       
       toast({
         title: "Device preferences saved!",

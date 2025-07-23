@@ -13,9 +13,6 @@ import { CompletionCelebration } from '@/components/profile/CompletionCelebratio
 import { ChevronLeft } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
-// Component cache to prevent remounting
-const componentCache = new Map();
-
 const ProfileCompletion = () => {
   const { user } = useAuth();
   const { 
@@ -92,37 +89,6 @@ const ProfileCompletion = () => {
     return <CompletionCelebration />;
   }
 
-  // Use cached components or create new ones to prevent remounting
-  const getSectionComponent = (id: number) => {
-    if (!componentCache.has(id)) {
-      let component;
-      switch (id) {
-        case 1:
-          component = <BasicProfileSection />;
-          break;
-        case 2:
-          component = <DevicesSection />;
-          break;
-        case 3:
-          component = <EducationWorkSection />;
-          break;
-        case 4:
-          component = <TechFluencySection />;
-          break;
-        case 5:
-          component = <SocialPresenceSection />;
-          break;
-        case 6:
-          component = <SkillsInterestsSection />;
-          break;
-        default:
-          component = <div>Section not found</div>;
-      }
-      componentCache.set(id, component);
-    }
-    return componentCache.get(id);
-  };
-
   const sections = [
     { id: 1, title: "Basic Profile" },
     { id: 2, title: "Devices & Tech" },
@@ -184,14 +150,14 @@ const ProfileCompletion = () => {
               </div>
             </div>
 
-            {/* Section Component - Rendered conditionally to prevent remounting */}
+            {/* Section Component - Direct rendering with unique keys */}
             <div className="mb-8">
-              {currentStep === 1 && getSectionComponent(1)}
-              {currentStep === 2 && getSectionComponent(2)}
-              {currentStep === 3 && getSectionComponent(3)}
-              {currentStep === 4 && getSectionComponent(4)}
-              {currentStep === 5 && getSectionComponent(5)}
-              {currentStep === 6 && getSectionComponent(6)}
+              {currentStep === 1 && <BasicProfileSection key="basic-profile" />}
+              {currentStep === 2 && <DevicesSection key="devices-section" />}
+              {currentStep === 3 && <EducationWorkSection key="education-section" />}
+              {currentStep === 4 && <TechFluencySection key="tech-section" />}
+              {currentStep === 5 && <SocialPresenceSection key="social-section" />}
+              {currentStep === 6 && <SkillsInterestsSection key="skills-section" />}
             </div>
 
             {/* Navigation */}
