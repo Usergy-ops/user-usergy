@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,8 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
 interface OTPRequest {
   email: string;
@@ -91,12 +94,20 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
     </html>
   `;
 
-  // In development, we'll log the email content
-  console.log(`OTP Email for ${email}:`, { subject, otp });
-  
-  // For production, you would integrate with an email service like Resend
-  // For now, we'll simulate sending the email
-  return { success: true, message: "OTP email sent successfully" };
+  try {
+    const emailResponse = await resend.emails.send({
+      from: "Usergy <noreply@usergy.com>",
+      to: [email],
+      subject: subject,
+      html: htmlContent,
+    });
+
+    console.log(`OTP Email sent successfully for ${email}:`, emailResponse);
+    return { success: true, message: "OTP email sent successfully" };
+  } catch (error) {
+    console.error('Error sending OTP email:', error);
+    throw error;
+  }
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -110,10 +121,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     switch (action) {
       case 'generate': {
-        // Check if user already exists using the correct method
+        // Check if user already exists
         const { data: existingUsers, error: userCheckError } = await supabase.auth.admin.listUsers({
           page: 1,
-          perPage: 1000 // Adjust as needed
+          perPage: 1000
         });
 
         if (userCheckError) {
@@ -124,7 +135,6 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Check if email already exists
         const userExists = existingUsers.users.some(user => user.email === email);
         if (userExists) {
           console.log('User already exists:', email);
@@ -140,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log('Generated OTP:', otpCode, 'for email:', email);
 
-        // Store OTP in database using the new table
+        // Store OTP in database
         const { error: dbError } = await supabase
           .from('user_otp_verification')
           .insert({
@@ -157,10 +167,10 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Send OTP email
+        // Send OTP email via Resend
         await sendOTPEmail(email, otpCode, 'welcome');
 
-        console.log('OTP generated and stored successfully for:', email);
+        console.log('OTP generated and sent successfully for:', email);
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -180,7 +190,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log('Verifying OTP:', otp, 'for email:', email);
 
-        // Get and validate OTP using the new table
+        // Get and validate OTP
         const { data: otpData, error: otpError } = await supabase
           .from('user_otp_verification')
           .select('*')
@@ -194,14 +204,6 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (otpError || !otpData) {
           console.error('OTP validation failed:', otpError);
-          // Increment attempt counter if record exists
-          if (otpData?.id) {
-            await supabase
-              .from('user_otp_verification')
-              .update({ attempts: (otpData.attempts || 0) + 1 })
-              .eq('id', otpData.id);
-          }
-
           return new Response(
             JSON.stringify({ error: "Invalid or expired verification code" }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -253,7 +255,7 @@ const handler = async (req: Request): Promise<Response> => {
           .from('user_otp_verification')
           .select('created_at')
           .eq('email', email)
-          .gt('created_at', new Date(Date.now() - 60 * 1000).toISOString()) // Last 60 seconds
+          .gt('created_at', new Date(Date.now() - 60 * 1000).toISOString())
           .limit(1)
           .single();
 
@@ -285,7 +287,7 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Send OTP email
+        // Send OTP email via Resend
         await sendOTPEmail(email, otpCode, 'resend');
 
         console.log('OTP resent successfully for:', email);

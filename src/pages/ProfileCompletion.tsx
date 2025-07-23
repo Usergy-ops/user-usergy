@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,10 +10,11 @@ import { SocialPresenceSection } from '@/components/profile/SocialPresenceSectio
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 const ProfileCompletion = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { 
     currentStep, 
     setCurrentStep, 
@@ -73,6 +73,14 @@ const ProfileCompletion = () => {
     }
   }, [user, calculateCompletion]);
 
+  // Redirect to dashboard if profile is complete
+  useEffect(() => {
+    if (isProfileComplete) {
+      console.log('Profile is complete, redirecting to dashboard');
+      navigate('/dashboard');
+    }
+  }, [isProfileComplete, navigate]);
+
   if (!user) {
     return <Navigate to="/" replace />;
   }
@@ -85,6 +93,7 @@ const ProfileCompletion = () => {
     );
   }
 
+  // Show completion celebration if profile is complete
   if (isProfileComplete) {
     return <CompletionCelebration />;
   }
