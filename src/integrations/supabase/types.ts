@@ -381,6 +381,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_otp: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_rate_limits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
