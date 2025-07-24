@@ -7,11 +7,11 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string) => Promise<{ error?: string; attemptsLeft?: number }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string }>;
-  resendOTP: (email: string) => Promise<{ error?: string }>;
+  resendOTP: (email: string) => Promise<{ error?: string; attemptsLeft?: number }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
 }
 
@@ -69,16 +69,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Sign up error:', error);
+        
+        // Handle rate limiting errors
+        if (error.message?.includes('Too many')) {
+          return { error: error.message };
+        }
+        
         return { error: error.message || 'Failed to send verification code' };
       }
 
       if (data.error) {
         console.error('Sign up data error:', data.error);
+        
+        // Handle rate limiting errors
+        if (data.error.includes('Too many')) {
+          return { error: data.error };
+        }
+        
         return { error: data.error };
       }
 
       console.log('Sign up successful, OTP sent');
-      return { error: undefined };
+      return { 
+        error: undefined, 
+        attemptsLeft: data.attemptsLeft 
+      };
     } catch (error) {
       console.error('Sign up exception:', error);
       return { error: 'An unexpected error occurred' };
@@ -102,11 +117,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('OTP verification error:', error);
+        
+        // Handle rate limiting errors
+        if (error.message?.includes('Too many') || error.message?.includes('blocked')) {
+          return { error: error.message };
+        }
+        
         return { error: error.message || 'Failed to verify code' };
       }
 
       if (data.error) {
         console.error('OTP verification data error:', data.error);
+        
+        // Handle rate limiting and blocking errors
+        if (data.error.includes('Too many') || data.error.includes('blocked')) {
+          return { error: data.error };
+        }
+        
         return { error: data.error };
       }
 
@@ -145,16 +172,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Resend OTP error:', error);
+        
+        // Handle rate limiting errors
+        if (error.message?.includes('Too many')) {
+          return { error: error.message };
+        }
+        
         return { error: error.message || 'Failed to resend code' };
       }
 
       if (data.error) {
         console.error('Resend OTP data error:', data.error);
+        
+        // Handle rate limiting errors
+        if (data.error.includes('Too many')) {
+          return { error: data.error };
+        }
+        
         return { error: data.error };
       }
 
       console.log('OTP resent successfully');
-      return { error: undefined };
+      return { 
+        error: undefined, 
+        attemptsLeft: data.attemptsLeft 
+      };
     } catch (error) {
       console.error('Resend OTP exception:', error);
       return { error: 'An unexpected error occurred' };

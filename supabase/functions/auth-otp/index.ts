@@ -19,8 +19,106 @@ interface OTPRequest {
   password?: string;
 }
 
+// Rate limiting configuration
+const RATE_LIMITS = {
+  signup: { attempts: 5, window: 3600 }, // 5 attempts per hour
+  signin: { attempts: 10, window: 3600 }, // 10 attempts per hour
+  otp_verify: { attempts: 5, window: 600 }, // 5 attempts per 10 minutes
+  otp_resend: { attempts: 3, window: 600 }, // 3 attempts per 10 minutes
+};
+
 const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+const getClientInfo = (req: Request) => {
+  const ip = req.headers.get('cf-connecting-ip') || 
+             req.headers.get('x-forwarded-for') || 
+             req.headers.get('x-real-ip') || 
+             'unknown';
+  const userAgent = req.headers.get('user-agent') || 'unknown';
+  return { ip, userAgent };
+};
+
+const checkRateLimit = async (identifier: string, action: string): Promise<{ allowed: boolean; blockedUntil?: Date; attemptsLeft?: number }> => {
+  const config = RATE_LIMITS[action as keyof typeof RATE_LIMITS];
+  if (!config) return { allowed: true };
+
+  const windowStart = new Date(Date.now() - config.window * 1000);
+
+  // Check current rate limit record
+  const { data: rateLimitData, error } = await supabase
+    .from('rate_limits')
+    .select('*')
+    .eq('identifier', identifier)
+    .eq('action', action)
+    .gte('window_start', windowStart.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Rate limit check error:', error);
+    return { allowed: true }; // Allow on error to prevent blocking legitimate users
+  }
+
+  // Check if currently blocked
+  if (rateLimitData?.blocked_until) {
+    const blockedUntil = new Date(rateLimitData.blocked_until);
+    if (blockedUntil > new Date()) {
+      return { allowed: false, blockedUntil };
+    }
+  }
+
+  // Check attempt count
+  if (rateLimitData && rateLimitData.attempts >= config.attempts) {
+    // Block for 15 minutes after exceeding attempts
+    const blockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+    
+    await supabase
+      .from('rate_limits')
+      .update({ blocked_until: blockedUntil.toISOString() })
+      .eq('id', rateLimitData.id);
+
+    return { allowed: false, blockedUntil };
+  }
+
+  const attemptsLeft = config.attempts - (rateLimitData?.attempts || 0);
+  return { allowed: true, attemptsLeft };
+};
+
+const incrementRateLimit = async (identifier: string, action: string): Promise<void> => {
+  const config = RATE_LIMITS[action as keyof typeof RATE_LIMITS];
+  if (!config) return;
+
+  const windowStart = new Date(Date.now() - config.window * 1000);
+
+  // Try to increment existing record
+  const { data: existingRecord } = await supabase
+    .from('rate_limits')
+    .select('*')
+    .eq('identifier', identifier)
+    .eq('action', action)
+    .gte('window_start', windowStart.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingRecord) {
+    await supabase
+      .from('rate_limits')
+      .update({ attempts: existingRecord.attempts + 1 })
+      .eq('id', existingRecord.id);
+  } else {
+    await supabase
+      .from('rate_limits')
+      .insert({
+        identifier,
+        action,
+        attempts: 1,
+        window_start: new Date().toISOString()
+      });
+  }
 };
 
 const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resend' = 'welcome') => {
@@ -75,6 +173,12 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
             <p style="color: #64748b; font-size: 12px; margin: 8px 0 0 0;">This code expires in 10 minutes</p>
           </div>
 
+          <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin: 24px 0;">
+            <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 500;">
+              🔒 Security Notice: This code was requested from your account. If you didn't request this, please ignore this email.
+            </p>
+          </div>
+
           <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
             If you didn't request this verification, you can safely ignore this email. This code will expire automatically.
           </p>
@@ -104,30 +208,48 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const { ip, userAgent } = getClientInfo(req);
+  
   try {
     const { email, action, otp, password }: OTPRequest = await req.json();
-    console.log(`Processing ${action} action for email:`, email);
+    console.log(`Processing ${action} action for email:`, email, `from IP: ${ip}`);
+
+    // Clean up old rate limit entries periodically
+    await supabase.rpc('cleanup_rate_limits');
 
     switch (action) {
       case 'generate': {
-        // Check if user already exists using the correct method
+        // Rate limit check for signup
+        const rateLimitResult = await checkRateLimit(email, 'signup');
+        if (!rateLimitResult.allowed) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Too many signup attempts. Please try again later.`,
+              blockedUntil: rateLimitResult.blockedUntil 
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Check if user already exists
         const { data: existingUsers, error: userCheckError } = await supabase.auth.admin.listUsers({
           page: 1,
-          perPage: 1000 // Adjust as needed
+          perPage: 1000
         });
 
         if (userCheckError) {
           console.error('Error checking existing users:', userCheckError);
+          await incrementRateLimit(email, 'signup');
           return new Response(
             JSON.stringify({ error: "Failed to verify email availability" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        // Check if email already exists
         const userExists = existingUsers.users.some(user => user.email === email);
         if (userExists) {
           console.log('User already exists:', email);
+          await incrementRateLimit(email, 'signup');
           return new Response(
             JSON.stringify({ error: "This email is already part of our community" }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -140,17 +262,20 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log('Generated OTP:', otpCode, 'for email:', email);
 
-        // Store OTP in database using the new table
+        // Store OTP in database with security info
         const { error: dbError } = await supabase
           .from('user_otp_verification')
           .insert({
             email,
             otp_code: otpCode,
-            expires_at: expiresAt.toISOString()
+            expires_at: expiresAt.toISOString(),
+            ip_address: ip,
+            user_agent: userAgent
           });
 
         if (dbError) {
           console.error('Database error:', dbError);
+          await incrementRateLimit(email, 'signup');
           return new Response(
             JSON.stringify({ error: "Failed to generate verification code" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -160,11 +285,15 @@ const handler = async (req: Request): Promise<Response> => {
         // Send OTP email
         await sendOTPEmail(email, otpCode, 'welcome');
 
+        // Increment rate limit after successful operation
+        await incrementRateLimit(email, 'signup');
+
         console.log('OTP generated and stored successfully for:', email);
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: "Verification code sent! Check your inbox." 
+            message: "Verification code sent! Check your inbox.",
+            attemptsLeft: rateLimitResult.attemptsLeft ? rateLimitResult.attemptsLeft - 1 : undefined
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -178,9 +307,38 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
+        // Rate limit check for OTP verification
+        const rateLimitResult = await checkRateLimit(email, 'otp_verify');
+        if (!rateLimitResult.allowed) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Too many verification attempts. Please try again later.`,
+              blockedUntil: rateLimitResult.blockedUntil 
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         console.log('Verifying OTP:', otp, 'for email:', email);
 
-        // Get and validate OTP using the new table
+        // Check if user is blocked due to too many failed attempts
+        const { data: blockedUser } = await supabase
+          .from('user_otp_verification')
+          .select('blocked_until')
+          .eq('email', email)
+          .not('blocked_until', 'is', null)
+          .gt('blocked_until', new Date().toISOString())
+          .limit(1)
+          .maybeSingle();
+
+        if (blockedUser) {
+          return new Response(
+            JSON.stringify({ error: "Account temporarily blocked due to too many failed attempts. Please try again later." }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Get and validate OTP
         const { data: otpData, error: otpError } = await supabase
           .from('user_otp_verification')
           .select('*')
@@ -194,11 +352,23 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (otpError || !otpData) {
           console.error('OTP validation failed:', otpError);
+          
+          // Increment rate limit and attempts
+          await incrementRateLimit(email, 'otp_verify');
+          
           // Increment attempt counter if record exists
           if (otpData?.id) {
+            const newAttempts = (otpData.attempts || 0) + 1;
+            let updateData: any = { attempts: newAttempts };
+            
+            // Block after 5 failed attempts
+            if (newAttempts >= 5) {
+              updateData.blocked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+            }
+            
             await supabase
               .from('user_otp_verification')
-              .update({ attempts: (otpData.attempts || 0) + 1 })
+              .update(updateData)
               .eq('id', otpData.id);
           }
 
@@ -222,12 +392,14 @@ const handler = async (req: Request): Promise<Response> => {
           password,
           email_confirm: true,
           user_metadata: {
-            email_verified: true
+            email_verified: true,
+            verified_via_otp: true
           }
         });
 
         if (userError) {
           console.error('User creation error:', userError);
+          await incrementRateLimit(email, 'otp_verify');
           return new Response(
             JSON.stringify({ error: "Failed to create account" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -246,14 +418,26 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'resend': {
+        // Rate limit check for resend
+        const rateLimitResult = await checkRateLimit(email, 'otp_resend');
+        if (!rateLimitResult.allowed) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Too many resend attempts. Please try again later.`,
+              blockedUntil: rateLimitResult.blockedUntil 
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         console.log('Resending OTP for email:', email);
 
-        // Check for recent OTP requests (rate limiting)
+        // Check for recent OTP requests (additional rate limiting)
         const { data: recentOTP } = await supabase
           .from('user_otp_verification')
           .select('created_at')
           .eq('email', email)
-          .gt('created_at', new Date(Date.now() - 60 * 1000).toISOString()) // Last 60 seconds
+          .gt('created_at', new Date(Date.now() - 60 * 1000).toISOString())
           .limit(1)
           .single();
 
@@ -274,11 +458,14 @@ const handler = async (req: Request): Promise<Response> => {
           .insert({
             email,
             otp_code: otpCode,
-            expires_at: expiresAt.toISOString()
+            expires_at: expiresAt.toISOString(),
+            ip_address: ip,
+            user_agent: userAgent
           });
 
         if (dbError) {
           console.error('Database error on resend:', dbError);
+          await incrementRateLimit(email, 'otp_resend');
           return new Response(
             JSON.stringify({ error: "Failed to generate new code" }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -288,11 +475,15 @@ const handler = async (req: Request): Promise<Response> => {
         // Send OTP email
         await sendOTPEmail(email, otpCode, 'resend');
 
+        // Increment rate limit after successful operation
+        await incrementRateLimit(email, 'otp_resend');
+
         console.log('OTP resent successfully for:', email);
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: "New code sent! Check your inbox." 
+            message: "New code sent! Check your inbox.",
+            attemptsLeft: rateLimitResult.attemptsLeft ? rateLimitResult.attemptsLeft - 1 : undefined
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

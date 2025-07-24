@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Check } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertTriangle, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +21,8 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { verifyOTP, resendOTP } = useAuth();
   const { toast } = useToast();
@@ -51,7 +54,7 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     }
 
     // Auto-submit when all digits are entered
-    if (newOtp.every(digit => digit !== '') && !isLoading) {
+    if (newOtp.every(digit => digit !== '') && !isLoading && !isBlocked) {
       handleVerifyOTP(newOtp.join(''));
     }
   };
@@ -69,11 +72,22 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     const { error } = await verifyOTP(email, otpCode, password);
     
     if (error) {
-      toast({
-        title: "Verification failed",
-        description: error,
-        variant: "destructive"
-      });
+      // Check if it's a rate limiting error
+      if (error.includes('Too many') || error.includes('blocked')) {
+        setIsBlocked(true);
+        toast({
+          title: "Security Notice",
+          description: error,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Verification failed",
+          description: error,
+          variant: "destructive"
+        });
+      }
+      
       // Clear OTP on error
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -89,23 +103,34 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
   };
 
   const handleResendOTP = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0 || isBlocked) return;
 
     setIsLoading(true);
-    const { error } = await resendOTP(email);
+    const { error, attemptsLeft: newAttemptsLeft } = await resendOTP(email);
     
     if (error) {
-      toast({
-        title: "Failed to resend code",
-        description: error,
-        variant: "destructive"
-      });
+      if (error.includes('Too many')) {
+        setIsBlocked(true);
+        toast({
+          title: "Security Notice",
+          description: error,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Failed to resend code",
+          description: error,
+          variant: "destructive"
+        });
+      }
     } else {
       toast({
         title: "New code sent!",
         description: "Check your inbox for the verification code."
       });
       setResendCooldown(60);
+      setAttemptsLeft(newAttemptsLeft || null);
+      setIsBlocked(false);
       // Clear current OTP
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -126,6 +151,12 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
           Back to sign up
         </button>
         
+        <div className="mb-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-full mb-4">
+            <Shield className="w-6 h-6 text-primary" />
+          </div>
+        </div>
+        
         <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
           Check your inbox
         </h2>
@@ -135,6 +166,18 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
           <span className="font-medium text-foreground">{email}</span>
         </p>
       </div>
+
+      {/* Security Notice */}
+      {isBlocked && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 animate-fade-in">
+          <div className="flex items-center space-x-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <p className="text-sm font-medium">
+              Account temporarily secured due to multiple failed attempts. Please try again later.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* OTP Input */}
       <div className="flex justify-center space-x-3">
@@ -152,9 +195,9 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
               "w-12 h-12 text-center text-xl font-bold rounded-xl border-2 transition-all duration-300",
               "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary",
               digit ? "border-primary bg-primary/5" : "border-border",
-              isLoading && "opacity-50 cursor-not-allowed"
+              (isLoading || isBlocked) && "opacity-50 cursor-not-allowed"
             )}
-            disabled={isLoading}
+            disabled={isLoading || isBlocked}
           />
         ))}
       </div>
@@ -167,6 +210,15 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
         </div>
       )}
 
+      {/* Attempts Counter */}
+      {attemptsLeft !== null && attemptsLeft > 0 && (
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">
+            {attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} remaining
+          </p>
+        </div>
+      )}
+
       {/* Resend Section */}
       <div className="text-center space-y-4">
         <p className="text-sm text-muted-foreground">
@@ -175,10 +227,10 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
         
         <button
           onClick={handleResendOTP}
-          disabled={resendCooldown > 0 || isLoading}
+          disabled={resendCooldown > 0 || isLoading || isBlocked}
           className={cn(
             "inline-flex items-center space-x-2 text-sm font-medium transition-colors duration-300",
-            resendCooldown > 0 || isLoading 
+            (resendCooldown > 0 || isLoading || isBlocked)
               ? "text-muted-foreground cursor-not-allowed" 
               : "text-primary hover:text-primary-end"
           )}
@@ -199,6 +251,9 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       <div className="text-center">
         <p className="text-xs text-muted-foreground">
           Enter the 6-digit code to verify your email and complete your account setup
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          🔒 Your security is our priority. Multiple failed attempts will temporarily secure your account.
         </p>
       </div>
     </div>
