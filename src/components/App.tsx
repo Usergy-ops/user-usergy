@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,11 +9,11 @@ import { Toaster } from '@/components/ui/toaster';
 import { setupGlobalErrorHandler } from '@/utils/errorHandling';
 import { monitoring } from '@/utils/monitoring';
 import { ProtectedRoute } from './ProtectedRoute';
-import Index from '@/pages/index';
-import ProfileCompletion from '@/pages/profile-completion';
-import Dashboard from '@/pages/dashboard';
-import SystemMonitoring from '@/pages/monitoring';
-import NotFound from '@/pages/not-found';
+import Index from '@/pages/Index';
+import ProfileCompletion from '@/pages/ProfileCompletion';
+import Dashboard from '@/pages/Dashboard';
+import SystemMonitoring from '@/pages/SystemMonitoring';
+import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient({
   defaultOptions: {
