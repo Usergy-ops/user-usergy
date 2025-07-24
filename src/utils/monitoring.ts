@@ -1,3 +1,4 @@
+
 /**
  * Enhanced monitoring utilities with integrated alerting
  */
@@ -46,6 +47,17 @@ class MonitoringSystem {
     
     // Check for anomalies and create alerts
     this.checkMetricAnomalies(metric);
+  }
+
+  // User action tracking
+  trackUserAction(action: string, metadata?: Record<string, any>) {
+    this.recordMetric('user_action', 1, {
+      action,
+      timestamp: new Date().toISOString(),
+      ...metadata
+    });
+    
+    this.info(`User action: ${action}`, 'user_tracking', metadata);
   }
 
   // Enhanced logging with context
@@ -306,6 +318,9 @@ class MonitoringSystem {
 
 // Export singleton instance
 export const monitoring = new MonitoringSystem();
+
+// Export the trackUserAction function
+export const trackUserAction = monitoring.trackUserAction.bind(monitoring);
 
 // Start cleanup interval
 setInterval(() => {

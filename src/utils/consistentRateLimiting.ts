@@ -192,6 +192,22 @@ export const checkRateLimit = async (
   }
 };
 
+// Enhanced rate limiting with stricter controls
+export const checkEnhancedRateLimit = async (
+  identifier: string,
+  action: string,
+  customConfig?: RateLimitConfig
+): Promise<RateLimitResult> => {
+  // Use stricter limits for enhanced rate limiting
+  const enhancedConfig = customConfig || {
+    ...RATE_LIMIT_CONFIGS[action] || RATE_LIMIT_CONFIGS.default,
+    maxAttempts: Math.floor((RATE_LIMIT_CONFIGS[action] || RATE_LIMIT_CONFIGS.default).maxAttempts * 0.7), // 30% stricter
+    blockDurationMinutes: (RATE_LIMIT_CONFIGS[action] || RATE_LIMIT_CONFIGS.default).blockDurationMinutes || 60
+  };
+
+  return checkRateLimit(identifier, `enhanced_${action}`, enhancedConfig);
+};
+
 // Reset rate limit for a specific identifier and action
 export const resetRateLimit = async (identifier: string, action: string): Promise<void> => {
   try {
