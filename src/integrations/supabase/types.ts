@@ -498,6 +498,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_profile_completion: {
+        Args: { user_uuid: string }
+        Returns: number
+      }
       cleanup_expired_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -517,6 +521,10 @@ export type Database = {
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      validate_password_requirements: {
+        Args: { password_hash: string }
+        Returns: boolean
       }
       validate_password_strength: {
         Args: { password: string }

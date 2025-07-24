@@ -6,14 +6,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Chrome, Loader2, Shield } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
-interface GoogleAuthProps {
+interface EnhancedGoogleAuthProps {
   mode: 'signin' | 'signup';
   onSuccess?: () => void;
   onError?: (error: string) => void;
   disabled?: boolean;
 }
 
-export const GoogleAuth: React.FC<GoogleAuthProps> = ({ 
+export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({ 
   mode, 
   onSuccess, 
   onError,
@@ -28,9 +28,9 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     setIsLoading(true);
     
     try {
-      monitoring.startTiming(`google_auth_${mode}`);
+      monitoring.startTiming(`enhanced_google_auth_${mode}`);
       
-      // Enhanced redirect URL construction
+      // Enhanced redirect URL construction with security considerations
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
       
@@ -41,14 +41,15 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
+            hd: undefined, // Allow any domain
           },
           skipBrowserRedirect: false
         }
       });
 
       if (error) {
-        console.error('Google auth error:', error);
-        monitoring.logError(error, `google_auth_${mode}_error`, {
+        console.error('Enhanced Google auth error:', error);
+        monitoring.logError(error, `enhanced_google_auth_${mode}_error`, {
           error_code: error.message,
           redirect_to: redirectTo
         });
@@ -75,9 +76,9 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         return;
       }
 
-      monitoring.endTiming(`google_auth_${mode}`);
+      monitoring.endTiming(`enhanced_google_auth_${mode}`);
       
-      trackUserAction(`google_auth_${mode}_initiated`, {
+      trackUserAction(`enhanced_google_auth_${mode}_initiated`, {
         provider: 'google',
         redirect_to: redirectTo,
         mode
@@ -92,13 +93,13 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       }
       
     } catch (error) {
-      monitoring.logError(error as Error, `google_auth_${mode}_error`, {
+      monitoring.logError(error as Error, `enhanced_google_auth_${mode}_error`, {
         mode,
         disabled
       });
       
       const errorMessage = error instanceof Error ? error.message : `An unexpected error occurred during ${mode}`;
-      console.error('Google auth error:', error);
+      console.error('Enhanced Google auth error:', error);
       
       toast({
         title: "Authentication Error",

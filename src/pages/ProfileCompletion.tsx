@@ -27,7 +27,7 @@ const ProfileCompletion = () => {
     resumeIncompleteSection
   } = useProfile();
 
-  // Calculate real-time completion percentage
+  // Calculate real-time completion percentage - FIXED field references
   const calculateRealTimeCompletion = () => {
     const mandatoryFields = {
       // Basic Profile (7 fields - phone_number is now optional)
@@ -212,7 +212,7 @@ const ProfileCompletion = () => {
               </div>
             </div>
 
-            {/* Section Component - Using EnhancedSocialPresenceSection for step 5 */}
+            {/* Section Component */}
             <div className="mb-8">
               {currentStep === 1 && <BasicProfileSection key="basic-profile" />}
               {currentStep === 2 && <DevicesSection key="devices-section" />}
