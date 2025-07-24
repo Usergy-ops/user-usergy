@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Heart, Globe } from 'lucide-react';
 
 interface SkillsInterestsFormData {
   bio: string;
@@ -31,6 +30,42 @@ export const SkillsInterestsSection: React.FC = () => {
     }
   });
 
+  // Auto-save with debounce
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      if (type === 'change') {
+        const timeoutId = setTimeout(async () => {
+          try {
+            // Save profile data
+            if (value.bio || value.languages_spoken?.length || value.timezone) {
+              const profileDataToSave: any = {};
+              if (value.bio) profileDataToSave.bio = value.bio;
+              if (value.languages_spoken?.length) profileDataToSave.languages_spoken = value.languages_spoken;
+              if (value.timezone) profileDataToSave.timezone = value.timezone;
+              
+              await updateProfileData('profile', profileDataToSave);
+            }
+
+            // Save skills data
+            if (value.interests?.length || value.product_categories?.length) {
+              const skillsDataToSave: any = {};
+              if (value.interests?.length) skillsDataToSave.interests = value.interests;
+              if (value.product_categories?.length) skillsDataToSave.product_categories = value.product_categories;
+              
+              await updateProfileData('skills', skillsDataToSave);
+            }
+          } catch (error) {
+            console.error('Auto-save failed:', error);
+          }
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, updateProfileData]);
+
   const onSubmit = async (data: SkillsInterestsFormData) => {
     try {
       await updateProfileData('profile', {
@@ -50,7 +85,6 @@ export const SkillsInterestsSection: React.FC = () => {
         description: "Your Explorer profile is now complete.",
       });
 
-      // Move to next step (completion)
       setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({

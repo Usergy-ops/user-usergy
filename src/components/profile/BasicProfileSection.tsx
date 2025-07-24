@@ -26,123 +26,32 @@ export const BasicProfileSection: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  
-  // Use refs for persistent state across tab switches
-  const initialLoadComplete = useRef(false);
-  const hasFormData = useRef(false);
-  
-  // Add component-level data persistence
-  const [componentMounted, setComponentMounted] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<BasicProfileFormData>({
-    // Remove defaultValues - we'll set them manually after loading
-    mode: 'onChange',
-    shouldFocusError: false
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
+    defaultValues: {
+      full_name: profileData.full_name || '',
+      phone_number: profileData.phone_number || '',
+      date_of_birth: profileData.date_of_birth || '',
+      age: profileData.age || 0,
+      gender: profileData.gender || '',
+      country: profileData.country || '',
+      city: profileData.city || '',
+      timezone: profileData.timezone || '',
+    }
   });
 
+  // Auto-save with debounce
   useEffect(() => {
-    setComponentMounted(true);
-    return () => setComponentMounted(false);
-  }, []);
-
-  // Single, comprehensive useEffect for data loading
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadFormData = async () => {
-      // Prevent multiple loads
-      if (initialLoadComplete.current) return;
-      
-      try {
-        // Step 1: Check sessionStorage first (highest priority)
-        const componentName = 'basicProfile';
-        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
-        
-        if (backupData) {
+    const subscription = watch((value, { name, type }) => {
+      if (type === 'change') {
+        const timeoutId = setTimeout(async () => {
           try {
-            const parsedBackup = JSON.parse(backupData);
-            const hasBackupData = Object.values(parsedBackup).some(value => {
-              if (typeof value === 'string') return value.trim() !== '';
-              if (typeof value === 'number') return value > 0;
-              return false;
-            });
-            
-            if (hasBackupData && isMounted) {
-              console.log('Loading from sessionStorage backup');
-              Object.keys(parsedBackup).forEach(key => {
-                setValue(key as keyof BasicProfileFormData, parsedBackup[key], { shouldDirty: false, shouldTouch: false });
-              });
-              hasFormData.current = true;
-              initialLoadComplete.current = true;
-              return;
-            }
-          } catch (error) {
-            console.error('Error parsing backup data:', error);
-          }
-        }
-        
-        // Step 2: Load from database if no backup data
-        if (profileData && Object.keys(profileData).length > 0 && isMounted) {
-          console.log('Loading from database');
-          setValue('full_name', profileData.full_name || '', { shouldDirty: false, shouldTouch: false });
-          setValue('phone_number', profileData.phone_number || '', { shouldDirty: false, shouldTouch: false });
-          setValue('date_of_birth', profileData.date_of_birth || '', { shouldDirty: false, shouldTouch: false });
-          setValue('age', profileData.age || 0, { shouldDirty: false, shouldTouch: false });
-          setValue('gender', profileData.gender || '', { shouldDirty: false, shouldTouch: false });
-          setValue('country', profileData.country || '', { shouldDirty: false, shouldTouch: false });
-          setValue('city', profileData.city || '', { shouldDirty: false, shouldTouch: false });
-          setValue('timezone', profileData.timezone || '', { shouldDirty: false, shouldTouch: false });
-          
-          hasFormData.current = true;
-        }
-        
-        initialLoadComplete.current = true;
-        
-      } catch (error) {
-        console.error('Error loading form data:', error);
-      }
-    };
-    
-    // Load data immediately, but only once
-    loadFormData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Empty dependency array - run only once
-
-  // SEPARATE useEffect for auto-save with proper debouncing
-  useEffect(() => {
-    if (!initialLoadComplete.current) return;
-    
-    let saveTimeout: NodeJS.Timeout;
-    
-    const subscription = watch((formData) => {
-      // Only save if we have meaningful data
-      const hasData = Object.values(formData).some(value => {
-        if (typeof value === 'string') return value.trim() !== '';
-        if (typeof value === 'number') return value > 0;
-        return false;
-      });
-      
-      if (hasData) {
-        hasFormData.current = true;
-        
-        // Save to sessionStorage immediately
-        const componentName = 'basicProfile';
-        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(formData));
-        
-        // Debounced database save
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(async () => {
-          try {
-            // Only save non-empty values to database
             const dataToSave: any = {};
-            Object.entries(formData).forEach(([key, value]) => {
-              if (typeof value === 'string' && value.trim() !== '') {
-                dataToSave[key] = value;
-              } else if (typeof value === 'number' && value > 0) {
-                dataToSave[key] = value;
+            Object.entries(value).forEach(([key, val]) => {
+              if (typeof val === 'string' && val.trim() !== '') {
+                dataToSave[key] = val;
+              } else if (typeof val === 'number' && val > 0) {
+                dataToSave[key] = val;
               }
             });
             
@@ -152,55 +61,14 @@ export const BasicProfileSection: React.FC = () => {
           } catch (error) {
             console.error('Auto-save failed:', error);
           }
-        }, 2000); // Increased debounce time
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
       }
     });
-    
-    return () => {
-      clearTimeout(saveTimeout);
-      subscription.unsubscribe();
-    };
+
+    return () => subscription.unsubscribe();
   }, [watch, updateProfileData]);
-
-  // Add emergency recovery on focus
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      if (hasFormData.current) {
-        // Force re-validate form state
-        const componentName = 'basicProfile';
-        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
-        
-        if (backupData) {
-          try {
-            const parsedBackup = JSON.parse(backupData);
-            Object.keys(parsedBackup).forEach(key => {
-              const currentValue = watch(key as keyof BasicProfileFormData);
-              if (!currentValue || (typeof currentValue === 'string' && currentValue.trim() === '')) {
-                setValue(key as keyof BasicProfileFormData, parsedBackup[key], { shouldDirty: false });
-              }
-            });
-          } catch (error) {
-            console.error('Error recovering data on focus:', error);
-          }
-        }
-      }
-    };
-    
-    window.addEventListener('focus', handleWindowFocus);
-    return () => window.removeEventListener('focus', handleWindowFocus);
-  }, [watch, setValue]);
-
-  // Only render form after component is properly mounted
-  if (!componentMounted) {
-    return (
-      <div className="space-y-8">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-muted-foreground mt-2">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -267,7 +135,6 @@ export const BasicProfileSection: React.FC = () => {
 
   const onSubmit = async (data: BasicProfileFormData) => {
     try {
-      // Don't clear refs here - let the data persist
       await updateProfileData('profile', {
         ...data,
         section_1_completed: true
@@ -278,7 +145,6 @@ export const BasicProfileSection: React.FC = () => {
         description: "Your basic information has been updated successfully.",
       });
 
-      // Move to next step without clearing data
       setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
@@ -336,7 +202,7 @@ export const BasicProfileSection: React.FC = () => {
         </p>
       </div>
 
-      {/* Profile Picture Upload - Now Optional */}
+      {/* Profile Picture Upload */}
       <div className="flex flex-col items-center space-y-4">
         <div className="relative">
           <Avatar className="w-24 h-24 border-4 border-primary/20">
@@ -375,7 +241,6 @@ export const BasicProfileSection: React.FC = () => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          {/* Full Name */}
           <div className="space-y-2">
             <Label htmlFor="full_name" className="text-sm font-medium">
               Full Name <span className="text-red-500">*</span>
@@ -391,7 +256,6 @@ export const BasicProfileSection: React.FC = () => {
             )}
           </div>
 
-          {/* Phone Number - Optional */}
           <div className="space-y-2">
             <Label htmlFor="phone_number" className="text-sm font-medium">
               Phone Number
@@ -405,7 +269,6 @@ export const BasicProfileSection: React.FC = () => {
             />
           </div>
 
-          {/* Date of Birth */}
           <div className="space-y-2">
             <Label htmlFor="date_of_birth" className="text-sm font-medium">
               Date of Birth
@@ -418,7 +281,6 @@ export const BasicProfileSection: React.FC = () => {
             />
           </div>
 
-          {/* Age */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Age <span className="text-red-500">*</span>
@@ -438,7 +300,6 @@ export const BasicProfileSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Gender */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Gender <span className="text-red-500">*</span>
@@ -459,7 +320,6 @@ export const BasicProfileSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Country */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Country <span className="text-red-500">*</span>
@@ -481,7 +341,6 @@ export const BasicProfileSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* City */}
           <div className="space-y-2">
             <Label htmlFor="city" className="text-sm font-medium">
               City <span className="text-red-500">*</span>
@@ -497,7 +356,6 @@ export const BasicProfileSection: React.FC = () => {
             )}
           </div>
 
-          {/* Timezone */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Timezone <span className="text-red-500">*</span>

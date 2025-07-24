@@ -1,12 +1,12 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Smartphone, Laptop, Monitor, Mail, Music, Video, Watch, Tablet, Tv, Apple, Zap, Command, Computer } from 'lucide-react';
+import { Smartphone, Laptop, Monitor, Mail, Music, Video, Watch, Tablet, Tv, Apple, Command, Computer } from 'lucide-react';
 
 interface DevicesFormData {
   operating_systems: string[];
@@ -21,113 +21,29 @@ interface DevicesFormData {
 export const DevicesSection: React.FC = () => {
   const { deviceData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
-  
-  // Use refs for persistent state across tab switches
-  const initialLoadComplete = useRef(false);
-  const hasFormData = useRef(false);
-  
-  // Add component-level data persistence
-  const [componentMounted, setComponentMounted] = useState(false);
 
-  const { handleSubmit, setValue, watch, reset } = useForm<DevicesFormData>({
-    mode: 'onChange',
-    shouldFocusError: false
+  const { handleSubmit, setValue, watch } = useForm<DevicesFormData>({
+    defaultValues: {
+      operating_systems: deviceData.operating_systems || [],
+      devices_owned: deviceData.devices_owned || [],
+      mobile_manufacturers: deviceData.mobile_manufacturers || [],
+      desktop_manufacturers: deviceData.desktop_manufacturers || [],
+      email_clients: deviceData.email_clients || [],
+      streaming_subscriptions: deviceData.streaming_subscriptions || [],
+      music_subscriptions: deviceData.music_subscriptions || [],
+    }
   });
 
+  // Auto-save with debounce
   useEffect(() => {
-    setComponentMounted(true);
-    return () => setComponentMounted(false);
-  }, []);
-
-  // Single, comprehensive useEffect for data loading
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadFormData = async () => {
-      if (initialLoadComplete.current) return;
-      
-      try {
-        // Step 1: Check sessionStorage first
-        const componentName = 'devices';
-        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
-        
-        if (backupData) {
-          try {
-            const parsedBackup = JSON.parse(backupData);
-            const hasBackupData = Object.values(parsedBackup).some(value => {
-              if (Array.isArray(value)) return value.length > 0;
-              return false;
-            });
-            
-            if (hasBackupData && isMounted) {
-              console.log('Loading devices from sessionStorage backup');
-              Object.keys(parsedBackup).forEach(key => {
-                setValue(key as keyof DevicesFormData, parsedBackup[key] || [], { shouldDirty: false, shouldTouch: false });
-              });
-              hasFormData.current = true;
-              initialLoadComplete.current = true;
-              return;
-            }
-          } catch (error) {
-            console.error('Error parsing devices backup data:', error);
-          }
-        }
-        
-        // Step 2: Load from database if no backup
-        if (deviceData && Object.keys(deviceData).length > 0 && isMounted) {
-          console.log('Loading devices from database');
-          setValue('operating_systems', deviceData.operating_systems || [], { shouldDirty: false, shouldTouch: false });
-          setValue('devices_owned', deviceData.devices_owned || [], { shouldDirty: false, shouldTouch: false });
-          setValue('mobile_manufacturers', deviceData.mobile_manufacturers || [], { shouldDirty: false, shouldTouch: false });
-          setValue('desktop_manufacturers', deviceData.desktop_manufacturers || [], { shouldDirty: false, shouldTouch: false });
-          setValue('email_clients', deviceData.email_clients || [], { shouldDirty: false, shouldTouch: false });
-          setValue('streaming_subscriptions', deviceData.streaming_subscriptions || [], { shouldDirty: false, shouldTouch: false });
-          setValue('music_subscriptions', deviceData.music_subscriptions || [], { shouldDirty: false, shouldTouch: false });
-          
-          hasFormData.current = true;
-        }
-        
-        initialLoadComplete.current = true;
-        
-      } catch (error) {
-        console.error('Error loading devices form data:', error);
-      }
-    };
-    
-    loadFormData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Empty dependency array
-
-  // Auto-save for devices
-  useEffect(() => {
-    if (!initialLoadComplete.current) return;
-    
-    let saveTimeout: NodeJS.Timeout;
-    
-    const subscription = watch((formData) => {
-      const hasData = Object.values(formData).some(value => {
-        if (Array.isArray(value)) return value.length > 0;
-        return false;
-      });
-      
-      if (hasData) {
-        hasFormData.current = true;
-        
-        // Save to sessionStorage immediately
-        const componentName = 'devices';
-        sessionStorage.setItem(`usergy_${componentName}_backup`, JSON.stringify(formData));
-        
-        // Debounced database save
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(async () => {
+    const subscription = watch((value, { name, type }) => {
+      if (type === 'change') {
+        const timeoutId = setTimeout(async () => {
           try {
             const dataToSave: any = {};
-            Object.entries(formData).forEach(([key, value]) => {
-              if (Array.isArray(value) && value.length > 0) {
-                dataToSave[key] = value;
+            Object.entries(value).forEach(([key, val]) => {
+              if (Array.isArray(val) && val.length > 0) {
+                dataToSave[key] = val;
               }
             });
             
@@ -135,57 +51,16 @@ export const DevicesSection: React.FC = () => {
               await updateProfileData('devices', dataToSave);
             }
           } catch (error) {
-            console.error('Devices auto-save failed:', error);
+            console.error('Auto-save failed:', error);
           }
-        }, 2000);
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
       }
     });
-    
-    return () => {
-      clearTimeout(saveTimeout);
-      subscription.unsubscribe();
-    };
+
+    return () => subscription.unsubscribe();
   }, [watch, updateProfileData]);
-
-  // Add emergency recovery on focus
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      if (hasFormData.current) {
-        // Force re-validate form state
-        const componentName = 'devices';
-        const backupData = sessionStorage.getItem(`usergy_${componentName}_backup`);
-        
-        if (backupData) {
-          try {
-            const parsedBackup = JSON.parse(backupData);
-            Object.keys(parsedBackup).forEach(key => {
-              const currentValue = watch(key as keyof DevicesFormData);
-              if (!currentValue || (Array.isArray(currentValue) && currentValue.length === 0)) {
-                setValue(key as keyof DevicesFormData, parsedBackup[key] || [], { shouldDirty: false });
-              }
-            });
-          } catch (error) {
-            console.error('Error recovering devices data on focus:', error);
-          }
-        }
-      }
-    };
-    
-    window.addEventListener('focus', handleWindowFocus);
-    return () => window.removeEventListener('focus', handleWindowFocus);
-  }, [watch, setValue]);
-
-  // Only render form after component is properly mounted
-  if (!componentMounted) {
-    return (
-      <div className="space-y-8">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-muted-foreground mt-2">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   const isSectionComplete = () => {
     const formData = watch();
@@ -226,7 +101,7 @@ export const DevicesSection: React.FC = () => {
     }
   };
 
-  // Updated operating systems with Lucide icons
+  // Operating systems with icons
   const operatingSystems = [
     { value: 'windows', label: 'Windows', icon: Computer },
     { value: 'macos', label: 'macOS', icon: Apple },
@@ -235,7 +110,7 @@ export const DevicesSection: React.FC = () => {
     { value: 'ios', label: 'iOS', icon: Apple }
   ];
 
-  // Updated devices with Watch icon for smartwatch
+  // Devices with icons
   const devices = [
     { value: 'smartphone', label: 'Smartphone', icon: Smartphone },
     { value: 'laptop', label: 'Laptop', icon: Laptop },

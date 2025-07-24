@@ -88,7 +88,6 @@ interface ProfileContextType {
   setCurrentStep: (step: number) => void;
   calculateCompletion: () => Promise<void>;
   uploadProfilePicture: (file: File) => Promise<string>;
-  autoSaveData: () => Promise<void>;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -114,7 +113,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Calculate completion percentage based on mandatory fields
   const calculateMandatoryCompletion = useCallback(() => {
     const mandatoryFields = {
-      // Basic Profile (7 fields - phone_number is now optional)
+      // Basic Profile (7 fields)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
@@ -152,7 +151,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
 
-  // Load current step from localStorage to maintain state across tabs
+  // Load current step from localStorage
   useEffect(() => {
     const savedStep = localStorage.getItem('profileCurrentStep');
     if (savedStep) {
@@ -160,7 +159,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Save current step to localStorage whenever it changes
+  // Save current step to localStorage
   useEffect(() => {
     localStorage.setItem('profileCurrentStep', currentStep.toString());
   }, [currentStep]);
@@ -172,17 +171,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(false);
     }
   }, [user]);
-
-  // Auto-save functionality - save every 10 seconds
-  useEffect(() => {
-    if (!user) return;
-
-    const autoSaveInterval = setInterval(async () => {
-      await autoSaveData();
-    }, 10000);
-
-    return () => clearInterval(autoSaveInterval);
-  }, [user, profileData, deviceData, techFluencyData, skillsData, socialPresenceData]);
 
   const loadProfileData = async () => {
     if (!user) return;
@@ -220,18 +208,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .maybeSingle();
 
       if (techFluency) {
-        // Handle programming_languages field type conversion
-        const processedTechFluency = {
-          ...techFluency,
-          programming_languages: Array.isArray(techFluency.programming_languages)
-            ? techFluency.programming_languages
-            : techFluency.programming_languages
-              ? (typeof techFluency.programming_languages === 'string' 
-                  ? JSON.parse(techFluency.programming_languages)
-                  : [])
-              : []
-        };
-        setTechFluencyData(processedTechFluency);
+        setTechFluencyData(techFluency);
       }
 
       // Load skills data
@@ -263,78 +240,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const autoSaveData = async () => {
-    if (!user) return;
-
-    try {
-      // Save profile data
-      if (Object.keys(profileData).length > 0) {
-        const { completion_percentage, ...dataToSave } = profileData;
-        await supabase
-          .from('profiles')
-          .upsert({ 
-            user_id: user.id, 
-            email: user.email || '',
-            ...dataToSave
-          });
-      }
-
-      // Save other data sections
-      if (Object.keys(deviceData).length > 0) {
-        await supabase
-          .from('user_devices')
-          .upsert({ 
-            user_id: user.id, 
-            ...deviceData
-          });
-      }
-
-      if (Object.keys(techFluencyData).length > 0) {
-        await supabase
-          .from('user_tech_fluency')
-          .upsert({ 
-            user_id: user.id, 
-            ...techFluencyData
-          });
-      }
-
-      if (Object.keys(skillsData).length > 0) {
-        await supabase
-          .from('user_skills')
-          .upsert({ 
-            user_id: user.id, 
-            ...skillsData
-          });
-      }
-
-      if (Object.keys(socialPresenceData).length > 0) {
-        await supabase
-          .from('user_social_presence')
-          .upsert({ 
-            user_id: user.id, 
-            ...socialPresenceData
-          });
-      }
-
-      console.log('Auto-save completed');
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-    }
-  };
-
   const updateProfileData = async (section: string, data: any) => {
     if (!user) return;
 
     try {
       switch (section) {
         case 'profile':
-          const { completion_percentage, ...profileDataToSave } = data;
           await supabase
             .from('profiles')
             .upsert({ 
               user_id: user.id, 
               email: user.email || '',
-              ...profileDataToSave
+              ...data
             });
           setProfileData(prev => ({ ...prev, ...data }));
           break;
@@ -439,8 +356,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateProfileData,
     setCurrentStep,
     calculateCompletion,
-    uploadProfilePicture,
-    autoSaveData
+    uploadProfilePicture
   };
 
   return (

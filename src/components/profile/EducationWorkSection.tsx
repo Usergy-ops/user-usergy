@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ export const EducationWorkSection: React.FC = () => {
   const { profileData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<EducationWorkFormData>({
+  const { register, handleSubmit, setValue, watch } = useForm<EducationWorkFormData>({
     defaultValues: {
       education_level: profileData.education_level || '',
       field_of_study: profileData.field_of_study || '',
@@ -36,6 +36,34 @@ export const EducationWorkSection: React.FC = () => {
       household_income_range: profileData.household_income_range || '',
     }
   });
+
+  // Auto-save with debounce
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      if (type === 'change') {
+        const timeoutId = setTimeout(async () => {
+          try {
+            const dataToSave: any = {};
+            Object.entries(value).forEach(([key, val]) => {
+              if (typeof val === 'string' && val.trim() !== '') {
+                dataToSave[key] = val;
+              }
+            });
+            
+            if (Object.keys(dataToSave).length > 0) {
+              await updateProfileData('profile', dataToSave);
+            }
+          } catch (error) {
+            console.error('Auto-save failed:', error);
+          }
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, updateProfileData]);
 
   const isSectionComplete = () => {
     const formData = watch();
@@ -54,7 +82,6 @@ export const EducationWorkSection: React.FC = () => {
         description: "Your professional information has been updated successfully.",
       });
 
-      // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
       toast({
