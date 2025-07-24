@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface PremiumFormFieldProps {
   label: string;
-  type?: 'text' | 'email' | 'password' | 'tel' | 'date' | 'select' | 'textarea';
+  type?: 'text' | 'email' | 'password' | 'tel' | 'date' | 'url' | 'select' | 'textarea';
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -39,6 +39,22 @@ export const PremiumFormField: React.FC<PremiumFormFieldProps> = ({
   const hasValue = value.length > 0;
   const isFloating = focused || hasValue;
 
+  // URL validation helper
+  const isValidUrl = (url: string) => {
+    if (!url) return true; // Empty is valid (not required by default)
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Show validation feedback for URL type
+  const shouldShowUrlValidation = type === 'url' && hasValue && !error;
+  const urlIsValid = shouldShowUrlValidation && isValidUrl(value);
+  const urlIsInvalid = shouldShowUrlValidation && !isValidUrl(value);
+
   const renderInput = () => {
     const baseClasses = cn(
       "w-full px-4 py-3 pt-6 border rounded-lg transition-all duration-200",
@@ -48,7 +64,9 @@ export const PremiumFormField: React.FC<PremiumFormFieldProps> = ({
       (type === 'password' && !showPassword) && "pr-12",
       error && "border-destructive focus:border-destructive focus:ring-destructive/20",
       success && "border-success focus:border-success focus:ring-success/20",
-      !error && !success && "border-border focus:border-primary"
+      urlIsValid && "border-success focus:border-success focus:ring-success/20",
+      urlIsInvalid && "border-destructive focus:border-destructive focus:ring-destructive/20",
+      !error && !success && !urlIsValid && !urlIsInvalid && "border-border focus:border-primary"
     );
 
     if (type === 'select') {
@@ -122,11 +140,11 @@ export const PremiumFormField: React.FC<PremiumFormFieldProps> = ({
           </button>
         )}
 
-        {/* Success/Error Icons */}
-        {(success || error) && (
+        {/* Success/Error/URL Validation Icons */}
+        {(success || error || urlIsValid || urlIsInvalid) && (
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10">
-            {success && <Check className="w-5 h-5 text-success" />}
-            {error && <AlertCircle className="w-5 h-5 text-destructive" />}
+            {(success || urlIsValid) && <Check className="w-5 h-5 text-success" />}
+            {(error || urlIsInvalid) && <AlertCircle className="w-5 h-5 text-destructive" />}
           </div>
         )}
 
@@ -170,6 +188,18 @@ export const PremiumFormField: React.FC<PremiumFormFieldProps> = ({
         >
           <AlertCircle className="w-4 h-4" />
           <span>{error}</span>
+        </motion.p>
+      )}
+
+      {/* URL Validation Message */}
+      {urlIsInvalid && !error && (
+        <motion.p
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-sm text-destructive mt-2 flex items-center space-x-1"
+        >
+          <AlertCircle className="w-4 h-4" />
+          <span>Please enter a valid URL (e.g., https://example.com)</span>
         </motion.p>
       )}
     </div>
