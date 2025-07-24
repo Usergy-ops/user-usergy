@@ -1,4 +1,3 @@
-
 /**
  * Enhanced custom hook for centralized error handling
  */
