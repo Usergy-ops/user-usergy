@@ -33,6 +33,16 @@ export interface ConsolidatedSocialPresenceResult {
   };
 }
 
+// Type guard for metadata
+const isMetadataObject = (value: any): value is Record<string, any> => {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
+// Type guard for other social networks
+const isOtherSocialNetworksObject = (value: any): value is Record<string, any> => {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
 /**
  * Validates social media URLs and returns validation results
  */
@@ -212,6 +222,10 @@ export const loadConsolidatedSocialPresence = async (
       return { data: null };
     }
     
+    // Safely extract metadata with type guards
+    const metadata = isMetadataObject(data.metadata) ? data.metadata : {};
+    const otherSocialNetworks = isOtherSocialNetworksObject(data.other_social_networks) ? data.other_social_networks : {};
+    
     // Transform data to result format
     const result: ConsolidatedSocialPresenceResult = {
       primary_profiles: {
@@ -220,12 +234,12 @@ export const loadConsolidatedSocialPresence = async (
         twitter: data.twitter_url || undefined,
         portfolio: data.portfolio_url || undefined
       },
-      additional_links: data.additional_links || [],
-      other_social_networks: data.other_social_networks || {},
+      additional_links: Array.isArray(data.additional_links) ? data.additional_links : [],
+      other_social_networks: otherSocialNetworks,
       metadata: {
         last_updated: data.updated_at || new Date().toISOString(),
-        profiles_count: data.metadata?.profiles_count || 0,
-        is_complete: (data.metadata?.profiles_count || 0) > 0
+        profiles_count: typeof metadata.profiles_count === 'number' ? metadata.profiles_count : 0,
+        is_complete: typeof metadata.profiles_count === 'number' ? metadata.profiles_count > 0 : false
       }
     };
     
@@ -258,14 +272,19 @@ export const migrateToConsolidatedSocialPresence = async (userId: string): Promi
       .eq('user_id', userId)
       .single();
     
+    // Safely extract other social networks
+    const otherSocialNetworks = socialData && isOtherSocialNetworksObject(socialData.other_social_networks) 
+      ? socialData.other_social_networks 
+      : {};
+    
     // Combine data
     const consolidatedData: ConsolidatedSocialPresenceData = {
       linkedin_url: profileData?.linkedin_url || undefined,
       github_url: profileData?.github_url || undefined,
       twitter_url: profileData?.twitter_url || undefined,
       portfolio_url: profileData?.portfolio_url || undefined,
-      additional_links: socialData?.additional_links || [],
-      other_social_networks: socialData?.other_social_networks || {}
+      additional_links: Array.isArray(socialData?.additional_links) ? socialData.additional_links : [],
+      other_social_networks: otherSocialNetworks
     };
     
     // Save to consolidated table

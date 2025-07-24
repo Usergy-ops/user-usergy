@@ -25,6 +25,11 @@ export interface EnhancedRateLimitResult {
   escalationLevel?: number;
 }
 
+// Type guard for metadata
+const isMetadataObject = (value: any): value is Record<string, any> => {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
 // Enhanced rate limit configurations with escalation
 export const ENHANCED_RATE_LIMIT_CONFIGS: Record<string, EnhancedRateLimitConfig> = {
   // Authentication related with progressive blocking
@@ -125,13 +130,16 @@ export const checkEnhancedRateLimit = async (
     
     // Check if currently blocked
     if (existingRecord?.blocked_until && new Date(existingRecord.blocked_until) > now) {
+      // Safely extract metadata with type guard
+      const metadata = isMetadataObject(existingRecord.metadata) ? existingRecord.metadata : {};
+      
       const result = {
         allowed: false,
         attemptsRemaining: 0,
         resetTime: new Date(existingRecord.blocked_until),
         blocked: true,
         blockedUntil: new Date(existingRecord.blocked_until),
-        escalationLevel: existingRecord.metadata?.escalationLevel || 0
+        escalationLevel: typeof metadata.escalationLevel === 'number' ? metadata.escalationLevel : 0
       };
       
       monitoring.recordMetric('enhanced_rate_limit_blocked', 1, {
@@ -146,7 +154,10 @@ export const checkEnhancedRateLimit = async (
     if (existingRecord) {
       const newAttempts = existingRecord.attempts + 1;
       let blockDuration = config.blockDurationMinutes || 60;
-      let escalationLevel = existingRecord.metadata?.escalationLevel || 0;
+      
+      // Safely extract metadata with type guard
+      const existingMetadata = isMetadataObject(existingRecord.metadata) ? existingRecord.metadata : {};
+      let escalationLevel = typeof existingMetadata.escalationLevel === 'number' ? existingMetadata.escalationLevel : 0;
       
       // Check for escalation rules
       if (config.escalationRules) {
@@ -169,7 +180,7 @@ export const checkEnhancedRateLimit = async (
           window_end: windowEnd.toISOString(),
           blocked_until: blockedUntil?.toISOString() || null,
           metadata: {
-            ...existingRecord.metadata,
+            ...existingMetadata,
             escalationLevel,
             lastAttempt: now.toISOString()
           },
