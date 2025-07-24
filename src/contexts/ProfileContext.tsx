@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -10,6 +11,8 @@ import {
   validateSocialPresenceData 
 } from '@/utils/dataValidation';
 import { ValidationError } from '@/utils/errorHandling';
+import { checkRateLimit } from '@/utils/consistentRateLimiting';
+import { monitoring, trackUserAction } from '@/utils/monitoring';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -168,6 +171,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setLoading(true);
+      monitoring.startTiming('profile_load');
+
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(user.id, 'profile_load');
+      if (!rateLimitResult.allowed) {
+        throw new Error('Too many profile load requests. Please try again later.');
+      }
 
       // Load all data in parallel
       const [profileResult, devicesResult, techResult, skillsResult, socialResult] = await Promise.all([
@@ -198,7 +208,24 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setSocialPresenceData(socialResult.data);
       }
 
+      monitoring.endTiming('profile_load');
+      
+      trackUserAction('profile_loaded', {
+        sections_completed: [
+          profileResult.data?.section_1_completed,
+          profileResult.data?.section_2_completed,
+          profileResult.data?.section_3_completed,
+          profileResult.data?.section_4_completed,
+          profileResult.data?.section_5_completed,
+          profileResult.data?.section_6_completed
+        ].filter(Boolean).length,
+        completion_percentage: profileResult.data?.completion_percentage || 0
+      });
+
     } catch (error) {
+      monitoring.logError(error as Error, 'profile_load_error', {
+        user_id: user.id
+      });
       handleError(error, 'ProfileContext.loadProfileData');
     } finally {
       setLoading(false);
@@ -209,6 +236,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
 
     try {
+      monitoring.startTiming(`profile_update_${section}`);
+
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(user.id, 'profile_update');
+      if (!rateLimitResult.allowed) {
+        throw new Error('Too many profile update requests. Please try again later.');
+      }
+
       // Validate data before updating
       let validationResult;
       
@@ -288,7 +323,21 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;
       }
+
+      monitoring.endTiming(`profile_update_${section}`);
+      
+      trackUserAction('profile_updated', {
+        section,
+        data_keys: Object.keys(data),
+        user_id: user.id
+      });
+
     } catch (error) {
+      monitoring.logError(error as Error, `profile_update_error_${section}`, {
+        user_id: user.id,
+        section,
+        data
+      });
       handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;
     }
@@ -298,6 +347,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) throw new Error('User not authenticated');
 
     try {
+      monitoring.startTiming('profile_picture_upload');
+
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(user.id, 'file_upload');
+      if (!rateLimitResult.allowed) {
+        throw new Error('Too many file upload requests. Please try again later.');
+      }
+
       // Validate file
       const maxSize = 5 * 1024 * 1024; // 5MB
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -325,8 +382,21 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .from('profile-pictures')
         .getPublicUrl(fileName);
 
+      monitoring.endTiming('profile_picture_upload');
+      
+      trackUserAction('profile_picture_uploaded', {
+        file_size: file.size,
+        file_type: file.type,
+        user_id: user.id
+      });
+
       return data.publicUrl;
     } catch (error) {
+      monitoring.logError(error as Error, 'profile_picture_upload_error', {
+        user_id: user.id,
+        file_size: file.size,
+        file_type: file.type
+      });
       handleError(error, 'ProfileContext.uploadProfilePicture');
       throw error;
     }

@@ -7,7 +7,7 @@ import { BasicProfileSection } from '@/components/profile/BasicProfileSection';
 import { DevicesSection } from '@/components/profile/DevicesSection';
 import { EducationWorkSection } from '@/components/profile/EducationWorkSection';
 import { TechFluencySection } from '@/components/profile/TechFluencySection';
-import { SocialPresenceSection } from '@/components/profile/SocialPresenceSection';
+import { EnhancedSocialPresenceSection } from '@/components/profile/EnhancedSocialPresenceSection';
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
@@ -212,13 +212,13 @@ const ProfileCompletion = () => {
               </div>
             </div>
 
-            {/* Section Component - Direct rendering with unique keys */}
+            {/* Section Component - Using EnhancedSocialPresenceSection for step 5 */}
             <div className="mb-8">
               {currentStep === 1 && <BasicProfileSection key="basic-profile" />}
               {currentStep === 2 && <DevicesSection key="devices-section" />}
               {currentStep === 3 && <EducationWorkSection key="education-section" />}
               {currentStep === 4 && <TechFluencySection key="tech-section" />}
-              {currentStep === 5 && <SocialPresenceSection key="social-section" />}
+              {currentStep === 5 && <EnhancedSocialPresenceSection key="social-section" />}
               {currentStep === 6 && <SkillsInterestsSection key="skills-section" />}
             </div>
 

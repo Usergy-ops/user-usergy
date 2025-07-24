@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useProfile } from '@/contexts/EnhancedProfileContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -67,9 +67,20 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
         return acc;
       }, {} as any);
 
+      // Store social presence data in both profile and user_social_presence tables
+      // This maintains backward compatibility while using the new consolidated approach
       await updateProfileData('profile', {
-        ...normalizedData,
+        linkedin_url: normalizedData.linkedin_url,
+        github_url: normalizedData.github_url,
+        twitter_url: normalizedData.twitter_url,
+        portfolio_url: normalizedData.portfolio_url,
         section_5_completed: true
+      });
+
+      // Also update the dedicated social presence table
+      await updateProfileData('social_presence', {
+        additional_links: Object.values(normalizedData).filter(Boolean) as string[],
+        other_social_networks: normalizedData
       });
       
       monitoring.endTiming('social_presence_save');

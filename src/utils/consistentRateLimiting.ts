@@ -99,7 +99,11 @@ export const checkRateLimit = async (
         blockedUntil: new Date(existingRecord.blocked_until)
       };
       
-      monitoring.monitorRateLimit(identifier, action, false, 0);
+      monitoring.recordMetric('rate_limit_blocked', 1, {
+        action,
+        identifier_type: identifier.includes('@') ? 'email' : 'user_id'
+      });
+      
       return result;
     }
 
@@ -128,7 +132,12 @@ export const checkRateLimit = async (
         blockedUntil: isBlocked ? new Date(Date.now() + blockDuration * 60 * 1000) : undefined
       };
 
-      monitoring.monitorRateLimit(identifier, action, !isBlocked, result.attemptsRemaining);
+      monitoring.recordMetric('rate_limit_check', 1, {
+        action,
+        allowed: !isBlocked,
+        attempts_remaining: result.attemptsRemaining
+      });
+      
       return result;
     } else {
       // Create new record
@@ -148,7 +157,12 @@ export const checkRateLimit = async (
         blocked: false
       };
 
-      monitoring.monitorRateLimit(identifier, action, true, result.attemptsRemaining);
+      monitoring.recordMetric('rate_limit_check', 1, {
+        action,
+        allowed: true,
+        attempts_remaining: result.attemptsRemaining
+      });
+      
       return result;
     }
   } catch (error) {
