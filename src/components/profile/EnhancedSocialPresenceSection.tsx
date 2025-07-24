@@ -1,92 +1,126 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Link, Github, Linkedin, Twitter, AlertCircle, CheckCircle } from 'lucide-react';
+import { Link, Github, Linkedin, Twitter, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { 
-  useProfileFormValidation, 
-  socialPresenceSchema, 
-  ValidatedField 
-} from './ProfileFormValidation';
+  validateSocialUrls, 
+  normalizeSocialUrls, 
+  saveSocialPresence, 
+  loadSocialPresence,
+  type SocialPresenceData
+} from '@/utils/socialPresenceUtils';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 export const EnhancedSocialPresenceSection: React.FC = () => {
-  const { profileData, updateProfileData, setCurrentStep, currentStep } = useProfile();
+  const { profileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formData, setFormData] = useState<SocialPresenceData>({
+    linkedin_url: '',
+    github_url: '',
+    twitter_url: '',
+    portfolio_url: ''
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isValid },
-    watch,
-    setValue
-  } = useProfileFormValidation(socialPresenceSchema);
+  // Load existing social presence data
+  useEffect(() => {
+    const loadExistingData = async () => {
+      if (!profileData.user_id) return;
+      
+      try {
+        const { data, error } = await loadSocialPresence(profileData.user_id);
+        
+        if (error) {
+          console.error('Error loading social presence:', error);
+          return;
+        }
+        
+        if (data) {
+          setFormData({
+            linkedin_url: data.primary_profiles.linkedin || '',
+            github_url: data.primary_profiles.github || '',
+            twitter_url: data.primary_profiles.twitter || '',
+            portfolio_url: data.primary_profiles.portfolio || ''
+          });
+        }
+      } catch (error) {
+        console.error('Error loading social presence:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadExistingData();
+  }, [profileData.user_id]);
 
-  // Watch all fields for real-time validation
-  const watchedFields = watch();
-
-  const validateURL = (url: string) => {
-    if (!url) return true;
-    try {
-      new URL(url.startsWith('http') ? url : `https://${url}`);
-      return true;
-    } catch {
-      return false;
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
     }
   };
 
-  const normalizeURL = (url: string) => {
-    if (!url) return '';
-    return url.startsWith('http') ? url : `https://${url}`;
+  const handleInputBlur = (field: string, value: string) => {
+    if (value) {
+      const validation = validateSocialUrls({ [field]: value });
+      if (!validation.isValid && validation.errors[field]) {
+        setErrors(prev => ({
+          ...prev,
+          [field]: validation.errors[field]
+        }));
+      }
+    }
   };
 
-  const handleURLChange = (field: string, value: string) => {
-    const normalizedValue = normalizeURL(value);
-    setValue(field as any, normalizedValue);
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // Track URL validation
-    trackUserAction('social_url_validation', {
-      field,
-      is_valid: validateURL(normalizedValue),
-      section: 'social_presence'
-    });
-  };
-
-  const onSubmit = async (data: any) => {
+    if (!profileData.user_id) {
+      toast({
+        title: "Error",
+        description: "User not found. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
       monitoring.startTiming('social_presence_save');
       
-      // Normalize all URLs
-      const normalizedData = Object.entries(data).reduce((acc, [key, value]) => {
-        acc[key] = value ? normalizeURL(value as string) : '';
-        return acc;
-      }, {} as any);
-
-      // Store social presence data in both profile and user_social_presence tables
-      // This maintains backward compatibility while using the new consolidated approach
-      await updateProfileData('profile', {
-        linkedin_url: normalizedData.linkedin_url,
-        github_url: normalizedData.github_url,
-        twitter_url: normalizedData.twitter_url,
-        portfolio_url: normalizedData.portfolio_url,
-        section_5_completed: true
-      });
-
-      // Also update the dedicated social presence table
-      await updateProfileData('social_presence', {
-        additional_links: Object.values(normalizedData).filter(Boolean) as string[],
-        other_social_networks: normalizedData
-      });
+      // Validate all URLs
+      const validation = validateSocialUrls(formData);
+      if (!validation.isValid) {
+        setErrors(validation.errors);
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Save social presence data
+      const result = await saveSocialPresence(profileData.user_id, formData);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save social presence');
+      }
       
       monitoring.endTiming('social_presence_save');
       
       trackUserAction('social_presence_completed', {
-        filled_profiles: Object.values(normalizedData).filter(Boolean).length,
+        filled_profiles: Object.values(formData).filter(Boolean).length,
         section: 'social_presence'
       });
       
@@ -104,7 +138,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       
       toast({
         title: "Error saving profiles",
-        description: "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -147,6 +181,15 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     }
   ];
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <span className="ml-2">Loading social presence data...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -158,46 +201,48 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={onSubmit} className="space-y-6">
         <div className="space-y-4">
           {socialPlatforms.map((platform) => {
-            const currentValue = watchedFields[platform.name as keyof typeof watchedFields] || '';
-            const hasError = errors[platform.name as keyof typeof errors];
-            const isValidURL = !currentValue || validateURL(currentValue);
+            const currentValue = formData[platform.name as keyof SocialPresenceData] || '';
+            const hasError = errors[platform.name];
+            const isValidURL = !currentValue || !hasError;
             
             return (
-              <ValidatedField
-                key={platform.name}
-                label={platform.label}
-                error={hasError?.message}
-                required={false}
-              >
+              <div key={platform.name} className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  {platform.label}
+                </label>
                 <div className="flex items-center space-x-3 p-4 border rounded-lg transition-colors duration-200 hover:bg-muted/50">
                   <platform.icon className={`w-6 h-6 ${platform.iconColor}`} />
                   <div className="flex-1">
                     <div className="relative">
                       <Input
-                        {...register(platform.name as any)}
+                        value={currentValue}
+                        onChange={(e) => handleInputChange(platform.name, e.target.value)}
+                        onBlur={(e) => handleInputBlur(platform.name, e.target.value)}
                         placeholder={platform.placeholder}
-                        className={`pr-10 ${hasError ? 'border-destructive' : isValidURL && currentValue ? 'border-success' : ''}`}
-                        onChange={(e) => handleURLChange(platform.name, e.target.value)}
+                        className={`pr-10 ${hasError ? 'border-destructive' : isValidURL && currentValue ? 'border-green-500' : ''}`}
                       />
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                         {currentValue && (
                           isValidURL ? (
-                            <CheckCircle className="w-5 h-5 text-success" />
+                            <CheckCircle className="w-5 h-5 text-green-500" />
                           ) : (
                             <AlertCircle className="w-5 h-5 text-destructive" />
                           )
                         )}
                       </div>
                     </div>
+                    {hasError && (
+                      <p className="text-sm text-destructive mt-1">{hasError}</p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {platform.description}
                     </p>
                   </div>
                 </div>
-              </ValidatedField>
+              </div>
             );
           })}
         </div>
@@ -217,18 +262,19 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
             type="button" 
             variant="outline"
             onClick={() => setCurrentStep(currentStep - 1)}
+            disabled={isSubmitting}
           >
             Previous
           </Button>
           
           <Button 
             type="submit" 
-            disabled={isSubmitting || !isValid}
+            disabled={isSubmitting}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
           >
             {isSubmitting ? (
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+                <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Saving...</span>
               </div>
             ) : (

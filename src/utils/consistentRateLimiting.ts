@@ -101,7 +101,9 @@ export const checkRateLimit = async (
       
       monitoring.recordMetric('rate_limit_blocked', 1, {
         action,
-        identifier_type: identifier.includes('@') ? 'email' : 'user_id'
+        identifier_type: identifier.includes('@') ? 'email' : 'user_id',
+        blocked: 'true',
+        attempts_remaining: '0'
       });
       
       return result;
@@ -134,8 +136,8 @@ export const checkRateLimit = async (
 
       monitoring.recordMetric('rate_limit_check', 1, {
         action,
-        allowed: !isBlocked,
-        attempts_remaining: result.attemptsRemaining
+        allowed: (!isBlocked).toString(),
+        attempts_remaining: result.attemptsRemaining.toString()
       });
       
       return result;
@@ -159,8 +161,8 @@ export const checkRateLimit = async (
 
       monitoring.recordMetric('rate_limit_check', 1, {
         action,
-        allowed: true,
-        attempts_remaining: result.attemptsRemaining
+        allowed: 'true',
+        attempts_remaining: result.attemptsRemaining.toString()
       });
       
       return result;
