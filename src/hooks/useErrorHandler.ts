@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCallback } from 'react';
 import { handleSupabaseError, logError, ValidationError, DatabaseError, AuthError } from '@/utils/errorHandling';
 import { monitoring } from '@/utils/monitoring';
+import { ToastAction } from '@/components/ui/toast';
 
 export const useErrorHandler = () => {
   const { toast } = useToast();
@@ -83,10 +84,11 @@ export const useErrorHandler = () => {
       toast({
         title: "Recovery Option",
         description: "Click to retry the operation",
-        action: {
-          altText: "Retry",
-          onClick: recoveryOptions.retry
-        }
+        action: (
+          <ToastAction onClick={recoveryOptions.retry}>
+            Retry
+          </ToastAction>
+        )
       });
     }
   }, [handleError, toast]);

@@ -12,7 +12,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import Index from '@/pages/Index';
 import ProfileCompletion from '@/pages/ProfileCompletion';
 import Dashboard from '@/pages/Dashboard';
-import SystemMonitoring from '@/pages/SystemMonitoring';
+import { SystemMonitoring } from '@/pages/SystemMonitoring';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient({
