@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfileCompletion } from '@/hooks/useProfileCompletion';
@@ -11,7 +10,7 @@ import { ProfileSection6 } from './profile-sections/ProfileSection6';
 import { PremiumHeader } from './profile-completion/PremiumHeader';
 import { StepSidebar } from './profile-completion/StepSidebar';
 import { PremiumCard } from './profile-completion/PremiumCard';
-import { Loader2, Sparkles, Trophy, PartyPopper } from 'lucide-react';
+import { Loader2, Sparkles, Trophy, PartyPopper, User, Smartphone, GraduationCap, Brain, Share2, Star } from 'lucide-react';
 
 const ProfileCompletion = () => {
   const { profileCompletion, profileData, loading, updating } = useProfileCompletion();
@@ -42,6 +41,7 @@ const ProfileCompletion = () => {
       id: 1,
       title: 'Basic Information',
       description: 'Personal details and contact info',
+      icon: User,
       completed: profileCompletion?.section_1_completed || false,
       fieldsComplete: profileData?.full_name ? 6 : 0,
       totalFields: 8
@@ -50,6 +50,7 @@ const ProfileCompletion = () => {
       id: 2,
       title: 'Devices & Products',
       description: 'Technology preferences and usage',
+      icon: Smartphone,
       completed: profileCompletion?.section_2_completed || false,
       fieldsComplete: profileData?.operating_systems?.length || 0,
       totalFields: 5
@@ -58,6 +59,7 @@ const ProfileCompletion = () => {
       id: 3,
       title: 'Education & Work',
       description: 'Professional background and expertise',
+      icon: GraduationCap,
       completed: profileCompletion?.section_3_completed || false,
       fieldsComplete: profileData?.education_level ? 4 : 0,
       totalFields: 8
@@ -66,6 +68,7 @@ const ProfileCompletion = () => {
       id: 4,
       title: 'AI & Tech Fluency',
       description: 'Technical skills and AI experience',
+      icon: Brain,
       completed: profileCompletion?.section_4_completed || false,
       fieldsComplete: profileData?.technical_experience_level ? 3 : 0,
       totalFields: 5
@@ -74,6 +77,7 @@ const ProfileCompletion = () => {
       id: 5,
       title: 'Social Presence',
       description: 'Professional networks and profiles',
+      icon: Share2,
       completed: profileCompletion?.section_5_completed || false,
       fieldsComplete: profileData?.linkedin_url ? 2 : 0,
       totalFields: 4
@@ -82,6 +86,7 @@ const ProfileCompletion = () => {
       id: 6,
       title: 'Skills & Interests',
       description: 'Personal interests and bio',
+      icon: Star,
       completed: profileCompletion?.section_6_completed || false,
       fieldsComplete: profileData?.interests?.length || 0,
       totalFields: 2
