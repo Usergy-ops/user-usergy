@@ -18,6 +18,6 @@ export interface ValidationSchema {
 
 export interface ValidationResult {
   isValid: boolean;
-  errors: Record<string, string>;
+  errors: string[];
   sanitizedData: Record<string, any>;
 }
