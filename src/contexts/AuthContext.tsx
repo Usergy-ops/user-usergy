@@ -1,7 +1,9 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { validateEmail, validatePassword } from '@/utils/security';
+import { ValidationError, AuthError } from '@/utils/errorHandling';
 
 interface AuthContextType {
   user: User | null;
@@ -29,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { handleError } = useErrorHandler();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -54,6 +57,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string) => {
     try {
+      // Validate input
+      if (!validateEmail(email)) {
+        throw new ValidationError('Invalid email format');
+      }
+      
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        throw new ValidationError(passwordValidation.errors.join(', '));
+      }
+
       console.log('Starting sign up process for:', email);
       
       // Call our edge function to generate OTP
@@ -95,13 +108,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         attemptsLeft: data.attemptsLeft 
       };
     } catch (error) {
-      console.error('Sign up exception:', error);
+      if (error instanceof ValidationError) {
+        return { error: error.message };
+      }
+      handleError(error, 'AuthContext.signUp');
       return { error: 'An unexpected error occurred' };
     }
   };
 
   const verifyOTP = async (email: string, otp: string, password: string) => {
     try {
+      // Validate input
+      if (!validateEmail(email)) {
+        throw new ValidationError('Invalid email format');
+      }
+      
+      if (!otp || otp.length !== 6) {
+        throw new ValidationError('OTP must be 6 digits');
+      }
+
       console.log('Starting OTP verification for:', email);
       
       const { data, error } = await supabase.functions.invoke('auth-otp', {
@@ -152,13 +177,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('User signed in successfully after OTP verification');
       return { error: undefined };
     } catch (error) {
-      console.error('OTP verification exception:', error);
+      if (error instanceof ValidationError) {
+        return { error: error.message };
+      }
+      handleError(error, 'AuthContext.verifyOTP');
       return { error: 'An unexpected error occurred' };
     }
   };
 
   const resendOTP = async (email: string) => {
     try {
+      // Validate input
+      if (!validateEmail(email)) {
+        throw new ValidationError('Invalid email format');
+      }
+
       console.log('Resending OTP for:', email);
       
       const { data, error } = await supabase.functions.invoke('auth-otp', {
@@ -198,13 +231,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         attemptsLeft: data.attemptsLeft 
       };
     } catch (error) {
-      console.error('Resend OTP exception:', error);
+      if (error instanceof ValidationError) {
+        return { error: error.message };
+      }
+      handleError(error, 'AuthContext.resendOTP');
       return { error: 'An unexpected error occurred' };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Validate input
+      if (!validateEmail(email)) {
+        throw new ValidationError('Invalid email format');
+      }
+      
+      if (!password) {
+        throw new ValidationError('Password is required');
+      }
+
       console.log('Starting sign in for:', email);
       
       const { error } = await supabase.auth.signInWithPassword({
@@ -220,18 +265,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Sign in successful');
       return { error: undefined };
     } catch (error) {
-      console.error('Sign in exception:', error);
+      if (error instanceof ValidationError) {
+        return { error: error.message };
+      }
+      handleError(error, 'AuthContext.signIn');
       return { error: 'An unexpected error occurred' };
     }
   };
 
   const signOut = async () => {
-    console.log('Signing out user');
-    await supabase.auth.signOut();
+    try {
+      console.log('Signing out user');
+      await supabase.auth.signOut();
+    } catch (error) {
+      handleError(error, 'AuthContext.signOut');
+    }
   };
 
   const resetPassword = async (email: string) => {
     try {
+      // Validate input
+      if (!validateEmail(email)) {
+        throw new ValidationError('Invalid email format');
+      }
+
       console.log('Resetting password for:', email);
       
       const redirectUrl = `${window.location.origin}/reset-password`;
@@ -248,7 +305,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Password reset email sent');
       return { error: undefined };
     } catch (error) {
-      console.error('Reset password exception:', error);
+      if (error instanceof ValidationError) {
+        return { error: error.message };
+      }
+      handleError(error, 'AuthContext.resetPassword');
       return { error: 'An unexpected error occurred' };
     }
   };

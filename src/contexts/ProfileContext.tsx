@@ -1,7 +1,15 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { 
+  validateProfileData, 
+  validateDeviceData, 
+  validateTechFluencyData, 
+  validateSkillsData, 
+  validateSocialPresenceData 
+} from '@/utils/dataValidation';
+import { ValidationError } from '@/utils/errorHandling';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -47,6 +55,7 @@ export const useProfile = () => {
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { handleError } = useErrorHandler();
   const [profileData, setProfileData] = useState<ProfileData>({});
   const [deviceData, setDeviceData] = useState<DeviceData>({});
   const [techFluencyData, setTechFluencyData] = useState<TechFluencyData>({});
@@ -190,7 +199,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
     } catch (error) {
-      console.error('Error loading profile data:', error);
+      handleError(error, 'ProfileContext.loadProfileData');
     } finally {
       setLoading(false);
     }
@@ -200,6 +209,33 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
 
     try {
+      // Validate data before updating
+      let validationResult;
+      
+      switch (section) {
+        case 'profile':
+          validationResult = validateProfileData(data);
+          break;
+        case 'devices':
+          validationResult = validateDeviceData(data);
+          break;
+        case 'tech_fluency':
+          validationResult = validateTechFluencyData(data);
+          break;
+        case 'skills':
+          validationResult = validateSkillsData(data);
+          break;
+        case 'social_presence':
+          validationResult = validateSocialPresenceData(data);
+          break;
+        default:
+          validationResult = { isValid: true, errors: [] };
+      }
+
+      if (!validationResult.isValid) {
+        throw new ValidationError(validationResult.errors.join(', '));
+      }
+
       switch (section) {
         case 'profile':
           const { completion_percentage, ...profileDataToSave } = data;
@@ -253,7 +289,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           break;
       }
     } catch (error) {
-      console.error('Error updating profile data:', error);
+      handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;
     }
   };
@@ -261,22 +297,39 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const uploadProfilePicture = async (file: File): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/avatar.${fileExt}`;
+    try {
+      // Validate file
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      
+      if (file.size > maxSize) {
+        throw new ValidationError('File size must be less than 5MB');
+      }
+      
+      if (!allowedTypes.includes(file.type)) {
+        throw new ValidationError('File must be a JPEG, PNG, or WebP image');
+      }
 
-    const { error: uploadError } = await supabase.storage
-      .from('profile-pictures')
-      .upload(fileName, file, { upsert: true });
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
 
-    if (uploadError) {
-      throw uploadError;
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      handleError(error, 'ProfileContext.uploadProfilePicture');
+      throw error;
     }
-
-    const { data } = supabase.storage
-      .from('profile-pictures')
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
   };
 
   const value = {
