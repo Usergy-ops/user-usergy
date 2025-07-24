@@ -230,6 +230,30 @@ export const DevicesSection: React.FC = () => {
           </div>
         </div>
 
+        {/* Desktop Manufacturers */}
+        <div className="space-y-4">
+          <Label className="text-lg font-medium flex items-center space-x-2">
+            <Monitor className="w-5 h-5 text-primary" />
+            <span>Desktop/Laptop Brands</span>
+          </Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {desktopManufacturers.map((brand) => (
+              <div key={brand} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
+                <Checkbox
+                  id={`desktop-${brand}`}
+                  checked={watch('desktop_manufacturers')?.includes(brand)}
+                  onCheckedChange={(checked) => 
+                    handleCheckboxChange('desktop_manufacturers', brand, checked as boolean)
+                  }
+                />
+                <Label htmlFor={`desktop-${brand}`} className="cursor-pointer text-sm">
+                  {brand}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Email Clients */}
         <div className="space-y-4">
           <Label className="text-lg font-medium flex items-center space-x-2">

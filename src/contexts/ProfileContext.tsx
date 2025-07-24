@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -31,6 +32,7 @@ interface ProfileContextType {
   setCurrentStep: (step: number) => void;
   calculateCompletion: () => number;
   uploadProfilePicture: (file: File) => Promise<string>;
+  resumeIncompleteSection: () => void;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -55,6 +57,28 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
 
+  // Resume incomplete section based on completed sections
+  const resumeIncompleteSection = useCallback(() => {
+    if (!user) return;
+    
+    // Check which sections are completed and set the current step accordingly
+    if (!profileData.section_1_completed) {
+      setCurrentStep(1);
+    } else if (!profileData.section_2_completed) {
+      setCurrentStep(2);
+    } else if (!profileData.section_3_completed) {
+      setCurrentStep(3);
+    } else if (!profileData.section_4_completed) {
+      setCurrentStep(4);
+    } else if (!profileData.section_5_completed) {
+      setCurrentStep(5);
+    } else if (!profileData.section_6_completed) {
+      setCurrentStep(6);
+    } else {
+      setCurrentStep(1); // All sections completed, start from beginning
+    }
+  }, [profileData, user]);
+
   // Calculate completion percentage based on mandatory fields
   const calculateCompletion = useCallback(() => {
     const mandatoryFields = {
@@ -76,10 +100,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Education & Work (1 field)
       education_level: profileData.education_level,
       
-      // AI & Tech Fluency (4 fields)
+      // AI & Tech Fluency (4 fields) - FIXED: ai_tools_used -> ai_models_used
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_tools_used: techFluencyData.ai_models_used,
+      ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
     };
 
@@ -122,6 +146,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       calculateCompletion();
     }
   }, [profileData, deviceData, techFluencyData, calculateCompletion, user, loading]);
+
+  // Resume incomplete section when profile data is loaded
+  useEffect(() => {
+    if (user && !loading && !isProfileComplete) {
+      resumeIncompleteSection();
+    }
+  }, [user, loading, isProfileComplete, resumeIncompleteSection]);
 
   const loadProfileData = async () => {
     if (!user) return;
@@ -260,7 +291,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateProfileData,
     setCurrentStep,
     calculateCompletion,
-    uploadProfilePicture
+    uploadProfilePicture,
+    resumeIncompleteSection
   };
 
   return (

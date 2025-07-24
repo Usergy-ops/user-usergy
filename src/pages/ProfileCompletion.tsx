@@ -23,7 +23,8 @@ const ProfileCompletion = () => {
     deviceData,
     techFluencyData,
     loading,
-    calculateCompletion 
+    calculateCompletion,
+    resumeIncompleteSection
   } = useProfile();
 
   // Calculate real-time completion percentage
@@ -47,10 +48,10 @@ const ProfileCompletion = () => {
       // Education & Work (1 field)
       education_level: profileData.education_level,
       
-      // AI & Tech Fluency (4 fields)
+      // AI & Tech Fluency (4 fields) - FIXED: ai_tools_used -> ai_models_used
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_tools_used: techFluencyData.ai_models_used,
+      ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
     };
 
@@ -73,6 +74,13 @@ const ProfileCompletion = () => {
     }
   }, [user, calculateCompletion]);
 
+  // Resume incomplete section on component mount
+  useEffect(() => {
+    if (user && !loading && !isProfileComplete) {
+      resumeIncompleteSection();
+    }
+  }, [user, loading, isProfileComplete, resumeIncompleteSection]);
+
   if (!user) {
     return <Navigate to="/" replace />;
   }
@@ -90,12 +98,36 @@ const ProfileCompletion = () => {
   }
 
   const sections = [
-    { id: 1, title: "Basic Profile" },
-    { id: 2, title: "Devices & Tech" },
-    { id: 3, title: "Education & Work" },
-    { id: 4, title: "AI & Tech Fluency" },
-    { id: 5, title: "Social Presence" },
-    { id: 6, title: "Skills & Interests" }
+    { 
+      id: 1, 
+      title: "Basic Profile", 
+      completed: profileData.section_1_completed || false 
+    },
+    { 
+      id: 2, 
+      title: "Devices & Tech", 
+      completed: profileData.section_2_completed || false 
+    },
+    { 
+      id: 3, 
+      title: "Education & Work", 
+      completed: profileData.section_3_completed || false 
+    },
+    { 
+      id: 4, 
+      title: "AI & Tech Fluency", 
+      completed: profileData.section_4_completed || false 
+    },
+    { 
+      id: 5, 
+      title: "Social Presence", 
+      completed: profileData.section_5_completed || false 
+    },
+    { 
+      id: 6, 
+      title: "Skills & Interests", 
+      completed: profileData.section_6_completed || false 
+    }
   ];
 
   const currentSection = sections.find(s => s.id === currentStep);
@@ -105,6 +137,11 @@ const ProfileCompletion = () => {
     if (!isFirstStep) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const handleSectionClick = (sectionId: number) => {
+    // Allow users to navigate to any section
+    setCurrentStep(sectionId);
   };
 
   return (
@@ -125,6 +162,31 @@ const ProfileCompletion = () => {
               Help us understand your unique expertise so we can match you with the perfect projects. 
               This process takes about 5-10 minutes and ensures high-quality matches.
             </p>
+            <div className="mt-4 text-sm text-muted-foreground">
+              Overall completion: {realTimeCompletion}%
+            </div>
+          </div>
+
+          {/* Section Navigation */}
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-2 justify-center">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => handleSectionClick(section.id)}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    currentStep === section.id
+                      ? 'bg-primary text-primary-foreground'
+                      : section.completed
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {section.id}. {section.title}
+                  {section.completed && ' ✓'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Section Content */}
