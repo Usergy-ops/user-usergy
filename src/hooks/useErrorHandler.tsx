@@ -6,18 +6,16 @@
 import { useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { unifiedErrorHandler } from '@/utils/unifiedErrorHandling';
-import { useAuth } from '@/contexts/AuthContext';
 
 export const useErrorHandler = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const handleError = useCallback(async (error: any, context?: string, metadata?: Record<string, any>) => {
     try {
       const unifiedError = await unifiedErrorHandler.handleError(
         error,
         context || 'unknown_context',
-        user?.id,
+        undefined, // Don't try to get user ID to avoid circular dependency
         metadata
       );
       
@@ -32,7 +30,7 @@ export const useErrorHandler = () => {
         variant: "destructive"
       });
     }
-  }, [toast, user?.id]);
+  }, [toast]);
 
   const handleErrorWithRecovery = useCallback(async (
     error: any,
