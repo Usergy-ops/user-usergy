@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,8 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') ?? '');
 
 interface OTPRequest {
   email: string;
@@ -195,12 +198,27 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
     </html>
   `;
 
-  // In development, we'll log the email content
-  console.log(`OTP Email for ${email}:`, { subject, otp });
-  
-  // For production, you would integrate with an email service like Resend
-  // For now, we'll simulate sending the email
-  return { success: true, message: "OTP email sent successfully" };
+  try {
+    console.log(`Sending OTP email to ${email} via Resend`);
+    
+    const { data, error } = await resend.emails.send({
+      from: 'Usergy <onboarding@resend.dev>',
+      to: [email],
+      subject: subject,
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('Resend error:', error);
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+
+    console.log('Email sent successfully via Resend:', data);
+    return { success: true, message: "OTP email sent successfully", emailId: data?.id };
+  } catch (error) {
+    console.error('Email sending failed:', error);
+    throw error;
+  }
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -282,13 +300,29 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Send OTP email
-        await sendOTPEmail(email, otpCode, 'welcome');
+        // Send OTP email via Resend
+        try {
+          await sendOTPEmail(email, otpCode, 'welcome');
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          // Clean up the OTP record since email failed
+          await supabase
+            .from('user_otp_verification')
+            .delete()
+            .eq('email', email)
+            .eq('otp_code', otpCode);
+          
+          await incrementRateLimit(email, 'signup');
+          return new Response(
+            JSON.stringify({ error: "Failed to send verification email. Please try again." }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
         // Increment rate limit after successful operation
         await incrementRateLimit(email, 'signup');
 
-        console.log('OTP generated and stored successfully for:', email);
+        console.log('OTP generated and email sent successfully for:', email);
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -472,8 +506,24 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Send OTP email
-        await sendOTPEmail(email, otpCode, 'resend');
+        // Send OTP email via Resend
+        try {
+          await sendOTPEmail(email, otpCode, 'resend');
+        } catch (emailError) {
+          console.error('Email sending failed on resend:', emailError);
+          // Clean up the OTP record since email failed
+          await supabase
+            .from('user_otp_verification')
+            .delete()
+            .eq('email', email)
+            .eq('otp_code', otpCode);
+          
+          await incrementRateLimit(email, 'otp_resend');
+          return new Response(
+            JSON.stringify({ error: "Failed to send new verification email. Please try again." }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
         // Increment rate limit after successful operation
         await incrementRateLimit(email, 'otp_resend');
