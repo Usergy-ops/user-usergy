@@ -1,15 +1,11 @@
 
 /**
- * Unified rate limiting system - main entry point
+ * Consolidated rate limiting system - main entry point
  */
 
-import { RateLimitEngine } from './core';
+import { rateLimitManager } from './rateLimitManager';
 import { getConfig } from './config';
 import { RateLimitConfig, RateLimitResult } from './types';
-
-// Create singleton instances
-const standardEngine = new RateLimitEngine(false); // Uses rate_limits table
-const enhancedEngine = new RateLimitEngine(true);  // Uses enhanced_rate_limits table
 
 /**
  * Check rate limit for a specific action
@@ -19,39 +15,40 @@ export const checkRateLimit = async (
   action: string,
   customConfig?: RateLimitConfig
 ): Promise<RateLimitResult> => {
-  const config = customConfig || getConfig(action);
-  return enhancedEngine.checkRateLimit(identifier, action, config);
+  return rateLimitManager.checkLimit(identifier, action, true, customConfig);
 };
 
 /**
- * Check rate limit with stricter controls
+ * Check rate limit with standard controls
  */
-export const checkEnhancedRateLimit = async (
+export const checkStandardRateLimit = async (
   identifier: string,
   action: string,
   customConfig?: RateLimitConfig
 ): Promise<RateLimitResult> => {
-  const config = customConfig || {
-    ...getConfig(action),
-    maxAttempts: Math.floor(getConfig(action).maxAttempts * 0.7), // 30% stricter
-    blockDurationMinutes: getConfig(action).blockDurationMinutes || 60
-  };
-
-  return enhancedEngine.checkRateLimit(identifier, `enhanced_${action}`, config);
+  return rateLimitManager.checkLimit(identifier, action, false, customConfig);
 };
 
 /**
  * Reset rate limit for a specific identifier and action
  */
-export const resetRateLimit = async (identifier: string, action: string): Promise<void> => {
-  await enhancedEngine.resetRateLimit(identifier, action);
+export const resetRateLimit = async (
+  identifier: string, 
+  action: string,
+  enhanced: boolean = true
+): Promise<void> => {
+  await rateLimitManager.resetLimit(identifier, action, enhanced);
 };
 
 /**
  * Reset multiple rate limits for an identifier
  */
-export const resetMultipleRateLimits = async (identifier: string, actions: string[]): Promise<void> => {
-  const promises = actions.map(action => resetRateLimit(identifier, action));
+export const resetMultipleRateLimits = async (
+  identifier: string, 
+  actions: string[],
+  enhanced: boolean = true
+): Promise<void> => {
+  const promises = actions.map(action => resetRateLimit(identifier, action, enhanced));
   await Promise.all(promises);
 };
 
@@ -81,10 +78,7 @@ export const withRateLimit = <T extends (...args: any[]) => Promise<any>>(
  * Cleanup old rate limit records
  */
 export const cleanupRateLimits = async (): Promise<void> => {
-  await Promise.all([
-    standardEngine.cleanup(),
-    enhancedEngine.cleanup()
-  ]);
+  await rateLimitManager.cleanup();
 };
 
 // Export types for external use

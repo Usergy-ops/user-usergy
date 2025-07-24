@@ -1,11 +1,11 @@
 
 /**
- * Legacy rate limiting utilities - now uses unified system
+ * Legacy rate limiting utilities - now uses consolidated system
  * @deprecated Use src/utils/rateLimit/index.ts instead
  */
 
 import { 
-  checkRateLimit as unifiedCheckRateLimit,
+  checkStandardRateLimit,
   resetRateLimit as unifiedResetRateLimit,
   RateLimitResult as UnifiedRateLimitResult
 } from './rateLimit';
@@ -31,7 +31,7 @@ export const checkRateLimit = async (
     blockDurationMinutes: 60 // Default block duration
   };
 
-  const result = await unifiedCheckRateLimit(identifier, action, customConfig);
+  const result = await checkStandardRateLimit(identifier, action, customConfig);
   
   // Convert to legacy format
   return {
@@ -44,5 +44,5 @@ export const checkRateLimit = async (
 };
 
 export const resetRateLimit = async (identifier: string, action: string): Promise<void> => {
-  return unifiedResetRateLimit(identifier, action);
+  return unifiedResetRateLimit(identifier, action, false); // Use standard rate limiting for legacy compatibility
 };
