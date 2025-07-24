@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -13,6 +14,7 @@ import { ValidationError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
+import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -119,59 +121,28 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [profileData, user]);
 
-  // Calculate completion percentage using the EXACT same logic as database function
+  // Calculate completion percentage using the utility function
   const calculateCompletion = useCallback(() => {
-    const mandatoryFields = {
-      // Basic Profile (6 fields - removed avatar_url, phone_number is optional)
-      full_name: profileData.full_name,
-      country: profileData.country,
-      city: profileData.city,
-      gender: profileData.gender,
-      age: profileData.age,
-      timezone: profileData.timezone,
-      
-      // Devices & Tech (4 fields)
-      operating_systems: deviceData.operating_systems,
-      devices_owned: deviceData.devices_owned,
-      mobile_manufacturers: deviceData.mobile_manufacturers,
-      email_clients: deviceData.email_clients,
-      
-      // Education & Work (1 field)
-      education_level: profileData.education_level,
-      
-      // AI & Tech Fluency (4 fields)
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level,
-      ai_models_used: techFluencyData.ai_models_used,
-      ai_interests: techFluencyData.ai_interests,
-      
-      // Skills & Interests (2 NEW mandatory fields)
-      interests: skillsData.interests,
-      languages_spoken: profileData.languages_spoken,
+    const completionData = {
+      profileData,
+      deviceData,
+      techFluencyData,
+      skillsData
     };
 
-    const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
-    const completedFields = Object.values(mandatoryFields).filter(value => {
-      if (Array.isArray(value)) {
-        return value && value.length > 0;
-      }
-      return value && value.toString().trim() !== '';
-    }).length;
-
-    const percentage = Math.round((completedFields / totalFields) * 100);
+    const percentage = calculateProfileCompletionPercentage(completionData);
     
-    console.log('Completion calculation:', {
-      mandatoryFields,
-      completedFields,
-      totalFields,
+    console.log('Frontend completion calculation:', {
       percentage,
       currentStoredPercentage: profileData.completion_percentage
     });
     
-    // Update completion percentage in state and database
+    // Update completion percentage in state and database if changed
     if (user && percentage !== profileData.completion_percentage) {
       console.log('Updating completion percentage from', profileData.completion_percentage, 'to', percentage);
       setProfileData(prev => ({ ...prev, completion_percentage: percentage }));
+      
+      // Update in database
       supabase
         .from('profiles')
         .update({ completion_percentage: percentage } as ProfileUpdate)

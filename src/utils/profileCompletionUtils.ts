@@ -25,9 +25,9 @@ export interface ProfileCompletionData {
 export const calculateProfileCompletionPercentage = (data: ProfileCompletionData): number => {
   const { profileData, deviceData, techFluencyData, skillsData } = data;
   
-  // These are the exact 17 fields counted in the database function (updated to match database)
+  // These are the exact 17 fields counted in the database function
   const mandatoryFields = {
-    // Basic Profile (6 fields - removed avatar_url, phone_number is optional)
+    // Basic Profile (6 fields)
     full_name: profileData.full_name,
     country: profileData.country,
     city: profileData.city,
@@ -50,12 +50,12 @@ export const calculateProfileCompletionPercentage = (data: ProfileCompletionData
     ai_models_used: techFluencyData.ai_models_used,
     ai_interests: techFluencyData.ai_interests,
     
-    // Skills & Interests (2 NEW mandatory fields)
+    // Skills & Interests (2 mandatory fields)
     interests: skillsData.interests,
     languages_spoken: profileData.languages_spoken,
   };
 
-  const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
+  const totalFields = 17;
   const completedFields = Object.values(mandatoryFields).filter(value => {
     if (Array.isArray(value)) {
       return value && value.length > 0;
@@ -71,7 +71,7 @@ export const calculateProfileCompletionPercentage = (data: ProfileCompletionData
  */
 export const getMandatoryFields = (): string[] => {
   return [
-    // Basic Profile (6 fields - removed avatar_url)
+    // Basic Profile (6 fields)
     'full_name',
     'country',
     'city',
@@ -94,7 +94,7 @@ export const getMandatoryFields = (): string[] => {
     'ai_models_used',
     'ai_interests',
     
-    // Skills & Interests (2 NEW mandatory fields)
+    // Skills & Interests (2 mandatory fields)
     'interests',
     'languages_spoken',
   ];
@@ -157,12 +157,12 @@ export const getCompletionDetails = (data: ProfileCompletionData) => {
  * Constants for profile completion
  */
 export const PROFILE_COMPLETION_CONSTANTS = {
-  TOTAL_MANDATORY_FIELDS: 17, // Updated from 15 to 17
+  TOTAL_MANDATORY_FIELDS: 17,
   SECTIONS: {
-    BASIC_PROFILE: 6, // Updated from 7 to 6
+    BASIC_PROFILE: 6,
     DEVICES_TECH: 4,
     EDUCATION_WORK: 1,
     AI_TECH_FLUENCY: 4,
-    SKILLS_INTERESTS: 2, // NEW section with 2 mandatory fields
+    SKILLS_INTERESTS: 2,
   }
 } as const;

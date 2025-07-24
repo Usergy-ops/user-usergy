@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/contexts/ProfileContext';
+import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
 
 interface ProfileProgressBarProps {
   currentStep: number;
@@ -17,50 +18,17 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
   const { profileData, deviceData, techFluencyData, skillsData } = useProfile();
   const [realTimeCompletion, setRealTimeCompletion] = useState(completionPercentage);
 
-  // Calculate real-time completion percentage using the EXACT same logic as database function
+  // Calculate real-time completion percentage using the utility function
   useEffect(() => {
-    const calculateRealTimeCompletion = () => {
-      const mandatoryFields = {
-        // Basic Profile (6 fields - removed avatar_url, phone_number is optional)
-        full_name: profileData.full_name,
-        country: profileData.country,
-        city: profileData.city,
-        gender: profileData.gender,
-        age: profileData.age,
-        timezone: profileData.timezone,
-        
-        // Devices & Tech (4 fields)
-        operating_systems: deviceData.operating_systems,
-        devices_owned: deviceData.devices_owned,
-        mobile_manufacturers: deviceData.mobile_manufacturers,
-        email_clients: deviceData.email_clients,
-        
-        // Education & Work (1 field)
-        education_level: profileData.education_level,
-        
-        // AI & Tech Fluency (4 fields)
-        technical_experience_level: profileData.technical_experience_level,
-        ai_familiarity_level: profileData.ai_familiarity_level,
-        ai_models_used: techFluencyData.ai_models_used,
-        ai_interests: techFluencyData.ai_interests,
-        
-        // Skills & Interests (2 NEW mandatory fields)
-        interests: skillsData.interests,
-        languages_spoken: profileData.languages_spoken,
-      };
-
-      const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
-      const completedFields = Object.values(mandatoryFields).filter(value => {
-        if (Array.isArray(value)) {
-          return value && value.length > 0;
-        }
-        return value && value.toString().trim() !== '';
-      }).length;
-
-      return Math.round((completedFields / totalFields) * 100);
+    const completionData = {
+      profileData,
+      deviceData,
+      techFluencyData,
+      skillsData
     };
 
-    setRealTimeCompletion(calculateRealTimeCompletion());
+    const percentage = calculateProfileCompletionPercentage(completionData);
+    setRealTimeCompletion(percentage);
   }, [profileData, deviceData, techFluencyData, skillsData]);
 
   return (
