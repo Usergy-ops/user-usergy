@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 import { Resend } from "npm:resend@4.0.0";
@@ -136,16 +135,232 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Verify Your Email - Usergy</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+          background-color: #f8fafc;
+          line-height: 1.6;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          padding: 48px 32px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+        }
+        .header::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)" /></svg>') repeat;
+          opacity: 0.3;
+        }
+        .header-content {
+          position: relative;
+          z-index: 1;
+        }
+        .logo {
+          display: inline-flex;
+          align-items: center;
+          margin-bottom: 24px;
+        }
+        .logo-icon {
+          width: 48px;
+          height: 48px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 16px;
+          backdrop-filter: blur(10px);
+        }
+        .logo-text {
+          color: white;
+          font-size: 32px;
+          font-weight: bold;
+          letter-spacing: -0.5px;
+        }
+        .header-title {
+          color: white;
+          margin: 0;
+          font-size: 32px;
+          font-weight: 700;
+          line-height: 1.2;
+        }
+        .header-subtitle {
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 18px;
+          margin: 16px 0 0 0;
+          line-height: 1.5;
+        }
+        .content {
+          padding: 48px 32px;
+        }
+        .content-text {
+          color: #475569;
+          font-size: 18px;
+          line-height: 1.6;
+          margin: 0 0 32px 0;
+        }
+        .otp-container {
+          background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+          border: 2px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 40px;
+          text-align: center;
+          margin: 32px 0;
+          position: relative;
+          overflow: hidden;
+        }
+        .otp-container::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(100,116,139,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)" /></svg>') repeat;
+          opacity: 0.5;
+        }
+        .otp-content {
+          position: relative;
+          z-index: 1;
+        }
+        .otp-label {
+          color: #64748b;
+          font-size: 14px;
+          font-weight: 600;
+          margin: 0 0 12px 0;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+        .otp-code {
+          font-size: 42px;
+          font-weight: bold;
+          color: #1e293b;
+          letter-spacing: 12px;
+          font-family: 'Courier New', monospace;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          margin: 0;
+        }
+        .otp-expiry {
+          color: #64748b;
+          font-size: 14px;
+          margin: 12px 0 0 0;
+          font-weight: 500;
+        }
+        .instructions {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 24px;
+          margin: 32px 0;
+        }
+        .instructions h3 {
+          color: #1e293b;
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0 0 16px 0;
+          display: flex;
+          align-items: center;
+        }
+        .instructions-icon {
+          width: 20px;
+          height: 20px;
+          margin-right: 8px;
+        }
+        .instructions ol {
+          color: #64748b;
+          font-size: 16px;
+          line-height: 1.6;
+          margin: 0;
+          padding-left: 20px;
+        }
+        .instructions li {
+          margin-bottom: 8px;
+        }
+        .security-notice {
+          background: #fef3c7;
+          border: 1px solid #fbbf24;
+          border-radius: 12px;
+          padding: 20px;
+          margin: 32px 0;
+        }
+        .security-notice p {
+          color: #92400e;
+          font-size: 15px;
+          margin: 0;
+          font-weight: 500;
+          display: flex;
+          align-items: flex-start;
+        }
+        .security-icon {
+          width: 20px;
+          height: 20px;
+          margin-right: 8px;
+          margin-top: 1px;
+          flex-shrink: 0;
+        }
+        .help-text {
+          color: #64748b;
+          font-size: 15px;
+          line-height: 1.6;
+          margin: 32px 0 0 0;
+          text-align: center;
+        }
+        .help-link {
+          color: #667eea;
+          text-decoration: none;
+          font-weight: 500;
+        }
+        .footer {
+          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+          padding: 32px;
+          border-top: 1px solid #e2e8f0;
+          text-align: center;
+        }
+        .footer-logo {
+          color: #667eea;
+          font-size: 18px;
+          font-weight: 600;
+          vertical-align: middle;
+          margin-left: 8px;
+        }
+        .footer-text {
+          color: #64748b;
+          font-size: 13px;
+          margin: 0;
+          line-height: 1.5;
+        }
+        .footer-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 8px;
+          vertical-align: middle;
+        }
+      </style>
     </head>
-    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f8fafc;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);">
-        
+    <body>
+      <div class="container">
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 48px 32px; text-align: center; position: relative; overflow: hidden;">
-          <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"grid\" width=\"10\" height=\"10\" patternUnits=\"userSpaceOnUse\"><path d=\"M 10 0 L 0 0 0 10\" fill=\"none\" stroke=\"rgba(255,255,255,0.1)\" stroke-width=\"1\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23grid)\" /></svg>') repeat; opacity: 0.3;"></div>
-          <div style="position: relative; z-index: 1;">
-            <div style="display: inline-flex; align-items: center; margin-bottom: 24px;">
-              <div style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 16px; backdrop-filter: blur(10px);">
+        <div class="header">
+          <div class="header-content">
+            <div class="logo">
+              <div class="logo-icon">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                   <circle cx="6" cy="12" r="3" />
                   <circle cx="18" cy="6" r="3" />
@@ -154,57 +369,54 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
                   <path d="M8.5 10l7 4" stroke="white" stroke-width="2" />
                 </svg>
               </div>
-              <span style="color: white; font-size: 32px; font-weight: bold; letter-spacing: -0.5px;">Usergy</span>
+              <span class="logo-text">Usergy</span>
             </div>
-            <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 700; line-height: 1.2;">
+            <h1 class="header-title">
               ${type === 'welcome' ? 'Welcome to the Community!' : 'Your New Verification Code'}
             </h1>
-            <p style="color: rgba(255, 255, 255, 0.9); font-size: 18px; margin: 16px 0 0 0; line-height: 1.5;">
+            <p class="header-subtitle">
               ${type === 'welcome' ? 'You\'re just one step away from joining!' : 'Here\'s your fresh verification code'}
             </p>
           </div>
         </div>
 
         <!-- Content -->
-        <div style="padding: 48px 32px;">
-          <p style="color: #475569; font-size: 18px; line-height: 1.6; margin: 0 0 32px 0;">
+        <div class="content">
+          <p class="content-text">
             ${type === 'welcome' 
               ? 'Thank you for joining Usergy! To complete your account setup, please verify your email address using the code below:' 
               : 'Here\'s your new verification code. Enter it to complete your email verification:'}
           </p>
 
           <!-- OTP Code -->
-          <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 2px solid #e2e8f0; border-radius: 16px; padding: 40px; text-align: center; margin: 32px 0; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"dots\" width=\"20\" height=\"20\" patternUnits=\"userSpaceOnUse\"><circle cx=\"10\" cy=\"10\" r=\"1\" fill=\"rgba(100,116,139,0.1)\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23dots)\" /></svg>') repeat; opacity: 0.5;"></div>
-            <div style="position: relative; z-index: 1;">
-              <p style="color: #64748b; font-size: 14px; font-weight: 600; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
-              <div style="font-size: 42px; font-weight: bold; color: #1e293b; letter-spacing: 12px; font-family: 'Courier New', monospace; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                ${otp}
-              </div>
-              <p style="color: #64748b; font-size: 14px; margin: 12px 0 0 0; font-weight: 500;">This code expires in 10 minutes</p>
+          <div class="otp-container">
+            <div class="otp-content">
+              <p class="otp-label">Your Verification Code</p>
+              <div class="otp-code">${otp}</div>
+              <p class="otp-expiry">This code expires in 10 minutes</p>
             </div>
           </div>
 
           <!-- Instructions -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 32px 0;">
-            <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" style="margin-right: 8px;">
+          <div class="instructions">
+            <h3>
+              <svg class="instructions-icon" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="m9 12 2 2 4-4"/>
               </svg>
               Next Steps
             </h3>
-            <ol style="color: #64748b; font-size: 16px; line-height: 1.6; margin: 0; padding-left: 20px;">
-              <li style="margin-bottom: 8px;">Return to the Usergy signup page</li>
-              <li style="margin-bottom: 8px;">Enter the 6-digit code above</li>
+            <ol>
+              <li>Return to the Usergy signup page</li>
+              <li>Enter the 6-digit code above</li>
               <li>Complete your profile and start exploring!</li>
             </ol>
           </div>
 
           <!-- Security Notice -->
-          <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px; padding: 20px; margin: 32px 0;">
-            <p style="color: #92400e; font-size: 15px; margin: 0; font-weight: 500; display: flex; align-items: flex-start;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="margin-right: 8px; margin-top: 1px; flex-shrink: 0;">
+          <div class="security-notice">
+            <p>
+              <svg class="security-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
                 <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
                 <path d="M12 9v4"/>
                 <path d="m12 17 .01 0"/>
@@ -213,24 +425,24 @@ const sendOTPEmail = async (email: string, otp: string, type: 'welcome' | 'resen
             </p>
           </div>
 
-          <p style="color: #64748b; font-size: 15px; line-height: 1.6; margin: 32px 0 0 0; text-align: center;">
-            Need help? Contact our support team at <a href="mailto:support@user.usergy.ai" style="color: #667eea; text-decoration: none; font-weight: 500;">support@user.usergy.ai</a>
+          <p class="help-text">
+            Need help? Contact our support team at <a href="mailto:support@user.usergy.ai" class="help-link">support@user.usergy.ai</a>
           </p>
         </div>
 
         <!-- Footer -->
-        <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <div class="footer">
           <div style="margin-bottom: 16px;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" style="margin-right: 8px;">
+            <svg class="footer-icon" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
               <circle cx="6" cy="12" r="3" />
               <circle cx="18" cy="6" r="3" />
               <circle cx="18" cy="18" r="3" />
               <path d="M8.5 14l7-4" />
               <path d="M8.5 10l7 4" />
             </svg>
-            <span style="color: #667eea; font-size: 18px; font-weight: 600; vertical-align: middle;">Usergy</span>
+            <span class="footer-logo">Usergy</span>
           </div>
-          <p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.5;">
+          <p class="footer-text">
             This email was sent by Usergy, the professional networking platform.<br>
             © 2024 Usergy. All rights reserved.
           </p>
