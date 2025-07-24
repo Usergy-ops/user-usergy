@@ -22,6 +22,7 @@ const ProfileCompletion = () => {
     profileData, 
     deviceData,
     techFluencyData,
+    skillsData,
     loading,
     calculateCompletion,
     resumeIncompleteSection
@@ -40,6 +41,9 @@ const ProfileCompletion = () => {
       ai_interests: techFluencyData.ai_interests,
       ai_models_used: techFluencyData.ai_models_used,
       coding_experience_years: techFluencyData.coding_experience_years
+    },
+    skillsData: {
+      interests: skillsData.interests
     }
   });
 
@@ -68,9 +72,13 @@ const ProfileCompletion = () => {
       ai_familiarity_level: profileData.ai_familiarity_level,
       ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
+      
+      // Skills & Interests (2 NEW mandatory fields)
+      interests: skillsData.interests,
+      languages_spoken: profileData.languages_spoken,
     };
 
-    const totalFields = 15; // Updated from 16 to 15 (removed avatar_url)
+    const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
     const completedFields = Object.values(mandatoryFields).filter(value => {
       if (Array.isArray(value)) {
         return value && value.length > 0;
@@ -187,7 +195,7 @@ const ProfileCompletion = () => {
               This process takes about 5-10 minutes and ensures high-quality matches.
             </p>
             <div className="mt-4 text-sm text-muted-foreground">
-              Overall completion: {realTimeCompletion}% (15 mandatory fields)
+              Overall completion: {realTimeCompletion}% (17 mandatory fields)
             </div>
           </div>
 

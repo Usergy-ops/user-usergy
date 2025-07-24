@@ -81,6 +81,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ai_models_used: techFluencyData.ai_models_used,
       coding_experience_years: techFluencyData.coding_experience_years
     },
+    skillsData: {
+      interests: skillsData.interests
+    },
     isProfileComplete,
     loading
   });
@@ -141,9 +144,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ai_familiarity_level: profileData.ai_familiarity_level,
       ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
+      
+      // Skills & Interests (2 NEW mandatory fields)
+      interests: skillsData.interests,
+      languages_spoken: profileData.languages_spoken,
     };
 
-    const totalFields = 15; // Updated from 16 to 15 (removed avatar_url)
+    const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
     const completedFields = Object.values(mandatoryFields).filter(value => {
       if (Array.isArray(value)) {
         return value && value.length > 0;
@@ -179,7 +186,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     
     return percentage;
-  }, [profileData, deviceData, techFluencyData, user]);
+  }, [profileData, deviceData, techFluencyData, skillsData, user]);
 
   useEffect(() => {
     if (user) {
@@ -194,7 +201,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (user && !loading) {
       calculateCompletion();
     }
-  }, [profileData, deviceData, techFluencyData, calculateCompletion, user, loading]);
+  }, [profileData, deviceData, techFluencyData, skillsData, calculateCompletion, user, loading]);
 
   // Resume incomplete section when profile data is loaded
   useEffect(() => {

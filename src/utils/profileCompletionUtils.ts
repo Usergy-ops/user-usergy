@@ -9,11 +9,13 @@ import type { Database } from '@/integrations/supabase/types';
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type UserDevices = Database['public']['Tables']['user_devices']['Row'];
 type UserTechFluency = Database['public']['Tables']['user_tech_fluency']['Row'];
+type UserSkills = Database['public']['Tables']['user_skills']['Row'];
 
 export interface ProfileCompletionData {
   profileData: Partial<Profile>;
   deviceData: Partial<UserDevices>;
   techFluencyData: Partial<UserTechFluency>;
+  skillsData: Partial<UserSkills>;
 }
 
 /**
@@ -21,9 +23,9 @@ export interface ProfileCompletionData {
  * This ensures consistency between frontend and backend calculations
  */
 export const calculateProfileCompletionPercentage = (data: ProfileCompletionData): number => {
-  const { profileData, deviceData, techFluencyData } = data;
+  const { profileData, deviceData, techFluencyData, skillsData } = data;
   
-  // These are the exact 15 fields counted in the database function (removed avatar_url)
+  // These are the exact 17 fields counted in the database function (updated to match database)
   const mandatoryFields = {
     // Basic Profile (6 fields - removed avatar_url, phone_number is optional)
     full_name: profileData.full_name,
@@ -47,9 +49,13 @@ export const calculateProfileCompletionPercentage = (data: ProfileCompletionData
     ai_familiarity_level: profileData.ai_familiarity_level,
     ai_models_used: techFluencyData.ai_models_used,
     ai_interests: techFluencyData.ai_interests,
+    
+    // Skills & Interests (2 NEW mandatory fields)
+    interests: skillsData.interests,
+    languages_spoken: profileData.languages_spoken,
   };
 
-  const totalFields = 15; // Updated from 16 to 15 (removed avatar_url)
+  const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
   const completedFields = Object.values(mandatoryFields).filter(value => {
     if (Array.isArray(value)) {
       return value && value.length > 0;
@@ -87,6 +93,10 @@ export const getMandatoryFields = (): string[] => {
     'ai_familiarity_level',
     'ai_models_used',
     'ai_interests',
+    
+    // Skills & Interests (2 NEW mandatory fields)
+    'interests',
+    'languages_spoken',
   ];
 };
 
@@ -94,7 +104,7 @@ export const getMandatoryFields = (): string[] => {
  * Get completion details for debugging
  */
 export const getCompletionDetails = (data: ProfileCompletionData) => {
-  const { profileData, deviceData, techFluencyData } = data;
+  const { profileData, deviceData, techFluencyData, skillsData } = data;
   
   const fields = [
     { name: 'full_name', value: profileData.full_name, section: 'Basic Profile' },
@@ -115,6 +125,9 @@ export const getCompletionDetails = (data: ProfileCompletionData) => {
     { name: 'ai_familiarity_level', value: profileData.ai_familiarity_level, section: 'AI & Tech Fluency' },
     { name: 'ai_models_used', value: techFluencyData.ai_models_used, section: 'AI & Tech Fluency' },
     { name: 'ai_interests', value: techFluencyData.ai_interests, section: 'AI & Tech Fluency' },
+    
+    { name: 'interests', value: skillsData.interests, section: 'Skills & Interests' },
+    { name: 'languages_spoken', value: profileData.languages_spoken, section: 'Skills & Interests' },
   ];
 
   const completedFields = fields.filter(field => {
@@ -144,11 +157,12 @@ export const getCompletionDetails = (data: ProfileCompletionData) => {
  * Constants for profile completion
  */
 export const PROFILE_COMPLETION_CONSTANTS = {
-  TOTAL_MANDATORY_FIELDS: 15, // Updated from 16 to 15
+  TOTAL_MANDATORY_FIELDS: 17, // Updated from 15 to 17
   SECTIONS: {
     BASIC_PROFILE: 6, // Updated from 7 to 6
     DEVICES_TECH: 4,
     EDUCATION_WORK: 1,
     AI_TECH_FLUENCY: 4,
+    SKILLS_INTERESTS: 2, // NEW section with 2 mandatory fields
   }
 } as const;

@@ -14,7 +14,7 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
   totalSteps,
   completionPercentage
 }) => {
-  const { profileData, deviceData, techFluencyData } = useProfile();
+  const { profileData, deviceData, techFluencyData, skillsData } = useProfile();
   const [realTimeCompletion, setRealTimeCompletion] = useState(completionPercentage);
 
   // Calculate real-time completion percentage using the EXACT same logic as database function
@@ -43,9 +43,13 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
         ai_familiarity_level: profileData.ai_familiarity_level,
         ai_models_used: techFluencyData.ai_models_used,
         ai_interests: techFluencyData.ai_interests,
+        
+        // Skills & Interests (2 NEW mandatory fields)
+        interests: skillsData.interests,
+        languages_spoken: profileData.languages_spoken,
       };
 
-      const totalFields = 15; // Updated from 16 to 15 (removed avatar_url)
+      const totalFields = 17; // Updated from 15 to 17 (added interests and languages_spoken)
       const completedFields = Object.values(mandatoryFields).filter(value => {
         if (Array.isArray(value)) {
           return value && value.length > 0;
@@ -57,7 +61,7 @@ export const ProfileProgressBar: React.FC<ProfileProgressBarProps> = ({
     };
 
     setRealTimeCompletion(calculateRealTimeCompletion());
-  }, [profileData, deviceData, techFluencyData]);
+  }, [profileData, deviceData, techFluencyData, skillsData]);
 
   return (
     <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
