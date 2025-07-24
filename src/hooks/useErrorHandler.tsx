@@ -12,6 +12,29 @@ export const useErrorHandler = () => {
   const errorCount = useRef(0);
   const lastErrorTime = useRef(0);
 
+  const formatErrorMessage = (error: any): string => {
+    if (typeof error === 'string') {
+      return error;
+    }
+    
+    if (error?.errors) {
+      // Handle validation errors - check if errors is array or object
+      if (Array.isArray(error.errors)) {
+        return error.errors.join(', ');
+      }
+      
+      if (typeof error.errors === 'object') {
+        return Object.values(error.errors).join(', ');
+      }
+    }
+    
+    if (error?.message) {
+      return error.message;
+    }
+    
+    return 'An unexpected error occurred. Please try again.';
+  };
+
   const handleError = useCallback(async (error: any, context?: string, metadata?: Record<string, any>) => {
     const now = Date.now();
     
@@ -40,9 +63,11 @@ export const useErrorHandler = () => {
       
       // Only show toast for serious errors, not validation errors during auto-save
       if (context && !context.includes('auto-save') && !context.includes('validation')) {
+        const errorMessage = formatErrorMessage(unifiedError || error);
+        
         toast({
           title: "Error",
-          description: unifiedError?.message || "An unexpected error occurred. Please try again.",
+          description: errorMessage,
           variant: "destructive"
         });
       }
@@ -53,9 +78,11 @@ export const useErrorHandler = () => {
       
       // Only show fallback toast if we haven't exceeded the limit
       if (errorCount.current <= 3) {
+        const errorMessage = formatErrorMessage(error);
+        
         toast({
           title: "Error",
-          description: "An unexpected error occurred. Please try again.",
+          description: errorMessage,
           variant: "destructive"
         });
       }

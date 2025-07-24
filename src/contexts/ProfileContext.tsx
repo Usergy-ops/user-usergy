@@ -91,7 +91,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isUpdating
   });
 
-  // Resume incomplete section based on completed sections
   const resumeIncompleteSection = useCallback(() => {
     if (!user) return;
     
@@ -122,7 +121,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [profileData, user]);
 
-  // Calculate completion percentage using the utility function
   const calculateCompletion = useCallback(() => {
     const completionData = {
       profileData,
@@ -301,7 +299,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log(`Validation result for ${section}:`, validationResult);
 
       if (!validationResult.isValid) {
-        const error = createValidationError(validationResult.errors.join(', '), section, user.id);
+        // Handle validation errors properly - errors are now arrays
+        const errorMessage = Array.isArray(validationResult.errors) 
+          ? validationResult.errors.join(', ')
+          : Object.values(validationResult.errors).join(', ');
+        
+        const error = createValidationError(errorMessage, section, user.id);
         await handleCentralizedError(error, `profile_update_${section}`, user.id);
         throw error;
       }

@@ -1,7 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,7 @@ interface BasicProfileFormData {
 
 export const BasicProfileSection: React.FC = () => {
   const { profileData, updateProfileData, uploadProfilePicture, setCurrentStep, currentStep } = useProfile();
+  const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -41,8 +42,10 @@ export const BasicProfileSection: React.FC = () => {
     }
   });
 
-  // Debounced auto-save with validation
+  // Debounced auto-save with validation and user check
   useEffect(() => {
+    if (!user?.id) return;
+
     const subscription = watch((value, { name, type }) => {
       if (type === 'change' && !isSaving) {
         const timeoutId = setTimeout(async () => {
@@ -103,7 +106,7 @@ export const BasicProfileSection: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [watch, updateProfileData, isSaving]);
+  }, [watch, updateProfileData, isSaving, user?.id]);
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",

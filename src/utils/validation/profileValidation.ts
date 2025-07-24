@@ -52,7 +52,7 @@ export const validateProfileData = (data: any): ValidationResult => {
 
   return {
     isValid: errors.length === 0,
-    errors: errors.reduce((acc, error, index) => ({ ...acc, [index]: error }), {}),
+    errors: errors, // Return as array instead of object
     sanitizedData: data
   };
 };
@@ -71,7 +71,7 @@ export const validateDeviceData = (data: any): ValidationResult => {
 
   return {
     isValid: errors.length === 0,
-    errors: errors.reduce((acc, error, index) => ({ ...acc, [index]: error }), {}),
+    errors: errors, // Return as array instead of object
     sanitizedData: data
   };
 };
@@ -112,7 +112,7 @@ export const validateTechFluencyData = (data: any): ValidationResult => {
 
   return {
     isValid: errors.length === 0,
-    errors: errors.reduce((acc, error, index) => ({ ...acc, [index]: error }), {}),
+    errors: errors, // Return as array instead of object
     sanitizedData: data
   };
 };
@@ -143,7 +143,7 @@ export const validateSkillsData = (data: any): ValidationResult => {
 
   return {
     isValid: errors.length === 0,
-    errors: errors.reduce((acc, error, index) => ({ ...acc, [index]: error }), {}),
+    errors: errors, // Return as array instead of object
     sanitizedData: data
   };
 };
@@ -176,7 +176,7 @@ export const validateSocialPresenceData = (data: any): ValidationResult => {
 
   return {
     isValid: errors.length === 0,
-    errors: errors.reduce((acc, error, index) => ({ ...acc, [index]: error }), {}),
+    errors: errors, // Return as array instead of object
     sanitizedData: data
   };
 };

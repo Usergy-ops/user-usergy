@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,15 +20,21 @@ interface TechFluencyFormData {
   coding_experience_years: number;
 }
 
-const AUTO_SAVE_KEY = 'tech_fluency_form_data';
 const AUTO_SAVE_DELAY = 2000; // 2 seconds
 
 export const EnhancedTechFluencySection: React.FC = () => {
   const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedData, setLastSavedData] = useState<TechFluencyFormData | null>(null);
+
+  // User-specific localStorage key
+  const getAutoSaveKey = useCallback(() => {
+    if (!user?.id) return null;
+    return `tech_fluency_form_data_${user.id}`;
+  }, [user?.id]);
 
   console.log('EnhancedTechFluencySection rendered with data:', {
     profileData: {
@@ -37,7 +44,6 @@ export const EnhancedTechFluencySection: React.FC = () => {
     techFluencyData: {
       ai_interests: techFluencyData.ai_interests,
       ai_models_used: techFluencyData.ai_models_used,
-      programming_languages: techFluencyData.programming_languages,
       coding_experience_years: techFluencyData.coding_experience_years
     }
   });
@@ -53,25 +59,46 @@ export const EnhancedTechFluencySection: React.FC = () => {
     }
   });
 
-  // Auto-save functionality
+  // Auto-save functionality with user-specific keys
   const saveToLocalStorage = useCallback((data: TechFluencyFormData) => {
+    const autoSaveKey = getAutoSaveKey();
+    if (!autoSaveKey) return;
+
     try {
-      localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(data));
+      localStorage.setItem(autoSaveKey, JSON.stringify(data));
       console.log('Auto-saved to localStorage:', data);
     } catch (error) {
       console.error('Failed to save to localStorage:', error);
     }
-  }, []);
+  }, [getAutoSaveKey]);
 
   const loadFromLocalStorage = useCallback(() => {
+    const autoSaveKey = getAutoSaveKey();
+    if (!autoSaveKey) return;
+
     try {
-      const saved = localStorage.getItem(AUTO_SAVE_KEY);
+      const saved = localStorage.getItem(autoSaveKey);
       if (saved) {
         const parsedData = JSON.parse(saved) as TechFluencyFormData;
         console.log('Loaded from localStorage:', parsedData);
         
-        // Only restore if we have some data but current form is empty
-        if (parsedData.ai_interests?.length > 0 && (!techFluencyData.ai_interests || techFluencyData.ai_interests.length === 0)) {
+        // Only restore if current form is mostly empty AND we have meaningful saved data
+        const hasCurrentData = (
+          profileData.technical_experience_level ||
+          profileData.ai_familiarity_level ||
+          (techFluencyData.ai_interests && techFluencyData.ai_interests.length > 0) ||
+          (techFluencyData.ai_models_used && techFluencyData.ai_models_used.length > 0)
+        );
+
+        const hasSavedData = (
+          parsedData.technical_experience_level ||
+          parsedData.ai_familiarity_level ||
+          (parsedData.ai_interests && parsedData.ai_interests.length > 0) ||
+          (parsedData.ai_models_used && parsedData.ai_models_used.length > 0)
+        );
+
+        // Only restore if we don't have current data but we have saved data
+        if (!hasCurrentData && hasSavedData) {
           // Type-safe setValue calls
           if (parsedData.technical_experience_level) {
             setValue('technical_experience_level', parsedData.technical_experience_level);
@@ -102,15 +129,39 @@ export const EnhancedTechFluencySection: React.FC = () => {
     } catch (error) {
       console.error('Failed to load from localStorage:', error);
     }
-  }, [setValue, techFluencyData.ai_interests, toast]);
+  }, [setValue, profileData, techFluencyData, toast, getAutoSaveKey]);
+
+  const clearLocalStorage = useCallback(() => {
+    const autoSaveKey = getAutoSaveKey();
+    if (!autoSaveKey) return;
+
+    try {
+      localStorage.removeItem(autoSaveKey);
+      console.log('Cleared localStorage for tech fluency form');
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+  }, [getAutoSaveKey]);
 
   // Load from localStorage on component mount
   useEffect(() => {
-    loadFromLocalStorage();
-  }, [loadFromLocalStorage]);
+    if (user?.id) {
+      loadFromLocalStorage();
+    }
+  }, [loadFromLocalStorage, user?.id]);
+
+  // Clean up localStorage when user changes
+  useEffect(() => {
+    return () => {
+      // Clean up old localStorage entries when component unmounts
+      clearLocalStorage();
+    };
+  }, [clearLocalStorage]);
 
   // Auto-save on form changes
   useEffect(() => {
+    if (!user?.id) return;
+
     const subscription = watch((data) => {
       if (data && Object.keys(data).length > 0) {
         saveToLocalStorage(data as TechFluencyFormData);
@@ -133,7 +184,7 @@ export const EnhancedTechFluencySection: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [watch]);
+  }, [watch, user?.id, saveToLocalStorage]);
 
   const autoSaveToDatabase = async (data: TechFluencyFormData) => {
     console.log('Auto-saving to database:', data);
@@ -221,7 +272,7 @@ export const EnhancedTechFluencySection: React.FC = () => {
       });
       
       // Clear localStorage after successful save
-      localStorage.removeItem(AUTO_SAVE_KEY);
+      clearLocalStorage();
       
       toast({
         title: "Tech fluency saved!",
