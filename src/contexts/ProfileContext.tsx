@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -10,7 +11,7 @@ import {
   validateSocialPresenceData 
 } from '@/utils/dataValidation';
 import { ValidationError } from '@/utils/errorHandling';
-import { checkEnhancedRateLimit } from '@/utils/enhancedRateLimiting';
+import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 import type { Database } from '@/integrations/supabase/types';
@@ -22,13 +23,13 @@ type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 type UserDevices = Database['public']['Tables']['user_devices']['Row'];
 type UserTechFluency = Database['public']['Tables']['user_tech_fluency']['Row'];
 type UserSkills = Database['public']['Tables']['user_skills']['Row'];
-type UserSocialPresence = Database['public']['Tables']['user_social_presence']['Row'];
+type ConsolidatedSocialPresence = Database['public']['Tables']['consolidated_social_presence']['Row'];
 
 interface ProfileData extends Partial<Profile> {}
 interface DeviceData extends Partial<UserDevices> {}
 interface TechFluencyData extends Partial<UserTechFluency> {}
 interface SkillsData extends Partial<UserSkills> {}
-interface SocialPresenceData extends Partial<UserSocialPresence> {}
+interface SocialPresenceData extends Partial<ConsolidatedSocialPresence> {}
 
 interface ProfileContextType {
   profileData: ProfileData;
@@ -91,10 +92,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [profileData, user]);
 
-  // Calculate completion percentage based on mandatory fields
+  // Calculate completion percentage using the EXACT same logic as database function
   const calculateCompletion = useCallback(() => {
     const mandatoryFields = {
-      // Basic Profile (7 fields)
+      // Basic Profile (7 fields - phone_number is optional)
       full_name: profileData.full_name,
       avatar_url: profileData.avatar_url,
       country: profileData.country,
@@ -112,14 +113,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Education & Work (1 field)
       education_level: profileData.education_level,
       
-      // AI & Tech Fluency (4 fields) - FIXED: ai_tools_used -> ai_models_used
+      // AI & Tech Fluency (4 fields)
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level,
       ai_models_used: techFluencyData.ai_models_used,
       ai_interests: techFluencyData.ai_interests,
     };
 
-    const totalFields = Object.keys(mandatoryFields).length;
+    const totalFields = 16; // Match database calculation exactly
     const completedFields = Object.values(mandatoryFields).filter(value => {
       if (Array.isArray(value)) {
         return value && value.length > 0;
@@ -173,21 +174,21 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(true);
       monitoring.startTiming('profile_load');
 
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(user.id, 'profile_load');
+      // Check rate limiting using unified system
+      const rateLimitResult = await checkRateLimit(user.id, 'profile_load');
       if (!rateLimitResult.allowed) {
         const error = createDatabaseError('Too many profile load requests. Please try again later.', 'profile_load', user.id);
         await handleCentralizedError(error, 'profile_load', user.id);
         throw error;
       }
 
-      // Load all data in parallel
+      // Load all data in parallel using consolidated_social_presence
       const [profileResult, devicesResult, techResult, skillsResult, socialResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('user_id', user.id).single(),
         supabase.from('user_devices').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_tech_fluency').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_skills').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('user_social_presence').select('*').eq('user_id', user.id).maybeSingle()
+        supabase.from('consolidated_social_presence').select('*').eq('user_id', user.id).maybeSingle()
       ]);
 
       if (profileResult.data) {
@@ -238,8 +239,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       monitoring.startTiming(`profile_update_${section}`);
 
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(user.id, 'profile_update');
+      // Check rate limiting using unified system
+      const rateLimitResult = await checkRateLimit(user.id, 'profile_update');
       if (!rateLimitResult.allowed) {
         const error = createDatabaseError('Too many profile update requests. Please try again later.', 'profile_update', user.id);
         await handleCentralizedError(error, `profile_update_${section}`, user.id);
@@ -319,7 +320,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         case 'social_presence':
           await supabase
-            .from('user_social_presence')
+            .from('consolidated_social_presence')
             .upsert({ 
               user_id: user.id, 
               ...data
@@ -349,8 +350,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       monitoring.startTiming('profile_picture_upload');
 
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(user.id, 'file_upload');
+      // Check rate limiting using unified system
+      const rateLimitResult = await checkRateLimit(user.id, 'file_upload');
       if (!rateLimitResult.allowed) {
         const error = createDatabaseError('Too many file upload requests. Please try again later.', 'file_upload', user.id);
         await handleCentralizedError(error, 'profile_picture_upload', user.id);

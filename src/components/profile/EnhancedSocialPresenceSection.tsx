@@ -5,16 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Link, Github, Linkedin, Twitter, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { 
-  validateSocialUrls, 
-  normalizeSocialUrls, 
-  saveSocialPresence, 
-  loadSocialPresence,
-  type SocialPresenceData
-} from '@/utils/socialPresenceUtils';
+import { supabase } from '@/integrations/supabase/client';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
-// Define a more specific type for the form data to avoid the type error
+// Define form data type
 interface SocialFormData {
   linkedin_url: string;
   github_url: string;
@@ -22,8 +16,19 @@ interface SocialFormData {
   portfolio_url: string;
 }
 
+// Simple URL validation
+const isValidUrl = (url: string): boolean => {
+  if (!url) return true; // Empty is valid
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const EnhancedSocialPresenceSection: React.FC = () => {
-  const { profileData, setCurrentStep, currentStep } = useProfile();
+  const { profileData, setCurrentStep, currentStep, updateProfileData } = useProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,13 +40,17 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Load existing social presence data
+  // Load existing social presence data from consolidated table
   useEffect(() => {
     const loadExistingData = async () => {
       if (!profileData.user_id) return;
       
       try {
-        const { data, error } = await loadSocialPresence(profileData.user_id);
+        const { data, error } = await supabase
+          .from('consolidated_social_presence')
+          .select('*')
+          .eq('user_id', profileData.user_id)
+          .maybeSingle();
         
         if (error) {
           console.error('Error loading social presence:', error);
@@ -50,10 +59,10 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
         
         if (data) {
           setFormData({
-            linkedin_url: data.primary_profiles.linkedin || '',
-            github_url: data.primary_profiles.github || '',
-            twitter_url: data.primary_profiles.twitter || '',
-            portfolio_url: data.primary_profiles.portfolio || ''
+            linkedin_url: data.linkedin_url || '',
+            github_url: data.github_url || '',
+            twitter_url: data.twitter_url || '',
+            portfolio_url: data.portfolio_url || ''
           });
         }
       } catch (error) {
@@ -82,14 +91,11 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
   };
 
   const handleInputBlur = (field: keyof SocialFormData, value: string) => {
-    if (value) {
-      const validation = validateSocialUrls({ [field]: value });
-      if (!validation.isValid && validation.errors[field]) {
-        setErrors(prev => ({
-          ...prev,
-          [field]: validation.errors[field]
-        }));
-      }
+    if (value && !isValidUrl(value)) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: 'Please enter a valid URL'
+      }));
     }
   };
 
@@ -110,28 +116,32 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     try {
       monitoring.startTiming('social_presence_save');
       
-      // Convert form data to SocialPresenceData format
-      const socialPresenceData: SocialPresenceData = {
-        linkedin_url: formData.linkedin_url,
-        github_url: formData.github_url,
-        twitter_url: formData.twitter_url,
-        portfolio_url: formData.portfolio_url
-      };
-      
       // Validate all URLs
-      const validation = validateSocialUrls(socialPresenceData);
-      if (!validation.isValid) {
-        setErrors(validation.errors);
+      const validationErrors: Record<string, string> = {};
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value && !isValidUrl(value)) {
+          validationErrors[key] = 'Please enter a valid URL';
+        }
+      });
+      
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
         setIsSubmitting(false);
         return;
       }
       
-      // Save social presence data
-      const result = await saveSocialPresence(profileData.user_id, socialPresenceData);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save social presence');
-      }
+      // Update using ProfileContext
+      await updateProfileData('social_presence', {
+        linkedin_url: formData.linkedin_url || null,
+        github_url: formData.github_url || null,
+        twitter_url: formData.twitter_url || null,
+        portfolio_url: formData.portfolio_url || null
+      });
+
+      // Mark section as completed
+      await updateProfileData('profile', {
+        section_5_completed: true
+      });
       
       monitoring.endTiming('social_presence_save');
       
