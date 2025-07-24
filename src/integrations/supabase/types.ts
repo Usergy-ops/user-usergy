@@ -14,161 +14,20 @@ export type Database = {
   }
   public: {
     Tables: {
-      auth_audit_log: {
+      profiles: {
         Row: {
-          action: string
-          created_at: string | null
-          details: Json | null
-          id: string
-          ip_address: string | null
-          success: boolean | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string | null
-          details?: Json | null
-          id?: string
-          ip_address?: string | null
-          success?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string | null
-          details?: Json | null
-          id?: string
-          ip_address?: string | null
-          success?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      otp_verifications: {
-        Row: {
-          attempts: number | null
-          created_at: string | null
-          email: string
-          expires_at: string | null
-          id: string
-          otp_code: string
-          resend_count: number | null
-          verified: boolean | null
-        }
-        Insert: {
-          attempts?: number | null
-          created_at?: string | null
-          email: string
-          expires_at?: string | null
-          id?: string
-          otp_code: string
-          resend_count?: number | null
-          verified?: boolean | null
-        }
-        Update: {
-          attempts?: number | null
-          created_at?: string | null
-          email?: string
-          expires_at?: string | null
-          id?: string
-          otp_code?: string
-          resend_count?: number | null
-          verified?: boolean | null
-        }
-        Relationships: []
-      }
-      password_reset_tokens: {
-        Row: {
-          created_at: string | null
-          email: string
-          expires_at: string | null
-          id: string
-          token: string
-          used: boolean | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          expires_at?: string | null
-          id?: string
-          token: string
-          used?: boolean | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          expires_at?: string | null
-          id?: string
-          token?: string
-          used?: boolean | null
-        }
-        Relationships: []
-      }
-      profile_completion: {
-        Row: {
-          created_at: string | null
-          id: string
-          overall_completion_percentage: number | null
-          section_1_completed: boolean | null
-          section_2_completed: boolean | null
-          section_3_completed: boolean | null
-          section_4_completed: boolean | null
-          section_5_completed: boolean | null
-          section_6_completed: boolean | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          overall_completion_percentage?: number | null
-          section_1_completed?: boolean | null
-          section_2_completed?: boolean | null
-          section_3_completed?: boolean | null
-          section_4_completed?: boolean | null
-          section_5_completed?: boolean | null
-          section_6_completed?: boolean | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          overall_completion_percentage?: number | null
-          section_1_completed?: boolean | null
-          section_2_completed?: boolean | null
-          section_3_completed?: boolean | null
-          section_4_completed?: boolean | null
-          section_5_completed?: boolean | null
-          section_6_completed?: boolean | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      profile_data: {
-        Row: {
-          additional_links: string[] | null
-          age: number | null
           ai_familiarity_level: string | null
-          ai_interests: string[] | null
-          ai_models_used: string[] | null
-          availability: Json | null
+          availability_hours: string | null
           avatar_url: string | null
           bio: string | null
           city: string | null
-          coding_experience_years: number | null
           company_size: string | null
+          completion_percentage: number | null
           country: string | null
-          created_at: string | null
+          created_at: string
           date_of_birth: string | null
-          desktop_manufacturers: string[] | null
-          devices_owned: string[] | null
           education_level: string | null
-          email_clients: string[] | null
+          email: string
           employer: string | null
           field_of_study: string | null
           full_name: string | null
@@ -177,46 +36,38 @@ export type Database = {
           household_income_range: string | null
           id: string
           industry: string | null
-          interests: string[] | null
           job_title: string | null
-          languages_spoken: Json | null
+          languages_spoken: string[] | null
           linkedin_url: string | null
-          mobile_manufacturers: string[] | null
-          music_subscriptions: string[] | null
-          operating_systems: string[] | null
-          other_social_networks: Json | null
           phone_number: string | null
           portfolio_url: string | null
-          product_categories: string[] | null
-          programming_languages: Json | null
-          specific_skills: Json | null
-          streaming_subscriptions: string[] | null
+          profile_completed: boolean | null
+          section_1_completed: boolean | null
+          section_2_completed: boolean | null
+          section_3_completed: boolean | null
+          section_4_completed: boolean | null
+          section_5_completed: boolean | null
+          section_6_completed: boolean | null
           technical_experience_level: string | null
           timezone: string | null
           twitter_url: string | null
-          updated_at: string | null
+          updated_at: string
           user_id: string
           work_role: string | null
         }
         Insert: {
-          additional_links?: string[] | null
-          age?: number | null
           ai_familiarity_level?: string | null
-          ai_interests?: string[] | null
-          ai_models_used?: string[] | null
-          availability?: Json | null
+          availability_hours?: string | null
           avatar_url?: string | null
           bio?: string | null
           city?: string | null
-          coding_experience_years?: number | null
           company_size?: string | null
+          completion_percentage?: number | null
           country?: string | null
-          created_at?: string | null
+          created_at?: string
           date_of_birth?: string | null
-          desktop_manufacturers?: string[] | null
-          devices_owned?: string[] | null
           education_level?: string | null
-          email_clients?: string[] | null
+          email: string
           employer?: string | null
           field_of_study?: string | null
           full_name?: string | null
@@ -225,46 +76,38 @@ export type Database = {
           household_income_range?: string | null
           id?: string
           industry?: string | null
-          interests?: string[] | null
           job_title?: string | null
-          languages_spoken?: Json | null
+          languages_spoken?: string[] | null
           linkedin_url?: string | null
-          mobile_manufacturers?: string[] | null
-          music_subscriptions?: string[] | null
-          operating_systems?: string[] | null
-          other_social_networks?: Json | null
           phone_number?: string | null
           portfolio_url?: string | null
-          product_categories?: string[] | null
-          programming_languages?: Json | null
-          specific_skills?: Json | null
-          streaming_subscriptions?: string[] | null
+          profile_completed?: boolean | null
+          section_1_completed?: boolean | null
+          section_2_completed?: boolean | null
+          section_3_completed?: boolean | null
+          section_4_completed?: boolean | null
+          section_5_completed?: boolean | null
+          section_6_completed?: boolean | null
           technical_experience_level?: string | null
           timezone?: string | null
           twitter_url?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
           work_role?: string | null
         }
         Update: {
-          additional_links?: string[] | null
-          age?: number | null
           ai_familiarity_level?: string | null
-          ai_interests?: string[] | null
-          ai_models_used?: string[] | null
-          availability?: Json | null
+          availability_hours?: string | null
           avatar_url?: string | null
           bio?: string | null
           city?: string | null
-          coding_experience_years?: number | null
           company_size?: string | null
+          completion_percentage?: number | null
           country?: string | null
-          created_at?: string | null
+          created_at?: string
           date_of_birth?: string | null
-          desktop_manufacturers?: string[] | null
-          devices_owned?: string[] | null
           education_level?: string | null
-          email_clients?: string[] | null
+          email?: string
           employer?: string | null
           field_of_study?: string | null
           full_name?: string | null
@@ -273,81 +116,262 @@ export type Database = {
           household_income_range?: string | null
           id?: string
           industry?: string | null
-          interests?: string[] | null
           job_title?: string | null
-          languages_spoken?: Json | null
+          languages_spoken?: string[] | null
           linkedin_url?: string | null
-          mobile_manufacturers?: string[] | null
-          music_subscriptions?: string[] | null
-          operating_systems?: string[] | null
-          other_social_networks?: Json | null
           phone_number?: string | null
           portfolio_url?: string | null
-          product_categories?: string[] | null
-          programming_languages?: Json | null
-          specific_skills?: Json | null
-          streaming_subscriptions?: string[] | null
+          profile_completed?: boolean | null
+          section_1_completed?: boolean | null
+          section_2_completed?: boolean | null
+          section_3_completed?: boolean | null
+          section_4_completed?: boolean | null
+          section_5_completed?: boolean | null
+          section_6_completed?: boolean | null
           technical_experience_level?: string | null
           timezone?: string | null
           twitter_url?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
           work_role?: string | null
         }
         Relationships: []
       }
-      profiles: {
+      user_devices: {
         Row: {
-          avatar_url: string | null
           created_at: string | null
-          email: string
-          first_name: string | null
+          desktop_manufacturers: string[] | null
+          devices_owned: string[] | null
+          email_clients: string[] | null
           id: string
-          last_name: string | null
-          profile_completed: boolean | null
-          profile_completion_percentage: number | null
+          mobile_manufacturers: string[] | null
+          music_subscriptions: string[] | null
+          operating_systems: string[] | null
+          streaming_subscriptions: string[] | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          avatar_url?: string | null
           created_at?: string | null
-          email: string
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          profile_completed?: boolean | null
-          profile_completion_percentage?: number | null
+          desktop_manufacturers?: string[] | null
+          devices_owned?: string[] | null
+          email_clients?: string[] | null
+          id?: string
+          mobile_manufacturers?: string[] | null
+          music_subscriptions?: string[] | null
+          operating_systems?: string[] | null
+          streaming_subscriptions?: string[] | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          avatar_url?: string | null
+          created_at?: string | null
+          desktop_manufacturers?: string[] | null
+          devices_owned?: string[] | null
+          email_clients?: string[] | null
+          id?: string
+          mobile_manufacturers?: string[] | null
+          music_subscriptions?: string[] | null
+          operating_systems?: string[] | null
+          streaming_subscriptions?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_devices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      user_otp_verification: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          otp_code: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
           created_at?: string | null
           email?: string
-          first_name?: string | null
+          expires_at?: string
           id?: string
-          last_name?: string | null
-          profile_completed?: boolean | null
-          profile_completion_percentage?: number | null
-          updated_at?: string | null
+          otp_code?: string
+          verified_at?: string | null
         }
         Relationships: []
+      }
+      user_otps: {
+        Row: {
+          attempts: number | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          otp_code: string
+          otp_type: string
+          used: boolean | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          otp_type?: string
+          used?: boolean | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          otp_type?: string
+          used?: boolean | null
+        }
+        Relationships: []
+      }
+      user_skills: {
+        Row: {
+          created_at: string | null
+          id: string
+          interests: string[] | null
+          product_categories: string[] | null
+          skills: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          interests?: string[] | null
+          product_categories?: string[] | null
+          skills?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          interests?: string[] | null
+          product_categories?: string[] | null
+          skills?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      user_social_presence: {
+        Row: {
+          additional_links: string[] | null
+          created_at: string | null
+          id: string
+          other_social_networks: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          additional_links?: string[] | null
+          created_at?: string | null
+          id?: string
+          other_social_networks?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          additional_links?: string[] | null
+          created_at?: string | null
+          id?: string
+          other_social_networks?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_social_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      user_tech_fluency: {
+        Row: {
+          ai_interests: string[] | null
+          ai_models_used: string[] | null
+          coding_experience_years: number | null
+          created_at: string | null
+          id: string
+          programming_languages: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_interests?: string[] | null
+          ai_models_used?: string[] | null
+          coding_experience_years?: number | null
+          created_at?: string | null
+          id?: string
+          programming_languages?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_interests?: string[] | null
+          ai_models_used?: string[] | null
+          coding_experience_years?: number | null
+          created_at?: string | null
+          id?: string
+          programming_languages?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tech_fluency_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      calculate_age: {
-        Args: { birth_date: string }
+      calculate_profile_completion: {
+        Args: { profile_user_id: string }
         Returns: number
-      }
-      calculate_completion_percentage: {
-        Args: { user_id: string }
-        Returns: number
-      }
-      cleanup_expired_otps: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
     }
     Enums: {

@@ -1,97 +1,128 @@
-
 import React, { useState, useEffect } from 'react';
 import { AuthToggle } from '@/components/AuthToggle';
 import { AuthForm } from '@/components/AuthForm';
 import { GoogleAuthButton } from '@/components/UsergyCTA';
+import { OTPVerification } from '@/components/OTPVerification';
 import { NetworkNodes } from '@/components/NetworkNodes';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import heroIllustration from '@/assets/usergy-hero-illustration.png';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp, signIn, signInWithGoogle, user, loading } = useAuth();
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [pendingSignup, setPendingSignup] = useState<{ email: string; password: string } | null>(null);
   const { toast } = useToast();
+  const { user, signUp, signIn } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if user is already authenticated
+  // Redirect authenticated users to appropriate page
   useEffect(() => {
-    if (!loading && user) {
+    if (user) {
+      console.log('User is authenticated, redirecting to profile completion');
       navigate('/profile-completion');
     }
-  }, [user, loading, navigate]);
-
-  // Show loading while checking auth state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // Don't render if user is authenticated (will redirect)
-  if (user) {
-    return null;
-  }
+  }, [user, navigate]);
 
   const handleAuthSubmit = async (email: string, password?: string) => {
+    if (!password) return;
+    
     setIsLoading(true);
     
-    try {
-      let result;
-      if (authMode === 'signup') {
-        result = await signUp(email, password || '');
-      } else {
-        result = await signIn(email, password || '');
-      }
-
-      if (result.error) {
+    if (authMode === 'signup') {
+      console.log('Attempting signup for:', email);
+      const { error } = await signUp(email, password);
+      
+      if (error) {
+        console.error('Signup failed:', error);
         toast({
-          title: "Error",
-          description: result.error.message,
+          title: "Sign up failed",
+          description: error,
           variant: "destructive"
         });
-      } else if (authMode === 'signup') {
+      } else {
+        console.log('Signup successful, showing OTP verification');
+        setPendingSignup({ email, password });
+        setShowOTPVerification(true);
         toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to complete your registration.",
+          title: "Check your email!",
+          description: "We've sent you a verification code to complete your registration."
         });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+    } else {
+      console.log('Attempting signin for:', email);
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        console.error('Signin failed:', error);
+        toast({
+          title: "Sign in failed", 
+          description: error,
+          variant: "destructive"
+        });
+      } else {
+        console.log('Signin successful');
+        toast({
+          title: "Welcome back!",
+          description: "Great to see you again, explorer."
+        });
+      }
     }
+    
+    setIsLoading(false);
   };
 
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     
     try {
-      const { error } = await signInWithGoogle();
+      console.log('Attempting Google OAuth');
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl
+        }
+      });
+
       if (error) {
+        console.error('Google auth failed:', error);
         toast({
-          title: "Error",
+          title: "Google authentication failed",
           description: error.message,
           variant: "destructive"
         });
       }
     } catch (error) {
+      console.error('Google auth exception:', error);
       toast({
-        title: "Error",
-        description: "Failed to connect with Google. Please try again.",
+        title: "Authentication error",
+        description: "Failed to authenticate with Google",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
+  };
+
+  const handleOTPSuccess = () => {
+    console.log('OTP verification successful');
+    setShowOTPVerification(false);
+    setPendingSignup(null);
+    toast({
+      title: "Welcome to Usergy!",
+      description: "Your account has been created successfully."
+    });
+  };
+
+  const handleBackToSignup = () => {
+    console.log('Going back to signup form');
+    setShowOTPVerification(false);
+    setPendingSignup(null);
   };
 
   return (
@@ -162,81 +193,102 @@ const Index = () => {
                 
                 {/* Form Header */}
                 <div className="text-center mb-8">
-                  <AuthToggle mode={authMode} onToggle={setAuthMode} />
+                  {!showOTPVerification && (
+                    <AuthToggle mode={authMode} onToggle={setAuthMode} />
+                  )}
                   
                   <div className="mt-6">
                     <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
-                      {authMode === 'signup' 
-                        ? 'Welcome to where innovation finds its voice' 
-                        : 'Welcome back to the community'
+                      {showOTPVerification 
+                        ? 'Verify your email'
+                        : authMode === 'signup' 
+                          ? 'Welcome to where innovation finds its voice' 
+                          : 'Welcome back to the community'
                       }
                     </h2>
                     <p className="text-muted-foreground">
-                      {authMode === 'signup'
-                        ? 'Join thousands of digital explorers already making an impact'
-                        : "We're excited to see you again, explorer"
+                      {showOTPVerification
+                        ? 'Enter the verification code we sent to your email'
+                        : authMode === 'signup'
+                          ? 'Join thousands of digital explorers already making an impact'
+                          : "We're excited to see you again, explorer"
                       }
                     </p>
                   </div>
                 </div>
 
-                {/* Google Auth */}
-                <div className="mb-6">
-                  <GoogleAuthButton 
+                {/* Google Auth (only show if not in OTP verification) */}
+                {!showOTPVerification && (
+                  <>
+                    <div className="mb-6">
+                      <GoogleAuthButton 
+                        mode={authMode} 
+                        onClick={handleGoogleAuth}
+                        isLoading={isLoading}
+                      />
+                    </div>
+
+                    {/* Divider */}
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-border"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-card text-muted-foreground">or continue with email</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Email Form or OTP Verification */}
+                {showOTPVerification && pendingSignup ? (
+                  <OTPVerification
+                    email={pendingSignup.email}
+                    password={pendingSignup.password}
+                    onBack={handleBackToSignup}
+                    onSuccess={handleOTPSuccess}
+                  />
+                ) : (
+                  <AuthForm 
                     mode={authMode} 
-                    onClick={handleGoogleAuth}
+                    onSubmit={handleAuthSubmit}
                     isLoading={isLoading}
                   />
-                </div>
+                )}
 
-                {/* Divider */}
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
+                {/* Footer Links (only show if not in OTP verification) */}
+                {!showOTPVerification && (
+                  <div className="mt-8 text-center space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      {authMode === 'signup' ? (
+                        <span>
+                          Already part of our community?{' '}
+                          <button 
+                            onClick={() => setAuthMode('signin')}
+                            className="text-primary hover:text-primary-end font-medium transition-colors duration-300"
+                          >
+                            Welcome back
+                          </button>
+                        </span>
+                      ) : (
+                        <span>
+                          New here? We'd love to have you{' '}
+                          <button 
+                            onClick={() => setAuthMode('signup')}
+                            className="text-primary hover:text-primary-end font-medium transition-colors duration-300"
+                          >
+                            join us
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
+                      <a href="#" className="hover:text-foreground transition-colors duration-300">Privacy Policy</a>
+                      <a href="#" className="hover:text-foreground transition-colors duration-300">Terms of Service</a>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-card text-muted-foreground">or continue with email</span>
-                  </div>
-                </div>
-
-                {/* Email Form */}
-                <AuthForm 
-                  mode={authMode} 
-                  onSubmit={handleAuthSubmit}
-                  isLoading={isLoading}
-                />
-
-                {/* Footer Links */}
-                <div className="mt-8 text-center space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    {authMode === 'signup' ? (
-                      <span>
-                        Already part of our community?{' '}
-                        <button 
-                          onClick={() => setAuthMode('signin')}
-                          className="text-primary hover:text-primary-end font-medium transition-colors duration-300"
-                        >
-                          Welcome back
-                        </button>
-                      </span>
-                    ) : (
-                      <span>
-                        New here? We'd love to have you{' '}
-                        <button 
-                          onClick={() => setAuthMode('signup')}
-                          className="text-primary hover:text-primary-end font-medium transition-colors duration-300"
-                        >
-                          join us
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
-                    <a href="#" className="hover:text-foreground transition-colors duration-300">Privacy Policy</a>
-                    <a href="#" className="hover:text-foreground transition-colors duration-300">Terms of Service</a>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
