@@ -34,3 +34,17 @@ export interface RateLimitEntry {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Add the missing RateLimitRecord type
+export interface RateLimitRecord {
+  id: string;
+  identifier: string;
+  action: string;
+  attempts: number;
+  windowStart: Date;
+  windowEnd?: Date | null;
+  blockedUntil?: Date | null;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}

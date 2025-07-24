@@ -7,10 +7,10 @@
 import { 
   checkRateLimit as unifiedCheckRateLimit,
   resetRateLimit as unifiedResetRateLimit,
-  RateLimitResult
+  RateLimitResult as UnifiedRateLimitResult
 } from './rateLimit';
 
-export interface RateLimitResult {
+export interface LegacyRateLimitResult {
   allowed: boolean;
   attemptsRemaining: number;
   resetTime: Date;
@@ -23,7 +23,7 @@ export const checkRateLimit = async (
   action: string,
   maxAttempts: number = 5,
   windowMinutes: number = 15
-): Promise<RateLimitResult> => {
+): Promise<LegacyRateLimitResult> => {
   // Convert legacy parameters to new config format
   const customConfig = {
     maxAttempts,
@@ -31,7 +31,16 @@ export const checkRateLimit = async (
     blockDurationMinutes: 60 // Default block duration
   };
 
-  return unifiedCheckRateLimit(identifier, action, customConfig);
+  const result = await unifiedCheckRateLimit(identifier, action, customConfig);
+  
+  // Convert to legacy format
+  return {
+    allowed: result.allowed,
+    attemptsRemaining: result.attemptsRemaining,
+    resetTime: result.resetTime,
+    blocked: result.blocked,
+    blockedUntil: result.blockedUntil
+  };
 };
 
 export const resetRateLimit = async (identifier: string, action: string): Promise<void> => {
