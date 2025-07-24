@@ -23,11 +23,10 @@ export interface ProfileCompletionData {
 export const calculateProfileCompletionPercentage = (data: ProfileCompletionData): number => {
   const { profileData, deviceData, techFluencyData } = data;
   
-  // These are the exact 16 fields counted in the database function
+  // These are the exact 15 fields counted in the database function (removed avatar_url)
   const mandatoryFields = {
-    // Basic Profile (7 fields - phone_number is optional)
+    // Basic Profile (6 fields - removed avatar_url, phone_number is optional)
     full_name: profileData.full_name,
-    avatar_url: profileData.avatar_url,
     country: profileData.country,
     city: profileData.city,
     gender: profileData.gender,
@@ -50,7 +49,7 @@ export const calculateProfileCompletionPercentage = (data: ProfileCompletionData
     ai_interests: techFluencyData.ai_interests,
   };
 
-  const totalFields = 16; // Must match database calculation
+  const totalFields = 15; // Updated from 16 to 15 (removed avatar_url)
   const completedFields = Object.values(mandatoryFields).filter(value => {
     if (Array.isArray(value)) {
       return value && value.length > 0;
@@ -66,9 +65,8 @@ export const calculateProfileCompletionPercentage = (data: ProfileCompletionData
  */
 export const getMandatoryFields = (): string[] => {
   return [
-    // Basic Profile (7 fields)
+    // Basic Profile (6 fields - removed avatar_url)
     'full_name',
-    'avatar_url',
     'country',
     'city',
     'gender',
@@ -100,7 +98,6 @@ export const getCompletionDetails = (data: ProfileCompletionData) => {
   
   const fields = [
     { name: 'full_name', value: profileData.full_name, section: 'Basic Profile' },
-    { name: 'avatar_url', value: profileData.avatar_url, section: 'Basic Profile' },
     { name: 'country', value: profileData.country, section: 'Basic Profile' },
     { name: 'city', value: profileData.city, section: 'Basic Profile' },
     { name: 'gender', value: profileData.gender, section: 'Basic Profile' },
@@ -147,9 +144,9 @@ export const getCompletionDetails = (data: ProfileCompletionData) => {
  * Constants for profile completion
  */
 export const PROFILE_COMPLETION_CONSTANTS = {
-  TOTAL_MANDATORY_FIELDS: 16,
+  TOTAL_MANDATORY_FIELDS: 15, // Updated from 16 to 15
   SECTIONS: {
-    BASIC_PROFILE: 7,
+    BASIC_PROFILE: 6, // Updated from 7 to 6
     DEVICES_TECH: 4,
     EDUCATION_WORK: 1,
     AI_TECH_FLUENCY: 4,

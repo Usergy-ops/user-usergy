@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -95,9 +94,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Calculate completion percentage using the EXACT same logic as database function
   const calculateCompletion = useCallback(() => {
     const mandatoryFields = {
-      // Basic Profile (7 fields - phone_number is optional)
+      // Basic Profile (6 fields - removed avatar_url, phone_number is optional)
       full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
       country: profileData.country,
       city: profileData.city,
       gender: profileData.gender,
@@ -120,7 +118,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ai_interests: techFluencyData.ai_interests,
     };
 
-    const totalFields = 16; // Match database calculation exactly
+    const totalFields = 15; // Updated from 16 to 15 (removed avatar_url)
     const completedFields = Object.values(mandatoryFields).filter(value => {
       if (Array.isArray(value)) {
         return value && value.length > 0;
