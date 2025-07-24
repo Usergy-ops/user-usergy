@@ -11,9 +11,10 @@ interface ProfileSection5Props {
 export const ProfileSection5: React.FC<ProfileSection5Props> = ({ data }) => {
   const { updateProfileData, updating } = useProfileCompletion();
   const [formData, setFormData] = useState({
-    linkedin_profile: data?.linkedin_profile || '',
-    twitter_profile: data?.twitter_profile || '',
-    github_profile: data?.github_profile || ''
+    linkedin_url: data?.linkedin_url || '',
+    twitter_url: data?.twitter_url || '',
+    github_url: data?.github_url || '',
+    portfolio_url: data?.portfolio_url || ''
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -44,8 +45,8 @@ export const ProfileSection5: React.FC<ProfileSection5Props> = ({ data }) => {
             </label>
             <input
               type="url"
-              value={formData.linkedin_profile}
-              onChange={(e) => handleInputChange('linkedin_profile', e.target.value)}
+              value={formData.linkedin_url}
+              onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
               className="usergy-input w-full"
               placeholder="https://linkedin.com/in/yourprofile"
             />
@@ -59,8 +60,8 @@ export const ProfileSection5: React.FC<ProfileSection5Props> = ({ data }) => {
             </label>
             <input
               type="url"
-              value={formData.twitter_profile}
-              onChange={(e) => handleInputChange('twitter_profile', e.target.value)}
+              value={formData.twitter_url}
+              onChange={(e) => handleInputChange('twitter_url', e.target.value)}
               className="usergy-input w-full"
               placeholder="https://twitter.com/yourhandle"
             />
@@ -74,10 +75,25 @@ export const ProfileSection5: React.FC<ProfileSection5Props> = ({ data }) => {
             </label>
             <input
               type="url"
-              value={formData.github_profile}
-              onChange={(e) => handleInputChange('github_profile', e.target.value)}
+              value={formData.github_url}
+              onChange={(e) => handleInputChange('github_url', e.target.value)}
               className="usergy-input w-full"
               placeholder="https://github.com/yourusername"
+            />
+          </div>
+
+          {/* Portfolio URL */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground flex items-center space-x-2">
+              <Link className="w-4 h-4" />
+              <span>Portfolio URL</span>
+            </label>
+            <input
+              type="url"
+              value={formData.portfolio_url}
+              onChange={(e) => handleInputChange('portfolio_url', e.target.value)}
+              className="usergy-input w-full"
+              placeholder="https://yourportfolio.com"
             />
           </div>
         </div>

@@ -16,12 +16,13 @@ export interface ProfileCompletionData {
 export interface ProfileData {
   // Section 1: Basic Info
   full_name?: string;
-  profile_picture_url?: string;
-  location_country?: string;
-  location_city?: string;
-  contact_number?: string;
+  avatar_url?: string;
+  country?: string;
+  city?: string;
+  phone_number?: string;
   date_of_birth?: string;
   gender?: string;
+  timezone?: string;
   
   // Section 2: Devices & Product Usage
   operating_systems?: string[];
@@ -35,8 +36,8 @@ export interface ProfileData {
   // Section 3: Education & Work
   education_level?: string;
   field_of_study?: string;
-  current_job_title?: string;
-  current_employer?: string;
+  job_title?: string;
+  employer?: string;
   industry?: string;
   work_role?: string;
   company_size?: string;
@@ -48,11 +49,13 @@ export interface ProfileData {
   ai_interests?: string[];
   ai_models_used?: string[];
   programming_languages?: Record<string, string>;
+  coding_experience_years?: number;
   
   // Section 5: Social Presence
-  linkedin_profile?: string;
-  twitter_profile?: string;
-  github_profile?: string;
+  linkedin_url?: string;
+  twitter_url?: string;
+  github_url?: string;
+  portfolio_url?: string;
   other_social_networks?: Record<string, string>;
   additional_links?: string[];
   
@@ -60,9 +63,9 @@ export interface ProfileData {
   specific_skills?: Record<string, string>;
   product_categories?: string[];
   languages_spoken?: Record<string, string>;
-  time_zone?: string;
   availability?: Record<string, any>;
-  short_bio?: string;
+  bio?: string;
+  interests?: string[];
 }
 
 export const useProfileCompletion = () => {

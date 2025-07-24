@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useProfileCompletion, ProfileData } from '@/hooks/useProfileCompletion';
-import { Upload, User, MapPin, Phone, Calendar, Users } from 'lucide-react';
+import { Upload, User, MapPin, Phone, Calendar, Users, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProfileSection1Props {
@@ -12,12 +12,13 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
   const { updateProfileData, uploadProfilePicture, updating } = useProfileCompletion();
   const [formData, setFormData] = useState({
     full_name: data?.full_name || '',
-    location_country: data?.location_country || '',
-    location_city: data?.location_city || '',
-    contact_number: data?.contact_number || '',
+    country: data?.country || '',
+    city: data?.city || '',
+    phone_number: data?.phone_number || '',
     date_of_birth: data?.date_of_birth || '',
     gender: data?.gender || '',
-    profile_picture_url: data?.profile_picture_url || ''
+    timezone: data?.timezone || '',
+    avatar_url: data?.avatar_url || ''
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -30,7 +31,7 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
 
     try {
       const url = await uploadProfilePicture(file);
-      setFormData(prev => ({ ...prev, profile_picture_url: url }));
+      setFormData(prev => ({ ...prev, avatar_url: url }));
     } catch (error) {
       console.error('Error uploading image:', error);
     }
@@ -55,9 +56,9 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
         <div className="flex justify-center mb-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-start to-primary-end flex items-center justify-center overflow-hidden">
-              {formData.profile_picture_url ? (
+              {formData.avatar_url ? (
                 <img 
-                  src={formData.profile_picture_url} 
+                  src={formData.avatar_url} 
                   alt="Profile" 
                   className="w-full h-full object-cover"
                 />
@@ -95,16 +96,16 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
             />
           </div>
 
-          {/* Contact Number */}
+          {/* Phone Number */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground flex items-center space-x-2">
               <Phone className="w-4 h-4" />
-              <span>Contact Number</span>
+              <span>Phone Number</span>
             </label>
             <input
               type="tel"
-              value={formData.contact_number}
-              onChange={(e) => handleInputChange('contact_number', e.target.value)}
+              value={formData.phone_number}
+              onChange={(e) => handleInputChange('phone_number', e.target.value)}
               className="usergy-input w-full"
               placeholder="+1 (555) 123-4567"
             />
@@ -118,8 +119,8 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
             </label>
             <input
               type="text"
-              value={formData.location_country}
-              onChange={(e) => handleInputChange('location_country', e.target.value)}
+              value={formData.country}
+              onChange={(e) => handleInputChange('country', e.target.value)}
               className="usergy-input w-full"
               placeholder="United States"
             />
@@ -133,8 +134,8 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
             </label>
             <input
               type="text"
-              value={formData.location_city}
-              onChange={(e) => handleInputChange('location_city', e.target.value)}
+              value={formData.city}
+              onChange={(e) => handleInputChange('city', e.target.value)}
               className="usergy-input w-full"
               placeholder="San Francisco"
             />
@@ -170,6 +171,29 @@ export const ProfileSection1: React.FC<ProfileSection1Props> = ({ data }) => {
               <option value="female">Female</option>
               <option value="non-binary">Non-binary</option>
               <option value="prefer-not-to-say">Prefer not to say</option>
+            </select>
+          </div>
+
+          {/* Timezone */}
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-sm font-medium text-foreground flex items-center space-x-2">
+              <Clock className="w-4 h-4" />
+              <span>Timezone</span>
+            </label>
+            <select
+              value={formData.timezone}
+              onChange={(e) => handleInputChange('timezone', e.target.value)}
+              className="usergy-input w-full"
+            >
+              <option value="">Select timezone</option>
+              <option value="UTC-8">Pacific Time (UTC-8)</option>
+              <option value="UTC-7">Mountain Time (UTC-7)</option>
+              <option value="UTC-6">Central Time (UTC-6)</option>
+              <option value="UTC-5">Eastern Time (UTC-5)</option>
+              <option value="UTC+0">UTC</option>
+              <option value="UTC+1">Central European Time (UTC+1)</option>
+              <option value="UTC+8">China Time (UTC+8)</option>
+              <option value="UTC+9">Japan Time (UTC+9)</option>
             </select>
           </div>
         </div>

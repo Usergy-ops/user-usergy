@@ -13,8 +13,8 @@ export const ProfileSection3: React.FC<ProfileSection3Props> = ({ data }) => {
   const [formData, setFormData] = useState({
     education_level: data?.education_level || '',
     field_of_study: data?.field_of_study || '',
-    current_job_title: data?.current_job_title || '',
-    current_employer: data?.current_employer || '',
+    job_title: data?.job_title || '',
+    employer: data?.employer || '',
     industry: data?.industry || '',
     work_role: data?.work_role || '',
     company_size: data?.company_size || '',
@@ -73,31 +73,31 @@ export const ProfileSection3: React.FC<ProfileSection3Props> = ({ data }) => {
             />
           </div>
 
-          {/* Current Job Title */}
+          {/* Job Title */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground flex items-center space-x-2">
               <Briefcase className="w-4 h-4" />
-              <span>Current Job Title</span>
+              <span>Job Title</span>
             </label>
             <input
               type="text"
-              value={formData.current_job_title}
-              onChange={(e) => handleInputChange('current_job_title', e.target.value)}
+              value={formData.job_title}
+              onChange={(e) => handleInputChange('job_title', e.target.value)}
               className="usergy-input w-full"
               placeholder="Software Engineer, Product Manager, etc."
             />
           </div>
 
-          {/* Current Employer */}
+          {/* Employer */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground flex items-center space-x-2">
               <Building className="w-4 h-4" />
-              <span>Current Employer</span>
+              <span>Employer</span>
             </label>
             <input
               type="text"
-              value={formData.current_employer}
-              onChange={(e) => handleInputChange('current_employer', e.target.value)}
+              value={formData.employer}
+              onChange={(e) => handleInputChange('employer', e.target.value)}
               className="usergy-input w-full"
               placeholder="Company name"
             />

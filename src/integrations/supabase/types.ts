@@ -152,132 +152,144 @@ export type Database = {
       profile_data: {
         Row: {
           additional_links: string[] | null
+          age: number | null
           ai_familiarity_level: string | null
           ai_interests: string[] | null
           ai_models_used: string[] | null
           availability: Json | null
+          avatar_url: string | null
+          bio: string | null
+          city: string | null
+          coding_experience_years: number | null
           company_size: string | null
-          contact_number: string | null
+          country: string | null
           created_at: string | null
-          current_employer: string | null
-          current_job_title: string | null
           date_of_birth: string | null
           desktop_manufacturers: string[] | null
           devices_owned: string[] | null
           education_level: string | null
           email_clients: string[] | null
+          employer: string | null
           field_of_study: string | null
           full_name: string | null
           gender: string | null
-          github_profile: string | null
+          github_url: string | null
           household_income_range: string | null
           id: string
           industry: string | null
+          interests: string[] | null
+          job_title: string | null
           languages_spoken: Json | null
-          linkedin_profile: string | null
-          location_city: string | null
-          location_country: string | null
+          linkedin_url: string | null
           mobile_manufacturers: string[] | null
           music_subscriptions: string[] | null
           operating_systems: string[] | null
           other_social_networks: Json | null
+          phone_number: string | null
+          portfolio_url: string | null
           product_categories: string[] | null
-          profile_picture_url: string | null
           programming_languages: Json | null
-          short_bio: string | null
           specific_skills: Json | null
           streaming_subscriptions: string[] | null
           technical_experience_level: string | null
-          time_zone: string | null
-          twitter_profile: string | null
+          timezone: string | null
+          twitter_url: string | null
           updated_at: string | null
           user_id: string
           work_role: string | null
         }
         Insert: {
           additional_links?: string[] | null
+          age?: number | null
           ai_familiarity_level?: string | null
           ai_interests?: string[] | null
           ai_models_used?: string[] | null
           availability?: Json | null
+          avatar_url?: string | null
+          bio?: string | null
+          city?: string | null
+          coding_experience_years?: number | null
           company_size?: string | null
-          contact_number?: string | null
+          country?: string | null
           created_at?: string | null
-          current_employer?: string | null
-          current_job_title?: string | null
           date_of_birth?: string | null
           desktop_manufacturers?: string[] | null
           devices_owned?: string[] | null
           education_level?: string | null
           email_clients?: string[] | null
+          employer?: string | null
           field_of_study?: string | null
           full_name?: string | null
           gender?: string | null
-          github_profile?: string | null
+          github_url?: string | null
           household_income_range?: string | null
           id?: string
           industry?: string | null
+          interests?: string[] | null
+          job_title?: string | null
           languages_spoken?: Json | null
-          linkedin_profile?: string | null
-          location_city?: string | null
-          location_country?: string | null
+          linkedin_url?: string | null
           mobile_manufacturers?: string[] | null
           music_subscriptions?: string[] | null
           operating_systems?: string[] | null
           other_social_networks?: Json | null
+          phone_number?: string | null
+          portfolio_url?: string | null
           product_categories?: string[] | null
-          profile_picture_url?: string | null
           programming_languages?: Json | null
-          short_bio?: string | null
           specific_skills?: Json | null
           streaming_subscriptions?: string[] | null
           technical_experience_level?: string | null
-          time_zone?: string | null
-          twitter_profile?: string | null
+          timezone?: string | null
+          twitter_url?: string | null
           updated_at?: string | null
           user_id: string
           work_role?: string | null
         }
         Update: {
           additional_links?: string[] | null
+          age?: number | null
           ai_familiarity_level?: string | null
           ai_interests?: string[] | null
           ai_models_used?: string[] | null
           availability?: Json | null
+          avatar_url?: string | null
+          bio?: string | null
+          city?: string | null
+          coding_experience_years?: number | null
           company_size?: string | null
-          contact_number?: string | null
+          country?: string | null
           created_at?: string | null
-          current_employer?: string | null
-          current_job_title?: string | null
           date_of_birth?: string | null
           desktop_manufacturers?: string[] | null
           devices_owned?: string[] | null
           education_level?: string | null
           email_clients?: string[] | null
+          employer?: string | null
           field_of_study?: string | null
           full_name?: string | null
           gender?: string | null
-          github_profile?: string | null
+          github_url?: string | null
           household_income_range?: string | null
           id?: string
           industry?: string | null
+          interests?: string[] | null
+          job_title?: string | null
           languages_spoken?: Json | null
-          linkedin_profile?: string | null
-          location_city?: string | null
-          location_country?: string | null
+          linkedin_url?: string | null
           mobile_manufacturers?: string[] | null
           music_subscriptions?: string[] | null
           operating_systems?: string[] | null
           other_social_networks?: Json | null
+          phone_number?: string | null
+          portfolio_url?: string | null
           product_categories?: string[] | null
-          profile_picture_url?: string | null
           programming_languages?: Json | null
-          short_bio?: string | null
           specific_skills?: Json | null
           streaming_subscriptions?: string[] | null
           technical_experience_level?: string | null
-          time_zone?: string | null
-          twitter_profile?: string | null
+          timezone?: string | null
+          twitter_url?: string | null
           updated_at?: string | null
           user_id?: string
           work_role?: string | null
@@ -325,6 +337,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_age: {
+        Args: { birth_date: string }
+        Returns: number
+      }
       calculate_completion_percentage: {
         Args: { user_id: string }
         Returns: number
