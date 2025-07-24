@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -68,6 +67,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [socialPresenceData, setSocialPresenceData] = useState<SocialPresenceData>({});
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
 
@@ -87,7 +87,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       interests: skillsData.interests
     },
     isProfileComplete,
-    loading
+    loading,
+    isUpdating
   });
 
   // Resume incomplete section based on completed sections
@@ -138,7 +139,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
     
     // Update completion percentage in state and database if changed
-    if (user && percentage !== profileData.completion_percentage) {
+    if (user && percentage !== profileData.completion_percentage && !isUpdating) {
       console.log('Updating completion percentage from', profileData.completion_percentage, 'to', percentage);
       setProfileData(prev => ({ ...prev, completion_percentage: percentage }));
       
@@ -157,7 +158,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     
     return percentage;
-  }, [profileData, deviceData, techFluencyData, skillsData, user]);
+  }, [profileData, deviceData, techFluencyData, skillsData, user, isUpdating]);
 
   useEffect(() => {
     if (user) {
@@ -169,10 +170,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Recalculate completion whenever data changes
   useEffect(() => {
-    if (user && !loading) {
+    if (user && !loading && !isUpdating) {
       calculateCompletion();
     }
-  }, [profileData, deviceData, techFluencyData, skillsData, calculateCompletion, user, loading]);
+  }, [profileData, deviceData, techFluencyData, skillsData, calculateCompletion, user, loading, isUpdating]);
 
   // Resume incomplete section when profile data is loaded
   useEffect(() => {
@@ -259,9 +260,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateProfileData = async (section: string, data: any) => {
-    if (!user) return;
+    if (!user || isUpdating) return;
 
     try {
+      setIsUpdating(true);
       console.log(`Updating ${section} with data:`, data);
       monitoring.startTiming(`profile_update_${section}`);
 
@@ -341,35 +343,109 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           break;
 
         case 'tech_fluency':
-          updateResult = await supabase
-            .from('user_tech_fluency')
-            .upsert({ 
-              user_id: user.id, 
-              ...data
-            });
-          
-          if (updateResult.error) {
-            throw updateResult.error;
+          // Handle duplicate key constraint for tech_fluency
+          try {
+            updateResult = await supabase
+              .from('user_tech_fluency')
+              .upsert({ 
+                user_id: user.id, 
+                ...data
+              }, {
+                onConflict: 'user_id'
+              });
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setTechFluencyData(prev => ({ ...prev, ...data }));
+            console.log('Tech fluency updated successfully:', data);
+          } catch (upsertError: any) {
+            console.error('Tech fluency upsert error:', upsertError);
+            
+            // If upsert fails, try update first
+            const existingResult = await supabase
+              .from('user_tech_fluency')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (existingResult.data) {
+              // Record exists, update it
+              updateResult = await supabase
+                .from('user_tech_fluency')
+                .update(data)
+                .eq('user_id', user.id);
+            } else {
+              // Record doesn't exist, insert it
+              updateResult = await supabase
+                .from('user_tech_fluency')
+                .insert({ 
+                  user_id: user.id, 
+                  ...data 
+                });
+            }
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setTechFluencyData(prev => ({ ...prev, ...data }));
+            console.log('Tech fluency updated successfully (fallback):', data);
           }
-          
-          setTechFluencyData(prev => ({ ...prev, ...data }));
-          console.log('Tech fluency updated successfully:', data);
           break;
 
         case 'skills':
-          updateResult = await supabase
-            .from('user_skills')
-            .upsert({ 
-              user_id: user.id, 
-              ...data
-            });
-          
-          if (updateResult.error) {
-            throw updateResult.error;
+          // Handle duplicate key constraint for skills
+          try {
+            updateResult = await supabase
+              .from('user_skills')
+              .upsert({ 
+                user_id: user.id, 
+                ...data
+              }, {
+                onConflict: 'user_id'
+              });
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setSkillsData(prev => ({ ...prev, ...data }));
+            console.log('Skills updated successfully');
+          } catch (upsertError: any) {
+            console.error('Skills upsert error:', upsertError);
+            
+            // If upsert fails, try update first
+            const existingResult = await supabase
+              .from('user_skills')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (existingResult.data) {
+              // Record exists, update it
+              updateResult = await supabase
+                .from('user_skills')
+                .update(data)
+                .eq('user_id', user.id);
+            } else {
+              // Record doesn't exist, insert it
+              updateResult = await supabase
+                .from('user_skills')
+                .insert({ 
+                  user_id: user.id, 
+                  ...data 
+                });
+            }
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setSkillsData(prev => ({ ...prev, ...data }));
+            console.log('Skills updated successfully (fallback)');
           }
-          
-          setSkillsData(prev => ({ ...prev, ...data }));
-          console.log('Skills updated successfully');
           break;
 
         case 'social_presence':
@@ -402,6 +478,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await handleCentralizedError(error as Error, `profile_update_${section}`, user.id);
       handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;
+    } finally {
+      setIsUpdating(false);
     }
   };
 

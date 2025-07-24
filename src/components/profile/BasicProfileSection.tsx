@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, User } from 'lucide-react';
 
@@ -26,6 +26,7 @@ export const BasicProfileSection: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
     defaultValues: {
@@ -40,35 +41,69 @@ export const BasicProfileSection: React.FC = () => {
     }
   });
 
-  // Auto-save with debounce
+  // Debounced auto-save with validation
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
-      if (type === 'change') {
+      if (type === 'change' && !isSaving) {
         const timeoutId = setTimeout(async () => {
           try {
-            const dataToSave: any = {};
-            Object.entries(value).forEach(([key, val]) => {
-              if (typeof val === 'string' && val.trim() !== '') {
-                dataToSave[key] = val;
-              } else if (typeof val === 'number' && val > 0) {
-                dataToSave[key] = val;
-              }
-            });
+            setIsSaving(true);
             
+            // Only save non-empty, valid values
+            const dataToSave: any = {};
+            
+            // Handle string fields
+            if (value.full_name && value.full_name.trim() !== '') {
+              dataToSave.full_name = value.full_name.trim();
+            }
+            if (value.phone_number && value.phone_number.trim() !== '') {
+              dataToSave.phone_number = value.phone_number.trim();
+            }
+            if (value.city && value.city.trim() !== '') {
+              dataToSave.city = value.city.trim();
+            }
+            if (value.country && value.country !== '') {
+              dataToSave.country = value.country;
+            }
+            if (value.gender && value.gender !== '') {
+              dataToSave.gender = value.gender;
+            }
+            if (value.timezone && value.timezone !== '') {
+              dataToSave.timezone = value.timezone;
+            }
+            
+            // Handle date of birth - only save if it's a valid date
+            if (value.date_of_birth && value.date_of_birth.trim() !== '') {
+              const dateValue = new Date(value.date_of_birth);
+              if (!isNaN(dateValue.getTime())) {
+                dataToSave.date_of_birth = value.date_of_birth;
+              }
+            }
+            
+            // Handle age - only save if it's a valid number > 0
+            if (value.age && typeof value.age === 'number' && value.age > 0) {
+              dataToSave.age = value.age;
+            }
+            
+            // Only update if there's actually data to save
             if (Object.keys(dataToSave).length > 0) {
+              console.log('Auto-saving basic profile data:', dataToSave);
               await updateProfileData('profile', dataToSave);
             }
           } catch (error) {
             console.error('Auto-save failed:', error);
+            // Don't show error toast for auto-save failures to prevent spam
+          } finally {
+            setIsSaving(false);
           }
-        }, 1000);
+        }, 1500); // Increased debounce time to reduce API calls
 
         return () => clearTimeout(timeoutId);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [watch, updateProfileData]);
+  }, [watch, updateProfileData, isSaving]);
 
   const countries = [
     "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia",
@@ -134,11 +169,91 @@ export const BasicProfileSection: React.FC = () => {
   };
 
   const onSubmit = async (data: BasicProfileFormData) => {
+    if (isSaving) return; // Prevent duplicate submissions
+    
     try {
-      await updateProfileData('profile', {
-        ...data,
+      setIsSaving(true);
+      
+      // Validate required fields
+      if (!data.full_name?.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Full name is required.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.age || data.age <= 0) {
+        toast({
+          title: "Validation Error", 
+          description: "Age is required.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.gender) {
+        toast({
+          title: "Validation Error",
+          description: "Gender is required.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.country) {
+        toast({
+          title: "Validation Error",
+          description: "Country is required.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.city?.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "City is required.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.timezone) {
+        toast({
+          title: "Validation Error",
+          description: "Timezone is required.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Clean and prepare data for submission
+      const cleanData: any = {
+        full_name: data.full_name.trim(),
+        age: data.age,
+        gender: data.gender,
+        country: data.country,
+        city: data.city.trim(),
+        timezone: data.timezone,
         section_1_completed: true
-      });
+      };
+
+      // Only include optional fields if they have valid values
+      if (data.phone_number && data.phone_number.trim() !== '') {
+        cleanData.phone_number = data.phone_number.trim();
+      }
+
+      if (data.date_of_birth && data.date_of_birth.trim() !== '') {
+        const dateValue = new Date(data.date_of_birth);
+        if (!isNaN(dateValue.getTime())) {
+          cleanData.date_of_birth = data.date_of_birth;
+        }
+      }
+
+      console.log('Submitting basic profile data:', cleanData);
+      await updateProfileData('profile', cleanData);
       
       toast({
         title: "Basic profile saved!",
@@ -147,11 +262,14 @@ export const BasicProfileSection: React.FC = () => {
 
       setCurrentStep(currentStep + 1);
     } catch (error) {
+      console.error('Error saving basic profile:', error);
       toast({
         title: "Error saving profile",
         description: "Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -181,6 +299,7 @@ export const BasicProfileSection: React.FC = () => {
         description: "Your new profile picture has been saved.",
       });
     } catch (error) {
+      console.error('File upload error:', error);
       toast({
         title: "Upload failed",
         description: "Please try again.",
@@ -381,10 +500,10 @@ export const BasicProfileSection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete()}
+            disabled={!isSectionComplete() || isSaving}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save & Continue
+            {isSaving ? 'Saving...' : 'Save & Continue'}
           </Button>
         </div>
       </form>
