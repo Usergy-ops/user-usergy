@@ -1,3 +1,4 @@
+
 /**
  * Enhanced custom hook for centralized error handling
  */
@@ -84,7 +85,7 @@ export const useErrorHandler = () => {
         title: "Recovery Option",
         description: "Click to retry the operation",
         action: (
-          <ToastAction onClick={recoveryOptions.retry}>
+          <ToastAction altText="Retry operation" onClick={recoveryOptions.retry}>
             Retry
           </ToastAction>
         )
