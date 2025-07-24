@@ -1,79 +1,22 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import type { Database } from '@/integrations/supabase/types';
 
-interface ProfileData {
-  // Basic Profile
-  full_name?: string;
-  avatar_url?: string;
-  phone_number?: string;
-  date_of_birth?: string;
-  age?: number;
-  gender?: string;
-  country?: string;
-  city?: string;
-  timezone?: string;
-  
-  // Education & Work
-  education_level?: string;
-  field_of_study?: string;
-  job_title?: string;
-  employer?: string;
-  industry?: string;
-  work_role?: string;
-  company_size?: string;
-  household_income_range?: string;
-  
-  // Tech Fluency
-  technical_experience_level?: string;
-  ai_familiarity_level?: string;
-  
-  // Personal
-  bio?: string;
-  linkedin_url?: string;
-  twitter_url?: string;
-  github_url?: string;
-  portfolio_url?: string;
-  languages_spoken?: string[];
-  
-  // Completion tracking
-  completion_percentage?: number;
-  section_1_completed?: boolean;
-  section_2_completed?: boolean;
-  section_3_completed?: boolean;
-  section_4_completed?: boolean;
-  section_5_completed?: boolean;
-  section_6_completed?: boolean;
-}
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
-interface DeviceData {
-  operating_systems?: string[];
-  devices_owned?: string[];
-  mobile_manufacturers?: string[];
-  desktop_manufacturers?: string[];
-  email_clients?: string[];
-  streaming_subscriptions?: string[];
-  music_subscriptions?: string[];
-}
+type UserDevices = Database['public']['Tables']['user_devices']['Row'];
+type UserTechFluency = Database['public']['Tables']['user_tech_fluency']['Row'];
+type UserSkills = Database['public']['Tables']['user_skills']['Row'];
+type UserSocialPresence = Database['public']['Tables']['user_social_presence']['Row'];
 
-interface TechFluencyData {
-  ai_interests?: string[];
-  ai_models_used?: string[];
-  programming_languages?: string[];
-  coding_experience_years?: number;
-}
-
-interface SkillsData {
-  skills?: any;
-  interests?: string[];
-  product_categories?: string[];
-}
-
-interface SocialPresenceData {
-  other_social_networks?: any;
-  additional_links?: string[];
-}
+interface ProfileData extends Partial<Profile> {}
+interface DeviceData extends Partial<UserDevices> {}
+interface TechFluencyData extends Partial<UserTechFluency> {}
+interface SkillsData extends Partial<UserSkills> {}
+interface SocialPresenceData extends Partial<UserSocialPresence> {}
 
 interface ProfileContextType {
   profileData: ProfileData;
@@ -86,7 +29,7 @@ interface ProfileContextType {
   isProfileComplete: boolean;
   updateProfileData: (section: string, data: any) => Promise<void>;
   setCurrentStep: (step: number) => void;
-  calculateCompletion: () => Promise<void>;
+  calculateCompletion: () => number;
   uploadProfilePicture: (file: File) => Promise<string>;
 }
 
@@ -110,8 +53,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
 
+  const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
+
   // Calculate completion percentage based on mandatory fields
-  const calculateMandatoryCompletion = useCallback(() => {
+  const calculateCompletion = useCallback(() => {
     const mandatoryFields = {
       // Basic Profile (7 fields)
       full_name: profileData.full_name,
@@ -146,23 +91,22 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return value && value.toString().trim() !== '';
     }).length;
 
-    return Math.round((completedFields / totalFields) * 100);
-  }, [profileData, deviceData, techFluencyData]);
-
-  const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
-
-  // Load current step from localStorage
-  useEffect(() => {
-    const savedStep = localStorage.getItem('profileCurrentStep');
-    if (savedStep) {
-      setCurrentStep(parseInt(savedStep));
+    const percentage = Math.round((completedFields / totalFields) * 100);
+    
+    // Update completion percentage in state and database
+    if (user && percentage !== profileData.completion_percentage) {
+      setProfileData(prev => ({ ...prev, completion_percentage: percentage }));
+      supabase
+        .from('profiles')
+        .update({ completion_percentage: percentage } as ProfileUpdate)
+        .eq('user_id', user.id)
+        .then(() => {
+          console.log('Completion percentage updated:', percentage);
+        });
     }
-  }, []);
-
-  // Save current step to localStorage
-  useEffect(() => {
-    localStorage.setItem('profileCurrentStep', currentStep.toString());
-  }, [currentStep]);
+    
+    return percentage;
+  }, [profileData, deviceData, techFluencyData, user]);
 
   useEffect(() => {
     if (user) {
@@ -172,65 +116,46 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user]);
 
+  // Recalculate completion whenever data changes
+  useEffect(() => {
+    if (user && !loading) {
+      calculateCompletion();
+    }
+  }, [profileData, deviceData, techFluencyData, calculateCompletion, user, loading]);
+
   const loadProfileData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
 
-      // Load main profile data
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // Load all data in parallel
+      const [profileResult, devicesResult, techResult, skillsResult, socialResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('user_id', user.id).single(),
+        supabase.from('user_devices').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_tech_fluency').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_skills').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_social_presence').select('*').eq('user_id', user.id).maybeSingle()
+      ]);
 
-      if (profile) {
-        setProfileData(profile);
+      if (profileResult.data) {
+        setProfileData(profileResult.data);
       }
 
-      // Load device data
-      const { data: devices } = await supabase
-        .from('user_devices')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (devices) {
-        setDeviceData(devices);
+      if (devicesResult.data) {
+        setDeviceData(devicesResult.data);
       }
 
-      // Load tech fluency data
-      const { data: techFluency } = await supabase
-        .from('user_tech_fluency')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (techFluency) {
-        setTechFluencyData(techFluency);
+      if (techResult.data) {
+        setTechFluencyData(techResult.data);
       }
 
-      // Load skills data
-      const { data: skills } = await supabase
-        .from('user_skills')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (skills) {
-        setSkillsData(skills);
+      if (skillsResult.data) {
+        setSkillsData(skillsResult.data);
       }
 
-      // Load social presence data
-      const { data: socialPresence } = await supabase
-        .from('user_social_presence')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (socialPresence) {
-        setSocialPresenceData(socialPresence);
+      if (socialResult.data) {
+        setSocialPresenceData(socialResult.data);
       }
 
     } catch (error) {
@@ -246,13 +171,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       switch (section) {
         case 'profile':
+          const { completion_percentage, ...profileDataToSave } = data;
+          const profileUpdate: ProfileUpdate = profileDataToSave;
+          
           await supabase
             .from('profiles')
-            .upsert({ 
-              user_id: user.id, 
-              email: user.email || '',
-              ...data
-            });
+            .update(profileUpdate)
+            .eq('user_id', user.id);
           setProfileData(prev => ({ ...prev, ...data }));
           break;
 
@@ -296,30 +221,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;
       }
-
-      // Recalculate completion percentage
-      await calculateCompletion();
     } catch (error) {
       console.error('Error updating profile data:', error);
       throw error;
-    }
-  };
-
-  const calculateCompletion = async () => {
-    if (!user) return;
-
-    try {
-      const completionPercentage = calculateMandatoryCompletion();
-      
-      // Update the completion percentage in the profiles table
-      await supabase
-        .from('profiles')
-        .update({ completion_percentage: completionPercentage })
-        .eq('user_id', user.id);
-
-      setProfileData(prev => ({ ...prev, completion_percentage: completionPercentage }));
-    } catch (error) {
-      console.error('Error calculating completion:', error);
     }
   };
 
