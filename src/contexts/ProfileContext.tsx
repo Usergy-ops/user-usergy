@@ -69,9 +69,34 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
 
+  console.log('ProfileProvider state:', {
+    profileData: {
+      completion_percentage: profileData.completion_percentage,
+      section_4_completed: profileData.section_4_completed,
+      technical_experience_level: profileData.technical_experience_level,
+      ai_familiarity_level: profileData.ai_familiarity_level
+    },
+    techFluencyData: {
+      ai_interests: techFluencyData.ai_interests,
+      ai_models_used: techFluencyData.ai_models_used,
+      coding_experience_years: techFluencyData.coding_experience_years
+    },
+    isProfileComplete,
+    loading
+  });
+
   // Resume incomplete section based on completed sections
   const resumeIncompleteSection = useCallback(() => {
     if (!user) return;
+    
+    console.log('Resuming incomplete section, checking sections:', {
+      section_1_completed: profileData.section_1_completed,
+      section_2_completed: profileData.section_2_completed,
+      section_3_completed: profileData.section_3_completed,
+      section_4_completed: profileData.section_4_completed,
+      section_5_completed: profileData.section_5_completed,
+      section_6_completed: profileData.section_6_completed
+    });
     
     // Check which sections are completed and set the current step accordingly
     if (!profileData.section_1_completed) {
@@ -128,15 +153,28 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const percentage = Math.round((completedFields / totalFields) * 100);
     
+    console.log('Completion calculation:', {
+      mandatoryFields,
+      completedFields,
+      totalFields,
+      percentage,
+      currentStoredPercentage: profileData.completion_percentage
+    });
+    
     // Update completion percentage in state and database
     if (user && percentage !== profileData.completion_percentage) {
+      console.log('Updating completion percentage from', profileData.completion_percentage, 'to', percentage);
       setProfileData(prev => ({ ...prev, completion_percentage: percentage }));
       supabase
         .from('profiles')
         .update({ completion_percentage: percentage } as ProfileUpdate)
         .eq('user_id', user.id)
-        .then(() => {
-          console.log('Completion percentage updated:', percentage);
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error updating completion percentage:', error);
+          } else {
+            console.log('Completion percentage updated successfully:', percentage);
+          }
         });
     }
     
@@ -171,6 +209,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setLoading(true);
       monitoring.startTiming('profile_load');
+      
+      console.log('Loading profile data for user:', user.id);
 
       // Check rate limiting using unified system
       const rateLimitResult = await checkRateLimit(user.id, 'profile_load');
@@ -188,6 +228,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         supabase.from('user_skills').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('consolidated_social_presence').select('*').eq('user_id', user.id).maybeSingle()
       ]);
+
+      console.log('Profile data loaded:', {
+        profile: profileResult.data,
+        devices: devicesResult.data,
+        techFluency: techResult.data,
+        skills: skillsResult.data,
+        socialPresence: socialResult.data
+      });
 
       if (profileResult.data) {
         setProfileData(profileResult.data);
@@ -224,6 +272,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
     } catch (error) {
+      console.error('Error loading profile data:', error);
       await handleCentralizedError(error as Error, 'profile_load', user.id);
       handleError(error, 'ProfileContext.loadProfileData');
     } finally {
@@ -235,6 +284,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
 
     try {
+      console.log(`Updating ${section} with data:`, data);
       monitoring.startTiming(`profile_update_${section}`);
 
       // Check rate limiting using unified system
@@ -268,62 +318,96 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           validationResult = { isValid: true, errors: [] };
       }
 
+      console.log(`Validation result for ${section}:`, validationResult);
+
       if (!validationResult.isValid) {
         const error = createValidationError(validationResult.errors.join(', '), section, user.id);
         await handleCentralizedError(error, `profile_update_${section}`, user.id);
         throw error;
       }
 
+      let updateResult;
+      
       switch (section) {
         case 'profile':
           const { completion_percentage, ...profileDataToSave } = data;
           const profileUpdate: ProfileUpdate = profileDataToSave;
           
-          await supabase
+          updateResult = await supabase
             .from('profiles')
             .update(profileUpdate)
             .eq('user_id', user.id);
+          
+          if (updateResult.error) {
+            throw updateResult.error;
+          }
+          
           setProfileData(prev => ({ ...prev, ...data }));
+          console.log('Profile updated successfully');
           break;
 
         case 'devices':
-          await supabase
+          updateResult = await supabase
             .from('user_devices')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
+          
+          if (updateResult.error) {
+            throw updateResult.error;
+          }
+          
           setDeviceData(prev => ({ ...prev, ...data }));
+          console.log('Devices updated successfully');
           break;
 
         case 'tech_fluency':
-          await supabase
+          updateResult = await supabase
             .from('user_tech_fluency')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
+          
+          if (updateResult.error) {
+            throw updateResult.error;
+          }
+          
           setTechFluencyData(prev => ({ ...prev, ...data }));
+          console.log('Tech fluency updated successfully:', data);
           break;
 
         case 'skills':
-          await supabase
+          updateResult = await supabase
             .from('user_skills')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
+          
+          if (updateResult.error) {
+            throw updateResult.error;
+          }
+          
           setSkillsData(prev => ({ ...prev, ...data }));
+          console.log('Skills updated successfully');
           break;
 
         case 'social_presence':
-          await supabase
+          updateResult = await supabase
             .from('consolidated_social_presence')
             .upsert({ 
               user_id: user.id, 
               ...data
             });
+          
+          if (updateResult.error) {
+            throw updateResult.error;
+          }
+          
           setSocialPresenceData(prev => ({ ...prev, ...data }));
+          console.log('Social presence updated successfully');
           break;
       }
 
@@ -336,6 +420,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
     } catch (error) {
+      console.error(`Error updating ${section}:`, error);
       await handleCentralizedError(error as Error, `profile_update_${section}`, user.id);
       handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;

@@ -63,13 +63,19 @@ export const validateTechFluencyData = (data: any): ValidationResult => {
     errors.push('Coding experience must be between 0 and 50 years');
   }
 
-  // AI models and interests validation
+  // AI models and interests validation - FIXED: Allow empty arrays for optional fields
   const arrayFields = ['ai_models_used', 'ai_interests', 'programming_languages'];
   
   arrayFields.forEach(field => {
-    if (data[field] && (!Array.isArray(data[field]) || data[field].length === 0)) {
-      errors.push(`${field.replace('_', ' ')} must be a non-empty array`);
+    if (data[field] && !Array.isArray(data[field])) {
+      errors.push(`${field.replace('_', ' ')} must be an array`);
     }
+  });
+
+  console.log('TechFluencyData validation:', {
+    data,
+    errors,
+    isValid: errors.length === 0
   });
 
   return {
@@ -107,9 +113,9 @@ export const validateSkillsData = (data: any): ValidationResult => {
 export const validateSocialPresenceData = (data: any): ValidationResult => {
   const errors: string[] = [];
 
-  // Validate additional links array
-  if (data.additional_links && (!Array.isArray(data.additional_links) || data.additional_links.length === 0)) {
-    errors.push('Additional links must be a non-empty array');
+  // Validate additional links array - FIXED: Allow empty arrays
+  if (data.additional_links && !Array.isArray(data.additional_links)) {
+    errors.push('Additional links must be an array');
   }
 
   // Validate other social networks object

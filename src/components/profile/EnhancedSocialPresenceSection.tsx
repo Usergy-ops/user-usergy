@@ -283,16 +283,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
           </ul>
         </div>
 
-        <div className="flex justify-between items-center pt-4">
-          <Button 
-            type="button" 
-            variant="outline"
-            onClick={() => setCurrentStep(currentStep - 1)}
-            disabled={isSubmitting}
-          >
-            Previous
-          </Button>
-          
+        <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
             disabled={isSubmitting}

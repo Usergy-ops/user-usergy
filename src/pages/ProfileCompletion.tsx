@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,7 +6,7 @@ import { Header } from '@/components/Header';
 import { BasicProfileSection } from '@/components/profile/BasicProfileSection';
 import { DevicesSection } from '@/components/profile/DevicesSection';
 import { EducationWorkSection } from '@/components/profile/EducationWorkSection';
-import { TechFluencySection } from '@/components/profile/TechFluencySection';
+import { EnhancedTechFluencySection } from '@/components/profile/EnhancedTechFluencySection';
 import { EnhancedSocialPresenceSection } from '@/components/profile/EnhancedSocialPresenceSection';
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
@@ -25,6 +26,22 @@ const ProfileCompletion = () => {
     calculateCompletion,
     resumeIncompleteSection
   } = useProfile();
+
+  console.log('ProfileCompletion rendered with:', {
+    currentStep,
+    isProfileComplete,
+    profileData: {
+      completion_percentage: profileData.completion_percentage,
+      section_4_completed: profileData.section_4_completed,
+      technical_experience_level: profileData.technical_experience_level,
+      ai_familiarity_level: profileData.ai_familiarity_level
+    },
+    techFluencyData: {
+      ai_interests: techFluencyData.ai_interests,
+      ai_models_used: techFluencyData.ai_models_used,
+      coding_experience_years: techFluencyData.coding_experience_years
+    }
+  });
 
   // Calculate real-time completion percentage using the EXACT same logic as database function
   const calculateRealTimeCompletion = () => {
@@ -61,7 +78,16 @@ const ProfileCompletion = () => {
       return value && value.toString().trim() !== '';
     }).length;
 
-    return Math.round((completedFields / totalFields) * 100);
+    const percentage = Math.round((completedFields / totalFields) * 100);
+    
+    console.log('Real-time completion calculation:', {
+      mandatoryFields,
+      completedFields,
+      totalFields,
+      percentage
+    });
+    
+    return percentage;
   };
 
   const realTimeCompletion = calculateRealTimeCompletion();
@@ -215,7 +241,7 @@ const ProfileCompletion = () => {
               {currentStep === 1 && <BasicProfileSection key="basic-profile" />}
               {currentStep === 2 && <DevicesSection key="devices-section" />}
               {currentStep === 3 && <EducationWorkSection key="education-section" />}
-              {currentStep === 4 && <TechFluencySection key="tech-section" />}
+              {currentStep === 4 && <EnhancedTechFluencySection key="tech-section" />}
               {currentStep === 5 && <EnhancedSocialPresenceSection key="social-section" />}
               {currentStep === 6 && <SkillsInterestsSection key="skills-section" />}
             </div>
