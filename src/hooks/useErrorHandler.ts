@@ -83,14 +83,10 @@ export const useErrorHandler = () => {
       toast({
         title: "Recovery Option",
         description: "Click to retry the operation",
-        action: (
-          <button
-            onClick={recoveryOptions.retry}
-            className="text-sm font-medium"
-          >
-            Retry
-          </button>
-        )
+        action: {
+          altText: "Retry",
+          onClick: recoveryOptions.retry
+        }
       });
     }
   }, [handleError, toast]);
