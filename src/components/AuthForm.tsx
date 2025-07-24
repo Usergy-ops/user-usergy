@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,8 +36,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
   };
 
   const validatePassword = (password: string) => {
-    if (mode === 'signup' && password && password.length < 8) {
-      setPasswordError('Password should be at least 8 characters');
+    if (mode === 'signup' && password && password.length < 12) {
+      setPasswordError('Password should be at least 12 characters');
       return false;
     } else {
       setPasswordError('');
@@ -67,7 +68,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
     }
   };
 
-  const isFormValid = emailValid && (mode === 'signin' ? password : password.length >= 8);
+  const isFormValid = emailValid && (mode === 'signin' ? password : password.length >= 12);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -125,7 +126,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={handlePasswordChange}
-              placeholder={mode === 'signup' ? "Create a secure password" : "Enter your password"}
+              placeholder={mode === 'signup' ? "Create a secure password (12+ characters)" : "Enter your password"}
               className={cn(
                 "usergy-input pl-12 pr-12 w-full",
                 passwordError && "usergy-input-error"
@@ -141,7 +142,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, isLoading = 
             </button>
           </div>
           <label className="block text-sm font-medium text-muted-foreground ml-1">
-            {mode === 'signup' ? 'Create your secure password' : 'Your password'}
+            {mode === 'signup' ? 'Create your secure password (12+ characters)' : 'Your password'}
           </label>
           {passwordError && (
             <p className="text-sm text-destructive ml-1 animate-slide-up">{passwordError}</p>

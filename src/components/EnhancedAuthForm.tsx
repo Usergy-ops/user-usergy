@@ -220,14 +220,14 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({
         {/* Password Field */}
         <div className="space-y-2">
           <Label htmlFor="password" className="text-sm font-medium">
-            Password
+            Password {mode === 'signup' && '(12+ characters)'}
           </Label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="Enter your password"
+              placeholder={mode === 'signup' ? "Create a secure password (12+ characters)" : "Enter your password"}
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
               className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
