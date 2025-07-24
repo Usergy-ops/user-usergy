@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { validateEmail, validatePassword } from '@/utils/security';
 import { ValidationError, AuthError } from '@/utils/errorHandling';
-import { checkRateLimit } from '@/utils/consistentRateLimiting';
+import { checkEnhancedRateLimit } from '@/utils/enhancedRateLimiting';
+import { handleCentralizedError, createAuthenticationError, createRateLimitError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface AuthContextType {
@@ -72,23 +73,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_signup');
       
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(email, 'signup');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(email, 'signup');
       if (!rateLimitResult.allowed) {
+        const error = createRateLimitError(
+          `Too many signup attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'signup'
+        );
+        await handleCentralizedError(error, 'auth_signup', undefined, { email });
         return { 
-          error: `Too many signup attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          error: error.message,
           attemptsLeft: rateLimitResult.attemptsRemaining
         };
       }
 
       // Validate input
       if (!validateEmail(email)) {
-        throw new ValidationError('Invalid email format');
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_signup', undefined, { email });
+        return { error: error.message };
       }
       
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
-        throw new ValidationError(passwordValidation.errors.join(', '));
+        const error = createAuthenticationError(passwordValidation.errors.join(', '));
+        await handleCentralizedError(error, 'auth_signup', undefined, { email });
+        return { error: error.message };
       }
 
       console.log('Starting sign up process for:', email);
@@ -106,26 +116,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Sign up error:', error);
-        monitoring.logError(error, 'auth_signup_error', { email });
+        const authError = createAuthenticationError(error.message || 'Failed to send verification code');
+        await handleCentralizedError(authError, 'auth_signup', undefined, { email });
         
         // Handle rate limiting errors
         if (error.message?.includes('Too many')) {
           return { error: error.message };
         }
         
-        return { error: error.message || 'Failed to send verification code' };
+        return { error: authError.message };
       }
 
       if (data.error) {
         console.error('Sign up data error:', data.error);
-        monitoring.logError(new Error(data.error), 'auth_signup_data_error', { email });
+        const authError = createAuthenticationError(data.error);
+        await handleCentralizedError(authError, 'auth_signup', undefined, { email });
         
         // Handle rate limiting errors
         if (data.error.includes('Too many')) {
           return { error: data.error };
         }
         
-        return { error: data.error };
+        return { error: authError.message };
       }
 
       console.log('Sign up successful, OTP sent');
@@ -141,13 +153,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         attemptsLeft: data.attemptsLeft 
       };
     } catch (error) {
-      monitoring.logError(error as Error, 'auth_signup_error', { email });
-      
-      if (error instanceof ValidationError) {
-        return { error: error.message };
-      }
-      handleError(error, 'AuthContext.signUp');
-      return { error: 'An unexpected error occurred' };
+      const authError = createAuthenticationError('An unexpected error occurred during signup');
+      await handleCentralizedError(error as Error, 'auth_signup', undefined, { email });
+      return { error: authError.message };
     }
   };
 
@@ -155,21 +163,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_otp_verify');
       
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(email, 'otp_verify');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(email, 'otp_verify');
       if (!rateLimitResult.allowed) {
-        return { 
-          error: `Too many OTP verification attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`
-        };
+        const error = createRateLimitError(
+          `Too many OTP verification attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'otp_verify'
+        );
+        await handleCentralizedError(error, 'auth_otp_verify', undefined, { email });
+        return { error: error.message };
       }
 
       // Validate input
       if (!validateEmail(email)) {
-        throw new ValidationError('Invalid email format');
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_otp_verify', undefined, { email });
+        return { error: error.message };
       }
       
       if (!otp || otp.length !== 6) {
-        throw new ValidationError('OTP must be 6 digits');
+        const error = createAuthenticationError('OTP must be 6 digits');
+        await handleCentralizedError(error, 'auth_otp_verify', undefined, { email });
+        return { error: error.message };
       }
 
       console.log('Starting OTP verification for:', email);
@@ -187,26 +202,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('OTP verification error:', error);
-        monitoring.logError(error, 'auth_otp_verify_error', { email });
+        const authError = createAuthenticationError(error.message || 'Failed to verify code');
+        await handleCentralizedError(authError, 'auth_otp_verify', undefined, { email });
         
         // Handle rate limiting errors
         if (error.message?.includes('Too many') || error.message?.includes('blocked')) {
           return { error: error.message };
         }
         
-        return { error: error.message || 'Failed to verify code' };
+        return { error: authError.message };
       }
 
       if (data.error) {
         console.error('OTP verification data error:', data.error);
-        monitoring.logError(new Error(data.error), 'auth_otp_verify_data_error', { email });
+        const authError = createAuthenticationError(data.error);
+        await handleCentralizedError(authError, 'auth_otp_verify', undefined, { email });
         
         // Handle rate limiting and blocking errors
         if (data.error.includes('Too many') || data.error.includes('blocked')) {
           return { error: data.error };
         }
         
-        return { error: data.error };
+        return { error: authError.message };
       }
 
       // After successful verification, sign in the user
@@ -218,8 +235,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (signInError) {
         console.error('Post-verification sign in error:', signInError);
-        monitoring.logError(signInError, 'auth_post_verification_signin_error', { email });
-        return { error: signInError.message };
+        const authError = createAuthenticationError(signInError.message);
+        await handleCentralizedError(authError, 'auth_post_verification_signin', undefined, { email });
+        return { error: authError.message };
       }
 
       console.log('User signed in successfully after OTP verification');
@@ -232,13 +250,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return { error: undefined };
     } catch (error) {
-      monitoring.logError(error as Error, 'auth_otp_verify_error', { email });
-      
-      if (error instanceof ValidationError) {
-        return { error: error.message };
-      }
-      handleError(error, 'AuthContext.verifyOTP');
-      return { error: 'An unexpected error occurred' };
+      const authError = createAuthenticationError('An unexpected error occurred during OTP verification');
+      await handleCentralizedError(error as Error, 'auth_otp_verify', undefined, { email });
+      return { error: authError.message };
     }
   };
 
@@ -246,17 +260,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_otp_resend');
       
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(email, 'otp_resend');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(email, 'otp_resend');
       if (!rateLimitResult.allowed) {
-        return { 
-          error: `Too many OTP resend attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`
-        };
+        const error = createRateLimitError(
+          `Too many OTP resend attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'otp_resend'
+        );
+        await handleCentralizedError(error, 'auth_otp_resend', undefined, { email });
+        return { error: error.message };
       }
 
       // Validate input
       if (!validateEmail(email)) {
-        throw new ValidationError('Invalid email format');
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_otp_resend', undefined, { email });
+        return { error: error.message };
       }
 
       console.log('Resending OTP for:', email);
@@ -272,26 +291,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Resend OTP error:', error);
-        monitoring.logError(error, 'auth_otp_resend_error', { email });
+        const authError = createAuthenticationError(error.message || 'Failed to resend code');
+        await handleCentralizedError(authError, 'auth_otp_resend', undefined, { email });
         
         // Handle rate limiting errors
         if (error.message?.includes('Too many')) {
           return { error: error.message };
         }
         
-        return { error: error.message || 'Failed to resend code' };
+        return { error: authError.message };
       }
 
       if (data.error) {
         console.error('Resend OTP data error:', data.error);
-        monitoring.logError(new Error(data.error), 'auth_otp_resend_data_error', { email });
+        const authError = createAuthenticationError(data.error);
+        await handleCentralizedError(authError, 'auth_otp_resend', undefined, { email });
         
         // Handle rate limiting errors
         if (data.error.includes('Too many')) {
           return { error: data.error };
         }
         
-        return { error: data.error };
+        return { error: authError.message };
       }
 
       console.log('OTP resent successfully');
@@ -307,13 +328,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         attemptsLeft: data.attemptsLeft 
       };
     } catch (error) {
-      monitoring.logError(error as Error, 'auth_otp_resend_error', { email });
-      
-      if (error instanceof ValidationError) {
-        return { error: error.message };
-      }
-      handleError(error, 'AuthContext.resendOTP');
-      return { error: 'An unexpected error occurred' };
+      const authError = createAuthenticationError('An unexpected error occurred during OTP resend');
+      await handleCentralizedError(error as Error, 'auth_otp_resend', undefined, { email });
+      return { error: authError.message };
     }
   };
 
@@ -321,21 +338,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_signin');
       
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(email, 'signin');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(email, 'signin');
       if (!rateLimitResult.allowed) {
-        return { 
-          error: `Too many signin attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`
-        };
+        const error = createRateLimitError(
+          `Too many signin attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'signin'
+        );
+        await handleCentralizedError(error, 'auth_signin', undefined, { email });
+        return { error: error.message };
       }
 
       // Validate input
       if (!validateEmail(email)) {
-        throw new ValidationError('Invalid email format');
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_signin', undefined, { email });
+        return { error: error.message };
       }
       
       if (!password) {
-        throw new ValidationError('Password is required');
+        const error = createAuthenticationError('Password is required');
+        await handleCentralizedError(error, 'auth_signin', undefined, { email });
+        return { error: error.message };
       }
 
       console.log('Starting sign in for:', email);
@@ -347,8 +371,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Sign in error:', error);
-        monitoring.logError(error, 'auth_signin_error', { email });
-        return { error: error.message };
+        const authError = createAuthenticationError(error.message);
+        await handleCentralizedError(authError, 'auth_signin', undefined, { email });
+        return { error: authError.message };
       }
 
       console.log('Sign in successful');
@@ -361,13 +386,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return { error: undefined };
     } catch (error) {
-      monitoring.logError(error as Error, 'auth_signin_error', { email });
-      
-      if (error instanceof ValidationError) {
-        return { error: error.message };
-      }
-      handleError(error, 'AuthContext.signIn');
-      return { error: 'An unexpected error occurred' };
+      const authError = createAuthenticationError('An unexpected error occurred during signin');
+      await handleCentralizedError(error as Error, 'auth_signin', undefined, { email });
+      return { error: authError.message };
     }
   };
 
@@ -383,8 +404,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       trackUserAction('signout_successful', {});
       
     } catch (error) {
-      monitoring.logError(error as Error, 'auth_signout_error', {});
-      handleError(error, 'AuthContext.signOut');
+      await handleCentralizedError(error as Error, 'auth_signout');
     }
   };
 
@@ -392,17 +412,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_password_reset');
       
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(email, 'password_reset');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(email, 'password_reset');
       if (!rateLimitResult.allowed) {
-        return { 
-          error: `Too many password reset attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`
-        };
+        const error = createRateLimitError(
+          `Too many password reset attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'password_reset'
+        );
+        await handleCentralizedError(error, 'auth_password_reset', undefined, { email });
+        return { error: error.message };
       }
 
       // Validate input
       if (!validateEmail(email)) {
-        throw new ValidationError('Invalid email format');
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_password_reset', undefined, { email });
+        return { error: error.message };
       }
 
       console.log('Resetting password for:', email);
@@ -415,8 +440,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Reset password error:', error);
-        monitoring.logError(error, 'auth_password_reset_error', { email });
-        return { error: error.message };
+        const authError = createAuthenticationError(error.message);
+        await handleCentralizedError(authError, 'auth_password_reset', undefined, { email });
+        return { error: authError.message };
       }
 
       console.log('Password reset email sent');
@@ -429,13 +455,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return { error: undefined };
     } catch (error) {
-      monitoring.logError(error as Error, 'auth_password_reset_error', { email });
-      
-      if (error instanceof ValidationError) {
-        return { error: error.message };
-      }
-      handleError(error, 'AuthContext.resetPassword');
-      return { error: 'An unexpected error occurred' };
+      const authError = createAuthenticationError('An unexpected error occurred during password reset');
+      await handleCentralizedError(error as Error, 'auth_password_reset', undefined, { email });
+      return { error: authError.message };
     }
   };
 

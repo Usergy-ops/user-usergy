@@ -14,6 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
+      consolidated_social_presence: {
+        Row: {
+          additional_links: string[] | null
+          created_at: string | null
+          github_url: string | null
+          id: string
+          linkedin_url: string | null
+          metadata: Json | null
+          other_social_networks: Json | null
+          portfolio_url: string | null
+          twitter_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          additional_links?: string[] | null
+          created_at?: string | null
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          metadata?: Json | null
+          other_social_networks?: Json | null
+          portfolio_url?: string | null
+          twitter_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          additional_links?: string[] | null
+          created_at?: string | null
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          metadata?: Json | null
+          other_social_networks?: Json | null
+          portfolio_url?: string | null
+          twitter_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      enhanced_rate_limits: {
+        Row: {
+          action: string
+          attempts: number | null
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          identifier: string
+          metadata: Json | null
+          updated_at: string | null
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          action: string
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier: string
+          metadata?: Json | null
+          updated_at?: string | null
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          action?: string
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier?: string
+          metadata?: Json | null
+          updated_at?: string | null
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
+      error_logs: {
+        Row: {
+          context: string | null
+          created_at: string | null
+          error_message: string
+          error_stack: string | null
+          error_type: string
+          id: string
+          metadata: Json | null
+          resolved: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string | null
+          error_message: string
+          error_stack?: string | null
+          error_type: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: string | null
+          created_at?: string | null
+          error_message?: string
+          error_stack?: string | null
+          error_type?: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null
@@ -385,6 +502,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_old_enhanced_rate_limits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_error_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_old_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -392,6 +517,10 @@ export type Database = {
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      validate_password_strength: {
+        Args: { password: string }
+        Returns: boolean
       }
     }
     Enums: {

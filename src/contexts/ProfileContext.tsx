@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -11,7 +10,8 @@ import {
   validateSocialPresenceData 
 } from '@/utils/dataValidation';
 import { ValidationError } from '@/utils/errorHandling';
-import { checkRateLimit } from '@/utils/consistentRateLimiting';
+import { checkEnhancedRateLimit } from '@/utils/enhancedRateLimiting';
+import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -173,10 +173,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(true);
       monitoring.startTiming('profile_load');
 
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(user.id, 'profile_load');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(user.id, 'profile_load');
       if (!rateLimitResult.allowed) {
-        throw new Error('Too many profile load requests. Please try again later.');
+        const error = createDatabaseError('Too many profile load requests. Please try again later.', 'profile_load', user.id);
+        await handleCentralizedError(error, 'profile_load', user.id);
+        throw error;
       }
 
       // Load all data in parallel
@@ -223,9 +225,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
     } catch (error) {
-      monitoring.logError(error as Error, 'profile_load_error', {
-        user_id: user.id
-      });
+      await handleCentralizedError(error as Error, 'profile_load', user.id);
       handleError(error, 'ProfileContext.loadProfileData');
     } finally {
       setLoading(false);
@@ -238,10 +238,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       monitoring.startTiming(`profile_update_${section}`);
 
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(user.id, 'profile_update');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(user.id, 'profile_update');
       if (!rateLimitResult.allowed) {
-        throw new Error('Too many profile update requests. Please try again later.');
+        const error = createDatabaseError('Too many profile update requests. Please try again later.', 'profile_update', user.id);
+        await handleCentralizedError(error, `profile_update_${section}`, user.id);
+        throw error;
       }
 
       // Validate data before updating
@@ -268,7 +270,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       if (!validationResult.isValid) {
-        throw new ValidationError(validationResult.errors.join(', '));
+        const error = createValidationError(validationResult.errors.join(', '), section, user.id);
+        await handleCentralizedError(error, `profile_update_${section}`, user.id);
+        throw error;
       }
 
       switch (section) {
@@ -333,11 +337,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
     } catch (error) {
-      monitoring.logError(error as Error, `profile_update_error_${section}`, {
-        user_id: user.id,
-        section,
-        data
-      });
+      await handleCentralizedError(error as Error, `profile_update_${section}`, user.id);
       handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;
     }
@@ -349,10 +349,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       monitoring.startTiming('profile_picture_upload');
 
-      // Check rate limiting
-      const rateLimitResult = await checkRateLimit(user.id, 'file_upload');
+      // Check enhanced rate limiting
+      const rateLimitResult = await checkEnhancedRateLimit(user.id, 'file_upload');
       if (!rateLimitResult.allowed) {
-        throw new Error('Too many file upload requests. Please try again later.');
+        const error = createDatabaseError('Too many file upload requests. Please try again later.', 'file_upload', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
       }
 
       // Validate file
@@ -360,11 +362,15 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
       
       if (file.size > maxSize) {
-        throw new ValidationError('File size must be less than 5MB');
+        const error = createValidationError('File size must be less than 5MB', 'file_size', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
       }
       
       if (!allowedTypes.includes(file.type)) {
-        throw new ValidationError('File must be a JPEG, PNG, or WebP image');
+        const error = createValidationError('File must be a JPEG, PNG, or WebP image', 'file_type', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
       }
 
       const fileExt = file.name.split('.').pop();
@@ -375,7 +381,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) {
-        throw uploadError;
+        const error = createDatabaseError(uploadError.message, 'file_upload', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
       }
 
       const { data } = supabase.storage
@@ -392,11 +400,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       return data.publicUrl;
     } catch (error) {
-      monitoring.logError(error as Error, 'profile_picture_upload_error', {
-        user_id: user.id,
-        file_size: file.size,
-        file_type: file.type
-      });
+      await handleCentralizedError(error as Error, 'profile_picture_upload', user.id);
       handleError(error, 'ProfileContext.uploadProfilePicture');
       throw error;
     }
