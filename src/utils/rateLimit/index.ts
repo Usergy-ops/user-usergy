@@ -19,6 +19,17 @@ export const checkRateLimit = async (
 };
 
 /**
+ * Check rate limit with enhanced controls (alias for checkRateLimit)
+ */
+export const checkEnhancedRateLimit = async (
+  identifier: string,
+  action: string,
+  customConfig?: RateLimitConfig
+): Promise<RateLimitResult> => {
+  return rateLimitManager.checkLimit(identifier, action, true, customConfig);
+};
+
+/**
  * Check rate limit with standard controls
  */
 export const checkStandardRateLimit = async (
