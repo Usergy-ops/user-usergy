@@ -1,6 +1,6 @@
 
 /**
- * Centralized error handling utilities with enhanced monitoring
+ * Enhanced centralized error handling utilities with monitoring
  */
 
 import { monitoring } from './monitoring';

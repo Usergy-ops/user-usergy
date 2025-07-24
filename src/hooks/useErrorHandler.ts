@@ -1,17 +1,25 @@
 
 /**
- * Custom hook for centralized error handling
+ * Enhanced custom hook for centralized error handling
  */
 
 import { useToast } from '@/hooks/use-toast';
 import { useCallback } from 'react';
 import { handleSupabaseError, logError, ValidationError, DatabaseError, AuthError } from '@/utils/errorHandling';
+import { monitoring } from '@/utils/monitoring';
 
 export const useErrorHandler = () => {
   const { toast } = useToast();
 
   const handleError = useCallback((error: any, context?: string) => {
     logError(error, context);
+
+    // Track error occurrence
+    monitoring.recordMetric('error_handled', 1, {
+      error_type: error.constructor.name,
+      context: context || 'unknown',
+      has_message: error.message ? 'true' : 'false'
+    });
 
     if (error instanceof ValidationError) {
       toast({
@@ -42,7 +50,7 @@ export const useErrorHandler = () => {
 
     // Handle Supabase errors
     if (error.code || error.details) {
-      const apiError = handleSupabaseError(error);
+      const apiError = handleSupabaseError(error, context);
       toast({
         title: "Error",
         description: apiError.message,
@@ -59,5 +67,29 @@ export const useErrorHandler = () => {
     });
   }, [toast]);
 
-  return { handleError };
+  const handleErrorWithRecovery = useCallback((
+    error: any,
+    context?: string,
+    recoveryOptions?: {
+      retry?: () => void;
+      fallback?: () => void;
+      redirect?: string;
+    }
+  ) => {
+    handleError(error, context);
+
+    // Show recovery options if available
+    if (recoveryOptions?.retry) {
+      toast({
+        title: "Recovery Option",
+        description: "Click to retry the operation",
+        action: {
+          altText: "Retry",
+          onClick: recoveryOptions.retry
+        }
+      });
+    }
+  }, [handleError, toast]);
+
+  return { handleError, handleErrorWithRecovery };
 };
