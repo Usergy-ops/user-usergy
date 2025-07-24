@@ -59,7 +59,7 @@ export const sanitizeForDatabase = (input: string): string => {
 
 // Advanced validation engine
 export const validateInput = (data: Record<string, any>, schema: ValidationSchema): ValidationResult => {
-  const errors: Record<string, string> = {};
+  const errors: string[] = [];
   const sanitizedData: Record<string, any> = {};
   
   for (const [field, rule] of Object.entries(schema)) {
@@ -67,7 +67,7 @@ export const validateInput = (data: Record<string, any>, schema: ValidationSchem
     
     // Check required fields
     if (rule.required && (value === undefined || value === null || value === '')) {
-      errors[field] = `${field} is required`;
+      errors.push(`${field} is required`);
       continue;
     }
     
@@ -86,24 +86,24 @@ export const validateInput = (data: Record<string, any>, schema: ValidationSchem
     // String validation
     if (typeof processedValue === 'string') {
       if (rule.minLength && processedValue.length < rule.minLength) {
-        errors[field] = `${field} must be at least ${rule.minLength} characters`;
+        errors.push(`${field} must be at least ${rule.minLength} characters`);
         continue;
       }
       
       if (rule.maxLength && processedValue.length > rule.maxLength) {
-        errors[field] = `${field} cannot exceed ${rule.maxLength} characters`;
+        errors.push(`${field} cannot exceed ${rule.maxLength} characters`);
         continue;
       }
       
       if (rule.pattern && !rule.pattern.test(processedValue)) {
-        errors[field] = `${field} format is invalid`;
+        errors.push(`${field} format is invalid`);
         continue;
       }
     }
     
     // Custom validation
     if (rule.customValidator && !rule.customValidator(processedValue)) {
-      errors[field] = `${field} validation failed`;
+      errors.push(`${field} validation failed`);
       continue;
     }
     
@@ -112,13 +112,13 @@ export const validateInput = (data: Record<string, any>, schema: ValidationSchem
   
   // Log validation attempts
   monitoring.recordMetric('input_validation', 1, {
-    valid: Object.keys(errors).length === 0 ? 'true' : 'false',
-    error_count: Object.keys(errors).length.toString(),
+    valid: errors.length === 0 ? 'true' : 'false',
+    error_count: errors.length.toString(),
     field_count: Object.keys(schema).length.toString()
   });
   
   return {
-    isValid: Object.keys(errors).length === 0,
+    isValid: errors.length === 0,
     errors,
     sanitizedData
   };
@@ -155,7 +155,7 @@ export const useRealTimeValidation = (schema: ValidationSchema) => {
     const result = validateInput(fieldData, fieldSchema);
     return {
       isValid: result.isValid,
-      error: result.errors[field] || null,
+      error: result.errors.length > 0 ? result.errors[0] : null,
       sanitizedValue: result.sanitizedData[field]
     };
   };
@@ -176,7 +176,7 @@ export const createContextualValidator = (context: string) => {
     monitoring.recordMetric('contextual_validation', 1, {
       context,
       valid: result.isValid ? 'true' : 'false',
-      error_count: Object.keys(result.errors).length.toString()
+      error_count: result.errors.length.toString()
     });
     
     if (!result.isValid) {

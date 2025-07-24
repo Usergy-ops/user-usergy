@@ -78,28 +78,28 @@ export const ValidationAlert: React.FC<ValidationAlertProps> = ({
 };
 
 interface ValidationSummaryProps {
-  errors: Record<string, string>;
-  warnings?: Record<string, string>;
+  errors: string[];
+  warnings?: string[];
   onFieldFocus?: (field: string) => void;
 }
 
 export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
   errors,
-  warnings = {},
+  warnings = [],
   onFieldFocus
 }) => {
-  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
-  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+  const [dismissedErrors, setDismissedErrors] = useState<Set<number>>(new Set());
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<number>>(new Set());
 
-  const visibleErrors = Object.entries(errors).filter(([field]) => !dismissedErrors.has(field));
-  const visibleWarnings = Object.entries(warnings).filter(([field]) => !dismissedWarnings.has(field));
+  const visibleErrors = errors.filter((_, index) => !dismissedErrors.has(index));
+  const visibleWarnings = warnings.filter((_, index) => !dismissedWarnings.has(index));
 
-  const dismissError = (field: string) => {
-    setDismissedErrors(prev => new Set(prev).add(field));
+  const dismissError = (index: number) => {
+    setDismissedErrors(prev => new Set(prev).add(index));
   };
 
-  const dismissWarning = (field: string) => {
-    setDismissedWarnings(prev => new Set(prev).add(field));
+  const dismissWarning = (index: number) => {
+    setDismissedWarnings(prev => new Set(prev).add(index));
   };
 
   if (visibleErrors.length === 0 && visibleWarnings.length === 0) {
@@ -115,37 +115,23 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {visibleErrors.map(([field, error]) => (
+        {visibleErrors.map((error, index) => (
           <ValidationAlert
-            key={field}
+            key={index}
             type="error"
-            title={`${field.replace('_', ' ').toUpperCase()}`}
+            title="Validation Error"
             message={error}
-            onDismiss={() => dismissError(field)}
-            actions={onFieldFocus ? [
-              {
-                label: 'Go to field',
-                onClick: () => onFieldFocus(field),
-                variant: 'outline'
-              }
-            ] : []}
+            onDismiss={() => dismissError(index)}
           />
         ))}
         
-        {visibleWarnings.map(([field, warning]) => (
+        {visibleWarnings.map((warning, index) => (
           <ValidationAlert
-            key={field}
+            key={index}
             type="warning"
-            title={`${field.replace('_', ' ').toUpperCase()}`}
+            title="Validation Warning"
             message={warning}
-            onDismiss={() => dismissWarning(field)}
-            actions={onFieldFocus ? [
-              {
-                label: 'Go to field',
-                onClick: () => onFieldFocus(field),
-                variant: 'outline'
-              }
-            ] : []}
+            onDismiss={() => dismissWarning(index)}
           />
         ))}
       </CardContent>
@@ -216,19 +202,19 @@ export const RealTimeValidation: React.FC<RealTimeValidationProps> = ({
 interface ValidationProgressProps {
   completedFields: number;
   totalFields: number;
-  errors: Record<string, string>;
-  warnings?: Record<string, string>;
+  errors: string[];
+  warnings?: string[];
 }
 
 export const ValidationProgress: React.FC<ValidationProgressProps> = ({
   completedFields,
   totalFields,
   errors,
-  warnings = {}
+  warnings = []
 }) => {
   const progressPercentage = (completedFields / totalFields) * 100;
-  const errorCount = Object.keys(errors).length;
-  const warningCount = Object.keys(warnings).length;
+  const errorCount = errors.length;
+  const warningCount = warnings.length;
 
   const getProgressColor = () => {
     if (errorCount > 0) return 'bg-destructive';
@@ -291,8 +277,8 @@ export const ValidationProgress: React.FC<ValidationProgressProps> = ({
 // Enhanced form validation hook
 export const useEnhancedFormValidation = (schema: any) => {
   const [data, setData] = useState<Record<string, any>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [warnings, setWarnings] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [touched, setTouched] = useState<Set<string>>(new Set());
 
   const validateForm = (formData: Record<string, any>) => {
@@ -306,10 +292,24 @@ export const useEnhancedFormValidation = (schema: any) => {
     const fieldData = { [field]: value };
     const result = validateInput(fieldData, fieldSchema);
     
-    setErrors(prev => ({
-      ...prev,
-      [field]: result.errors[field] || ''
-    }));
+    setErrors(prev => {
+      const newErrors = [...prev];
+      const fieldErrorIndex = newErrors.findIndex(error => error.includes(field));
+      
+      if (result.errors.length > 0) {
+        if (fieldErrorIndex >= 0) {
+          newErrors[fieldErrorIndex] = result.errors[0];
+        } else {
+          newErrors.push(result.errors[0]);
+        }
+      } else {
+        if (fieldErrorIndex >= 0) {
+          newErrors.splice(fieldErrorIndex, 1);
+        }
+      }
+      
+      return newErrors;
+    });
     
     return result;
   };
@@ -330,8 +330,8 @@ export const useEnhancedFormValidation = (schema: any) => {
   };
 
   const resetValidation = () => {
-    setErrors({});
-    setWarnings({});
+    setErrors([]);
+    setWarnings([]);
     setTouched(new Set());
   };
 
@@ -345,6 +345,6 @@ export const useEnhancedFormValidation = (schema: any) => {
     handleFieldChange,
     handleFieldBlur,
     resetValidation,
-    isValid: Object.keys(errors).length === 0
+    isValid: errors.length === 0
   };
 };
