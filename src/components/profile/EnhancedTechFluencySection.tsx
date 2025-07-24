@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -68,14 +67,30 @@ export const EnhancedTechFluencySection: React.FC = () => {
     try {
       const saved = localStorage.getItem(AUTO_SAVE_KEY);
       if (saved) {
-        const parsedData = JSON.parse(saved);
+        const parsedData = JSON.parse(saved) as TechFluencyFormData;
         console.log('Loaded from localStorage:', parsedData);
         
         // Only restore if we have some data but current form is empty
         if (parsedData.ai_interests?.length > 0 && (!techFluencyData.ai_interests || techFluencyData.ai_interests.length === 0)) {
-          Object.entries(parsedData).forEach(([key, value]) => {
-            setValue(key as keyof TechFluencyFormData, value);
-          });
+          // Type-safe setValue calls
+          if (parsedData.technical_experience_level) {
+            setValue('technical_experience_level', parsedData.technical_experience_level);
+          }
+          if (parsedData.ai_familiarity_level) {
+            setValue('ai_familiarity_level', parsedData.ai_familiarity_level);
+          }
+          if (parsedData.ai_interests) {
+            setValue('ai_interests', parsedData.ai_interests);
+          }
+          if (parsedData.ai_models_used) {
+            setValue('ai_models_used', parsedData.ai_models_used);
+          }
+          if (parsedData.programming_languages) {
+            setValue('programming_languages', parsedData.programming_languages);
+          }
+          if (parsedData.coding_experience_years !== undefined) {
+            setValue('coding_experience_years', parsedData.coding_experience_years);
+          }
           
           toast({
             title: "Form data restored",
