@@ -14,12 +14,20 @@ import {
 } from '@/utils/socialPresenceUtils';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
+// Define a more specific type for the form data to avoid the type error
+interface SocialFormData {
+  linkedin_url: string;
+  github_url: string;
+  twitter_url: string;
+  portfolio_url: string;
+}
+
 export const EnhancedSocialPresenceSection: React.FC = () => {
   const { profileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [formData, setFormData] = useState<SocialPresenceData>({
+  const [formData, setFormData] = useState<SocialFormData>({
     linkedin_url: '',
     github_url: '',
     twitter_url: '',
@@ -58,7 +66,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     loadExistingData();
   }, [profileData.user_id]);
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof SocialFormData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -73,7 +81,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     }
   };
 
-  const handleInputBlur = (field: string, value: string) => {
+  const handleInputBlur = (field: keyof SocialFormData, value: string) => {
     if (value) {
       const validation = validateSocialUrls({ [field]: value });
       if (!validation.isValid && validation.errors[field]) {
@@ -102,8 +110,16 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     try {
       monitoring.startTiming('social_presence_save');
       
+      // Convert form data to SocialPresenceData format
+      const socialPresenceData: SocialPresenceData = {
+        linkedin_url: formData.linkedin_url,
+        github_url: formData.github_url,
+        twitter_url: formData.twitter_url,
+        portfolio_url: formData.portfolio_url
+      };
+      
       // Validate all URLs
-      const validation = validateSocialUrls(formData);
+      const validation = validateSocialUrls(socialPresenceData);
       if (!validation.isValid) {
         setErrors(validation.errors);
         setIsSubmitting(false);
@@ -111,7 +127,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       }
       
       // Save social presence data
-      const result = await saveSocialPresence(profileData.user_id, formData);
+      const result = await saveSocialPresence(profileData.user_id, socialPresenceData);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to save social presence');
@@ -148,7 +164,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
 
   const socialPlatforms = [
     {
-      name: 'linkedin_url',
+      name: 'linkedin_url' as keyof SocialFormData,
       label: 'LinkedIn Profile',
       icon: Linkedin,
       iconColor: 'text-blue-600',
@@ -156,7 +172,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       description: 'Your professional LinkedIn profile'
     },
     {
-      name: 'github_url',
+      name: 'github_url' as keyof SocialFormData,
       label: 'GitHub Profile',
       icon: Github,
       iconColor: 'text-gray-800',
@@ -164,7 +180,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       description: 'Your GitHub developer profile'
     },
     {
-      name: 'twitter_url',
+      name: 'twitter_url' as keyof SocialFormData,
       label: 'Twitter/X Profile',
       icon: Twitter,
       iconColor: 'text-blue-400',
@@ -172,7 +188,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       description: 'Your Twitter/X social profile'
     },
     {
-      name: 'portfolio_url',
+      name: 'portfolio_url' as keyof SocialFormData,
       label: 'Portfolio/Website',
       icon: Link,
       iconColor: 'text-primary',
@@ -204,7 +220,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       <form onSubmit={onSubmit} className="space-y-6">
         <div className="space-y-4">
           {socialPlatforms.map((platform) => {
-            const currentValue = formData[platform.name as keyof SocialPresenceData] || '';
+            const currentValue = formData[platform.name] || '';
             const hasError = errors[platform.name];
             const isValidURL = !currentValue || !hasError;
             
