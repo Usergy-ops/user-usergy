@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { validateURL, normalizeURL } from './security';
 import { handleCentralizedError, createValidationError, createDatabaseError } from './centralizedErrorHandling';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface ConsolidatedSocialPresenceData {
   linkedin_url?: string;
@@ -33,14 +34,30 @@ export interface ConsolidatedSocialPresenceResult {
   };
 }
 
-// Type guard for metadata
-const isMetadataObject = (value: any): value is Record<string, any> => {
+// Enhanced type guard for metadata objects
+const isMetadataObject = (value: Json): value is Record<string, Json> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 };
 
-// Type guard for other social networks
-const isOtherSocialNetworksObject = (value: any): value is Record<string, any> => {
+// Enhanced type guard for other social networks
+const isOtherSocialNetworksObject = (value: Json): value is Record<string, Json> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
+// Safe accessor for nested Json properties
+const getJsonProperty = (obj: Json, key: string): Json | undefined => {
+  if (isMetadataObject(obj)) {
+    return obj[key];
+  }
+  return undefined;
+};
+
+// Safe number extraction from Json
+const getNumberFromJson = (value: Json): number => {
+  if (typeof value === 'number') {
+    return value;
+  }
+  return 0;
 };
 
 /**
@@ -222,9 +239,13 @@ export const loadConsolidatedSocialPresence = async (
       return { data: null };
     }
     
-    // Safely extract metadata with type guards
+    // Safely extract metadata with improved type guards
     const metadata = isMetadataObject(data.metadata) ? data.metadata : {};
     const otherSocialNetworks = isOtherSocialNetworksObject(data.other_social_networks) ? data.other_social_networks : {};
+    
+    // Safe extraction of profiles_count from metadata
+    const profilesCountValue = getJsonProperty(metadata, 'profiles_count');
+    const profilesCount = getNumberFromJson(profilesCountValue);
     
     // Transform data to result format
     const result: ConsolidatedSocialPresenceResult = {
@@ -238,8 +259,8 @@ export const loadConsolidatedSocialPresence = async (
       other_social_networks: otherSocialNetworks,
       metadata: {
         last_updated: data.updated_at || new Date().toISOString(),
-        profiles_count: typeof metadata.profiles_count === 'number' ? metadata.profiles_count : 0,
-        is_complete: typeof metadata.profiles_count === 'number' ? metadata.profiles_count > 0 : false
+        profiles_count: profilesCount,
+        is_complete: profilesCount > 0
       }
     };
     

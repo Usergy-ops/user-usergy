@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { monitoring } from './monitoring';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface EnhancedRateLimitConfig {
   maxAttempts: number;
@@ -25,9 +26,25 @@ export interface EnhancedRateLimitResult {
   escalationLevel?: number;
 }
 
-// Type guard for metadata
-const isMetadataObject = (value: any): value is Record<string, any> => {
+// Enhanced type guard for metadata objects
+const isMetadataObject = (value: Json): value is Record<string, Json> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
+// Safe accessor for nested Json properties
+const getJsonProperty = (obj: Json, key: string): Json | undefined => {
+  if (isMetadataObject(obj)) {
+    return obj[key];
+  }
+  return undefined;
+};
+
+// Safe number extraction from Json
+const getNumberFromJson = (value: Json): number => {
+  if (typeof value === 'number') {
+    return value;
+  }
+  return 0;
 };
 
 // Enhanced rate limit configurations with escalation
@@ -130,8 +147,10 @@ export const checkEnhancedRateLimit = async (
     
     // Check if currently blocked
     if (existingRecord?.blocked_until && new Date(existingRecord.blocked_until) > now) {
-      // Safely extract metadata with type guard
+      // Safely extract metadata with improved type guards
       const metadata = isMetadataObject(existingRecord.metadata) ? existingRecord.metadata : {};
+      const escalationLevelValue = getJsonProperty(metadata, 'escalationLevel');
+      const escalationLevel = getNumberFromJson(escalationLevelValue);
       
       const result = {
         allowed: false,
@@ -139,13 +158,13 @@ export const checkEnhancedRateLimit = async (
         resetTime: new Date(existingRecord.blocked_until),
         blocked: true,
         blockedUntil: new Date(existingRecord.blocked_until),
-        escalationLevel: typeof metadata.escalationLevel === 'number' ? metadata.escalationLevel : 0
+        escalationLevel
       };
       
       monitoring.recordMetric('enhanced_rate_limit_blocked', 1, {
         action,
         identifier_type: identifier.includes('@') ? 'email' : 'user_id',
-        escalation_level: result.escalationLevel?.toString() || '0'
+        escalation_level: escalationLevel.toString()
       });
       
       return result;
@@ -155,9 +174,10 @@ export const checkEnhancedRateLimit = async (
       const newAttempts = existingRecord.attempts + 1;
       let blockDuration = config.blockDurationMinutes || 60;
       
-      // Safely extract metadata with type guard
+      // Safely extract metadata with improved type guards
       const existingMetadata = isMetadataObject(existingRecord.metadata) ? existingRecord.metadata : {};
-      let escalationLevel = typeof existingMetadata.escalationLevel === 'number' ? existingMetadata.escalationLevel : 0;
+      const escalationLevelValue = getJsonProperty(existingMetadata, 'escalationLevel');
+      let escalationLevel = getNumberFromJson(escalationLevelValue);
       
       // Check for escalation rules
       if (config.escalationRules) {
