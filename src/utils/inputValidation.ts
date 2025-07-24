@@ -65,7 +65,7 @@ export const sanitizeForDatabase = (input: string): string => {
   const sqlPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
     /('|(\')|"|(\")|(;)|(\|)|(\*)|(\%))/g,
-    /((\-\-)|(\#)|(\/*)|(\*/))/g
+    /((\-\-)|(\#)|(\/\*)|(\*\/))/g
   ];
   
   let sanitized = input;
