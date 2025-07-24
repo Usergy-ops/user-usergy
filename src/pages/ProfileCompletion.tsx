@@ -231,7 +231,7 @@ const ProfileCompletion = () => {
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Previous</span>
-              </div>
+              </button>
 
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
