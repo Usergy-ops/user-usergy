@@ -8,6 +8,7 @@ import { ProfileProvider } from '@/contexts/ProfileContext';
 import { Toaster } from '@/components/ui/toaster';
 import { setupGlobalErrorHandler } from '@/utils/errorHandling';
 import { monitoring } from '@/utils/monitoring';
+import { errorCleanupService } from '@/utils/errorCleanup';
 import { ProtectedRoute } from './ProtectedRoute';
 import Index from '@/pages/Index';
 import ProfileCompletion from '@/pages/ProfileCompletion';
@@ -32,6 +33,9 @@ const queryClient = new QueryClient({
 
 // Setup global error handling
 setupGlobalErrorHandler();
+
+// Initialize error cleanup service
+errorCleanupService.startAutoCleanup();
 
 function App() {
   return (

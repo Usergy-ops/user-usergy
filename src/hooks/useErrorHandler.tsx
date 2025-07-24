@@ -1,96 +1,66 @@
 
 /**
- * Enhanced custom hook for centralized error handling
+ * Updated error handler hook that uses the unified error handling system
  */
 
-import { useToast } from '@/hooks/use-toast';
 import { useCallback } from 'react';
-import { handleSupabaseError, logError, ValidationError, DatabaseError, AuthError } from '@/utils/errorHandling';
-import { monitoring } from '@/utils/monitoring';
-import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
+import { unifiedErrorHandler } from '@/utils/unifiedErrorHandling';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useErrorHandler = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const handleError = useCallback((error: any, context?: string) => {
-    logError(error, context);
-
-    // Track error occurrence
-    monitoring.recordMetric('error_handled', 1, {
-      error_type: error.constructor.name,
-      context: context || 'unknown',
-      has_message: error.message ? 'true' : 'false'
-    });
-
-    if (error instanceof ValidationError) {
-      toast({
-        title: "Validation Error",
-        description: error.message,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (error instanceof AuthError) {
-      toast({
-        title: "Authentication Error",
-        description: error.message,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (error instanceof DatabaseError) {
-      toast({
-        title: "Database Error",
-        description: "There was an issue with the database. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Handle Supabase errors
-    if (error.code || error.details) {
-      const apiError = handleSupabaseError(error, context);
+  const handleError = useCallback(async (error: any, context?: string, metadata?: Record<string, any>) => {
+    try {
+      const unifiedError = await unifiedErrorHandler.handleError(
+        error,
+        context || 'unknown_context',
+        user?.id,
+        metadata
+      );
+      
+      return unifiedError;
+    } catch (handlingError) {
+      console.error('Error in error handler:', handlingError);
+      
+      // Fallback error handling
       toast({
         title: "Error",
-        description: apiError.message,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
-      return;
     }
+  }, [toast, user?.id]);
 
-    // Generic error fallback
-    toast({
-      title: "Unexpected Error",
-      description: error.message || "An unexpected error occurred. Please try again.",
-      variant: "destructive"
-    });
-  }, [toast]);
-
-  const handleErrorWithRecovery = useCallback((
+  const handleErrorWithRecovery = useCallback(async (
     error: any,
     context?: string,
-    recoveryOptions?: {
-      retry?: () => void;
-      fallback?: () => void;
-      redirect?: string;
-    }
+    metadata?: Record<string, any>,
+    recoveryCallback?: () => void
   ) => {
-    handleError(error, context);
-
-    // Show recovery options if available
-    if (recoveryOptions?.retry) {
-      toast({
-        title: "Recovery Option",
-        description: "Click to retry the operation",
-        action: (
-          <ToastAction altText="Retry operation" onClick={recoveryOptions.retry}>
-            Retry
-          </ToastAction>
-        )
-      });
+    const unifiedError = await handleError(error, context, metadata);
+    
+    if (unifiedError?.recoverable && recoveryCallback) {
+      // Show recovery option after a delay
+      setTimeout(() => {
+        toast({
+          title: "Recovery Option",
+          description: "Click to retry the operation",
+          action: (
+            <button
+              onClick={recoveryCallback}
+              className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-secondary focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              Retry
+            </button>
+          )
+        });
+      }, 2000);
     }
+    
+    return unifiedError;
   }, [handleError, toast]);
 
   return { handleError, handleErrorWithRecovery };

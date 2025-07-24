@@ -3,7 +3,7 @@ import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { handleComponentError } from '@/utils/errorHandling';
+import { unifiedErrorHandler } from '@/utils/unifiedErrorHandling';
 import { monitoring } from '@/utils/monitoring';
 
 interface ErrorBoundaryProps {
@@ -17,7 +17,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   errorInfo: any;
-  eventId?: string;
+  unifiedErrorId?: string;
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -40,23 +40,31 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
-    const eventId = crypto.randomUUID();
-    
-    this.setState({
-      errorInfo,
-      eventId
-    });
+  async componentDidCatch(error: Error, errorInfo: any) {
+    this.setState({ errorInfo });
 
-    // Log error with enhanced context
-    handleComponentError(error, errorInfo, 'ErrorBoundary');
-    
+    try {
+      // Use unified error handler
+      const unifiedError = await unifiedErrorHandler.handleError(
+        error,
+        'error_boundary',
+        undefined,
+        {
+          component_stack: errorInfo.componentStack,
+          retry_count: this.retryCount
+        }
+      );
+
+      this.setState({ unifiedErrorId: unifiedError.id });
+    } catch (handlingError) {
+      console.error('Error in error boundary:', handlingError);
+    }
+
     // Track error metrics
     monitoring.recordMetric('error_boundary_triggered', 1, {
       error_name: error.name,
       error_message: error.message,
-      component_stack: errorInfo.componentStack,
-      event_id: eventId
+      component_stack: errorInfo.componentStack
     });
 
     // Call custom error handler if provided
@@ -72,7 +80,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         hasError: false,
         error: null,
         errorInfo: null,
-        eventId: undefined
+        unifiedErrorId: undefined
       });
       
       monitoring.recordMetric('error_boundary_retry', 1, {
@@ -128,9 +136,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <div className="mb-2">
                       <strong>Message:</strong> {this.state.error.message}
                     </div>
-                    {this.state.eventId && (
+                    {this.state.unifiedErrorId && (
                       <div className="mb-2">
-                        <strong>Event ID:</strong> {this.state.eventId}
+                        <strong>Error ID:</strong> {this.state.unifiedErrorId}
                       </div>
                     )}
                     {this.state.errorInfo && (
@@ -189,8 +197,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               {/* Support information */}
               <div className="text-center text-sm text-muted-foreground">
                 If this problem persists, please contact our support team
-                {this.state.eventId && (
-                  <span> and include this error ID: <code className="bg-muted px-1 py-0.5 rounded text-xs">{this.state.eventId}</code></span>
+                {this.state.unifiedErrorId && (
+                  <span> and include this error ID: <code className="bg-muted px-1 py-0.5 rounded text-xs">{this.state.unifiedErrorId}</code></span>
                 )}
               </div>
             </CardContent>
@@ -221,10 +229,11 @@ export const withErrorBoundary = <P extends object>(
 // Async error boundary for handling promise rejections
 export const AsyncErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children, ...props }) => {
   React.useEffect(() => {
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      monitoring.logError(
+    const handleUnhandledRejection = async (event: PromiseRejectionEvent) => {
+      await unifiedErrorHandler.handleError(
         new Error(`Unhandled Promise Rejection: ${event.reason}`),
         'async_error_boundary',
+        undefined,
         { reason: event.reason }
       );
     };

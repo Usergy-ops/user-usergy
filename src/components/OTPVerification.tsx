@@ -3,8 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, RefreshCw, AlertTriangle, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { checkRateLimit } from '@/utils/rateLimit';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 interface OTPVerificationProps {
   email: string;
@@ -26,7 +25,7 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
   const [isBlocked, setIsBlocked] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { verifyOTP, resendOTP } = useAuth();
-  const { toast } = useToast();
+  const { handleError, handleErrorWithRecovery } = useErrorHandler();
 
   useEffect(() => {
     // Focus first input on mount
@@ -40,25 +39,6 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
-
-  useEffect(() => {
-    // Check rate limit status on mount
-    const checkRateLimitStatus = async () => {
-      try {
-        const result = await checkRateLimit(email, 'otp_verify');
-        if (result.blocked) {
-          setIsBlocked(true);
-          setAttemptsLeft(0);
-        } else {
-          setAttemptsLeft(result.attemptsRemaining);
-        }
-      } catch (error) {
-        console.error('Error checking rate limit:', error);
-      }
-    };
-    
-    checkRateLimitStatus();
-  }, [email]);
 
   const handleOtpChange = (index: number, value: string) => {
     // Only allow digits
@@ -90,55 +70,35 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     setIsLoading(true);
     
     try {
-      // Check rate limit before attempting verification
-      const rateLimitResult = await checkRateLimit(email, 'otp_verify');
-      
-      if (!rateLimitResult.allowed) {
-        setIsBlocked(true);
-        setAttemptsLeft(0);
-        toast({
-          title: "Security Notice",
-          description: `Too many verification attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
-          variant: "destructive"
-        });
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
-        setIsLoading(false);
-        return;
-      }
-
       const { error } = await verifyOTP(email, otpCode, password);
       
       if (error) {
-        setAttemptsLeft(rateLimitResult.attemptsRemaining - 1);
+        await handleErrorWithRecovery(
+          new Error(error),
+          'otp_verification',
+          { email, attempts_left: attemptsLeft },
+          () => {
+            setOtp(['', '', '', '', '', '']);
+            inputRefs.current[0]?.focus();
+          }
+        );
         
-        if (rateLimitResult.attemptsRemaining <= 1) {
-          setIsBlocked(true);
+        // Update attempts left
+        if (attemptsLeft !== null) {
+          setAttemptsLeft(attemptsLeft - 1);
+          if (attemptsLeft <= 1) {
+            setIsBlocked(true);
+          }
         }
-        
-        toast({
-          title: "Verification failed",
-          description: error,
-          variant: "destructive"
-        });
         
         // Clear OTP on error
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
-        toast({
-          title: "Welcome to Usergy!",
-          description: "Your account has been created successfully."
-        });
         onSuccess();
       }
     } catch (error) {
-      console.error('OTP verification error:', error);
-      toast({
-        title: "Verification failed",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
+      await handleError(error, 'otp_verification', { email });
     }
     
     setIsLoading(false);
@@ -150,56 +110,24 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     setIsLoading(true);
     
     try {
-      // Check rate limit before attempting resend
-      const rateLimitResult = await checkRateLimit(email, 'otp_resend');
-      
-      if (!rateLimitResult.allowed) {
-        setIsBlocked(true);
-        toast({
-          title: "Security Notice",
-          description: `Too many resend attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-
       const { error, attemptsLeft: newAttemptsLeft } = await resendOTP(email);
       
       if (error) {
+        await handleError(new Error(error), 'otp_resend', { email });
+        
         if (error.includes('Too many')) {
           setIsBlocked(true);
-          toast({
-            title: "Security Notice",
-            description: error,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Failed to resend code",
-            description: error,
-            variant: "destructive"
-          });
         }
       } else {
-        toast({
-          title: "New code sent!",
-          description: "Check your inbox for the verification code."
-        });
         setResendCooldown(60);
-        setAttemptsLeft(newAttemptsLeft || rateLimitResult.attemptsRemaining);
+        setAttemptsLeft(newAttemptsLeft || null);
         setIsBlocked(false);
         // Clear current OTP
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
-      console.error('Resend OTP error:', error);
-      toast({
-        title: "Failed to resend code",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
+      await handleError(error, 'otp_resend', { email });
     }
     
     setIsLoading(false);
