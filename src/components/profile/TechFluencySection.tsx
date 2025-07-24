@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,7 @@ interface TechFluencyFormData {
 export const TechFluencySection: React.FC = () => {
   const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   const { register, handleSubmit, setValue, watch } = useForm<TechFluencyFormData>({
     defaultValues: {
@@ -35,6 +35,62 @@ export const TechFluencySection: React.FC = () => {
     }
   });
 
+  // Auto-save with proper validation handling
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      if (type === 'change' && !isSaving) {
+        const timeoutId = setTimeout(async () => {
+          try {
+            setIsSaving(true);
+            
+            // Save profile data - only non-empty values
+            const profileDataToSave: any = {};
+            if (value.technical_experience_level && value.technical_experience_level !== '') {
+              profileDataToSave.technical_experience_level = value.technical_experience_level;
+            }
+            if (value.ai_familiarity_level && value.ai_familiarity_level !== '') {
+              profileDataToSave.ai_familiarity_level = value.ai_familiarity_level;
+            }
+            
+            if (Object.keys(profileDataToSave).length > 0) {
+              console.log('Auto-saving profile data:', profileDataToSave);
+              await updateProfileData('profile', profileDataToSave);
+            }
+
+            // Save tech fluency data - allow empty arrays during auto-save
+            const techFluencyDataToSave: any = {};
+            if (value.ai_interests !== undefined) {
+              techFluencyDataToSave.ai_interests = value.ai_interests || [];
+            }
+            if (value.ai_models_used !== undefined) {
+              techFluencyDataToSave.ai_models_used = value.ai_models_used || [];
+            }
+            if (value.programming_languages !== undefined) {
+              techFluencyDataToSave.programming_languages = value.programming_languages || [];
+            }
+            if (value.coding_experience_years !== undefined) {
+              techFluencyDataToSave.coding_experience_years = value.coding_experience_years || 0;
+            }
+            
+            if (Object.keys(techFluencyDataToSave).length > 0) {
+              console.log('Auto-saving tech fluency data:', techFluencyDataToSave);
+              await updateProfileData('tech_fluency', techFluencyDataToSave);
+            }
+          } catch (error) {
+            console.error('Auto-save failed:', error);
+            // Don't show error toast for auto-save failures to prevent spam
+          } finally {
+            setIsSaving(false);
+          }
+        }, 1500);
+
+        return () => clearTimeout(timeoutId);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, updateProfileData, isSaving]);
+
   const isSectionComplete = () => {
     const formData = watch();
     return !!(
@@ -46,7 +102,39 @@ export const TechFluencySection: React.FC = () => {
   };
 
   const onSubmit = async (data: TechFluencyFormData) => {
+    if (isSaving) return; // Prevent duplicate submissions
+    
     try {
+      setIsSaving(true);
+      
+      // Validate required fields only during final submission
+      if (!data.technical_experience_level || !data.ai_familiarity_level) {
+        toast({
+          title: "Missing required fields",
+          description: "Please fill in all required fields.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.ai_interests || data.ai_interests.length === 0) {
+        toast({
+          title: "Missing AI interests",
+          description: "Please select at least one AI interest.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data.ai_models_used || data.ai_models_used.length === 0) {
+        toast({
+          title: "Missing AI models",
+          description: "Please select at least one AI model you've used.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Update profile with basic tech levels
       await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
@@ -56,10 +144,10 @@ export const TechFluencySection: React.FC = () => {
 
       // Update tech fluency details
       await updateProfileData('tech_fluency', {
-        ai_interests: data.ai_interests,
-        ai_models_used: data.ai_models_used,
-        programming_languages: data.programming_languages,
-        coding_experience_years: data.coding_experience_years,
+        ai_interests: data.ai_interests || [],
+        ai_models_used: data.ai_models_used || [],
+        programming_languages: data.programming_languages || [],
+        coding_experience_years: data.coding_experience_years || 0,
       });
       
       toast({
@@ -70,11 +158,14 @@ export const TechFluencySection: React.FC = () => {
       // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
+      console.error('Form submission error:', error);
       toast({
         title: "Error saving tech fluency",
         description: "Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -271,10 +362,10 @@ export const TechFluencySection: React.FC = () => {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete()}
+            disabled={!isSectionComplete() || isSaving}
             className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save & Continue
+            {isSaving ? 'Saving...' : 'Save & Continue'}
           </Button>
         </div>
       </form>

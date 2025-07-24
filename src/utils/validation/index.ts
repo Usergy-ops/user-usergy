@@ -20,4 +20,9 @@ export {
   validateSocialPresenceData
 } from './profileValidation';
 
+export {
+  validateForAutoSave,
+  validateForSubmission
+} from './formValidation';
+
 export type { ValidationResult, ValidationRule, ValidationSchema } from './types';

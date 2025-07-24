@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -31,7 +30,7 @@ export const SkillsInterestsSection: React.FC = () => {
     }
   });
 
-  // Debounced auto-save with validation
+  // Debounced auto-save without strict validation
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
       if (type === 'change' && !isSaving) {
@@ -56,13 +55,13 @@ export const SkillsInterestsSection: React.FC = () => {
               await updateProfileData('profile', profileDataToSave);
             }
 
-            // Save skills data - only non-empty arrays
+            // Save skills data - allow empty arrays during auto-save
             const skillsDataToSave: any = {};
-            if (value.interests && value.interests.length > 0) {
-              skillsDataToSave.interests = value.interests;
+            if (value.interests !== undefined) {
+              skillsDataToSave.interests = value.interests || [];
             }
-            if (value.product_categories && value.product_categories.length > 0) {
-              skillsDataToSave.product_categories = value.product_categories;
+            if (value.product_categories !== undefined) {
+              skillsDataToSave.product_categories = value.product_categories || [];
             }
             
             if (Object.keys(skillsDataToSave).length > 0) {
@@ -90,7 +89,7 @@ export const SkillsInterestsSection: React.FC = () => {
     try {
       setIsSaving(true);
       
-      // Validate required fields
+      // Validate required fields only during final submission
       if (!data.interests || data.interests.length === 0) {
         toast({
           title: "Validation Error",
