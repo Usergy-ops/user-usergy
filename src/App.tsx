@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import ProfileCompletion from "./pages/ProfileCompletion";
 import Dashboard from "./pages/Dashboard";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
+import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,14 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <ProfileCompletion />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/profile-completion" 
                 element={
@@ -54,10 +63,10 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/dashboard/payments" 
+                path="/payments" 
                 element={
                   <ProtectedRoute requireCompleteProfile={true}>
-                    <Dashboard />
+                    <Payments />
                   </ProtectedRoute>
                 } 
               />
