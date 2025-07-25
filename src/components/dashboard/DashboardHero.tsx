@@ -87,75 +87,75 @@ const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
             {/* Company Nodes (Larger) */}
             <g id="company-nodes">
               {/* Company 1 - Top Left */}
-              <g transform="translate(40, 60)">
-                <circle cx="0" cy="0" r="20" fill="url(#companyPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="12" fill="url(#usergyGradient)" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="8" fill="white" opacity="0.9" />
+              <g transform="translate(40, 60)" className="cursor-pointer transition-transform duration-300 hover:scale-125">
+                <circle cx="0" cy="0" r="20" fill="url(#companyPulse)" className="animate-pulse transition-all duration-300 hover:r-25" />
+                <circle cx="0" cy="0" r="12" fill="url(#usergyGradient)" filter="url(#glow)" className="transition-all duration-300 hover:r-15" />
+                <circle cx="0" cy="0" r="8" fill="white" opacity="0.9" className="transition-all duration-300 hover:r-10" />
                 {/* Company icon */}
-                <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#00C6FB" />
+                <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#00C6FB" className="transition-all duration-300 hover:fill-white" />
               </g>
               
               {/* Company 2 - Top Right */}
-              <g transform="translate(160, 50)">
-                <circle cx="0" cy="0" r="18" fill="url(#companyPulse)" className="animate-pulse" style={{animationDelay: '1s'}} />
-                <circle cx="0" cy="0" r="10" fill="url(#usergyGradient)" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="6" fill="white" opacity="0.9" />
+              <g transform="translate(160, 50)" className="cursor-pointer transition-transform duration-300 hover:scale-125">
+                <circle cx="0" cy="0" r="18" fill="url(#companyPulse)" className="animate-pulse transition-all duration-300 hover:r-23" style={{animationDelay: '1s'}} />
+                <circle cx="0" cy="0" r="10" fill="url(#usergyGradient)" filter="url(#glow)" className="transition-all duration-300 hover:r-13" />
+                <circle cx="0" cy="0" r="6" fill="white" opacity="0.9" className="transition-all duration-300 hover:r-8" />
                 {/* Company icon */}
-                <rect x="-2.5" y="-2.5" width="5" height="5" rx="1" fill="#005BEA" />
+                <rect x="-2.5" y="-2.5" width="5" height="5" rx="1" fill="#005BEA" className="transition-all duration-300 hover:fill-white" />
               </g>
               
               {/* Company 3 - Bottom */}
-              <g transform="translate(80, 150)">
-                <circle cx="0" cy="0" r="22" fill="url(#companyPulse)" className="animate-pulse" style={{animationDelay: '2s'}} />
-                <circle cx="0" cy="0" r="14" fill="url(#usergyGradient)" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="10" fill="white" opacity="0.9" />
+              <g transform="translate(80, 150)" className="cursor-pointer transition-transform duration-300 hover:scale-125">
+                <circle cx="0" cy="0" r="22" fill="url(#companyPulse)" className="animate-pulse transition-all duration-300 hover:r-27" style={{animationDelay: '2s'}} />
+                <circle cx="0" cy="0" r="14" fill="url(#usergyGradient)" filter="url(#glow)" className="transition-all duration-300 hover:r-17" />
+                <circle cx="0" cy="0" r="10" fill="white" opacity="0.9" className="transition-all duration-300 hover:r-12" />
                 {/* Company icon */}
-                <rect x="-4" y="-4" width="8" height="8" rx="1" fill="#00C6FB" />
+                <rect x="-4" y="-4" width="8" height="8" rx="1" fill="#00C6FB" className="transition-all duration-300 hover:fill-white" />
               </g>
             </g>
             
             {/* Explorer Nodes (Smaller) */}
             <g id="explorer-nodes">
               {/* Explorer 1 */}
-              <g transform="translate(70, 40)" className="animate-float">
-                <circle cx="0" cy="0" r="8" fill="url(#explorerPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="4" fill="#005BEA" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="2" fill="white" />
+              <g transform="translate(70, 40)" className="animate-float cursor-pointer transition-transform duration-300 hover:scale-150">
+                <circle cx="0" cy="0" r="8" fill="url(#explorerPulse)" className="animate-pulse transition-all duration-300 hover:r-10" />
+                <circle cx="0" cy="0" r="4" fill="#005BEA" filter="url(#glow)" className="transition-all duration-300 hover:r-6" />
+                <circle cx="0" cy="0" r="2" fill="white" className="transition-all duration-300 hover:r-3" />
               </g>
               
               {/* Explorer 2 */}
-              <g transform="translate(130, 80)" className="animate-float" style={{animationDelay: '0.5s'}}>
-                <circle cx="0" cy="0" r="6" fill="url(#explorerPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="3" fill="#00C6FB" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="1.5" fill="white" />
+              <g transform="translate(130, 80)" className="animate-float cursor-pointer transition-transform duration-300 hover:scale-150" style={{animationDelay: '0.5s'}}>
+                <circle cx="0" cy="0" r="6" fill="url(#explorerPulse)" className="animate-pulse transition-all duration-300 hover:r-8" />
+                <circle cx="0" cy="0" r="3" fill="#00C6FB" filter="url(#glow)" className="transition-all duration-300 hover:r-5" />
+                <circle cx="0" cy="0" r="1.5" fill="white" className="transition-all duration-300 hover:r-2.5" />
               </g>
               
               {/* Explorer 3 */}
-              <g transform="translate(50, 120)" className="animate-float" style={{animationDelay: '1s'}}>
-                <circle cx="0" cy="0" r="7" fill="url(#explorerPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="3.5" fill="#005BEA" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="2" fill="white" />
+              <g transform="translate(50, 120)" className="animate-float cursor-pointer transition-transform duration-300 hover:scale-150" style={{animationDelay: '1s'}}>
+                <circle cx="0" cy="0" r="7" fill="url(#explorerPulse)" className="animate-pulse transition-all duration-300 hover:r-9" />
+                <circle cx="0" cy="0" r="3.5" fill="#005BEA" filter="url(#glow)" className="transition-all duration-300 hover:r-5.5" />
+                <circle cx="0" cy="0" r="2" fill="white" className="transition-all duration-300 hover:r-3" />
               </g>
               
               {/* Explorer 4 */}
-              <g transform="translate(140, 130)" className="animate-float" style={{animationDelay: '1.5s'}}>
-                <circle cx="0" cy="0" r="5" fill="url(#explorerPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="2.5" fill="#00C6FB" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="1.5" fill="white" />
+              <g transform="translate(140, 130)" className="animate-float cursor-pointer transition-transform duration-300 hover:scale-150" style={{animationDelay: '1.5s'}}>
+                <circle cx="0" cy="0" r="5" fill="url(#explorerPulse)" className="animate-pulse transition-all duration-300 hover:r-7" />
+                <circle cx="0" cy="0" r="2.5" fill="#00C6FB" filter="url(#glow)" className="transition-all duration-300 hover:r-4" />
+                <circle cx="0" cy="0" r="1.5" fill="white" className="transition-all duration-300 hover:r-2.5" />
               </g>
               
               {/* Explorer 5 */}
-              <g transform="translate(110, 45)" className="animate-float" style={{animationDelay: '2s'}}>
-                <circle cx="0" cy="0" r="6" fill="url(#explorerPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="3" fill="#005BEA" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="1.5" fill="white" />
+              <g transform="translate(110, 45)" className="animate-float cursor-pointer transition-transform duration-300 hover:scale-150" style={{animationDelay: '2s'}}>
+                <circle cx="0" cy="0" r="6" fill="url(#explorerPulse)" className="animate-pulse transition-all duration-300 hover:r-8" />
+                <circle cx="0" cy="0" r="3" fill="#005BEA" filter="url(#glow)" className="transition-all duration-300 hover:r-5" />
+                <circle cx="0" cy="0" r="1.5" fill="white" className="transition-all duration-300 hover:r-2.5" />
               </g>
               
               {/* Explorer 6 */}
-              <g transform="translate(170, 100)" className="animate-float" style={{animationDelay: '2.5s'}}>
-                <circle cx="0" cy="0" r="7" fill="url(#explorerPulse)" className="animate-pulse" />
-                <circle cx="0" cy="0" r="3.5" fill="#00C6FB" filter="url(#glow)" />
-                <circle cx="0" cy="0" r="2" fill="white" />
+              <g transform="translate(170, 100)" className="animate-float cursor-pointer transition-transform duration-300 hover:scale-150" style={{animationDelay: '2.5s'}}>
+                <circle cx="0" cy="0" r="7" fill="url(#explorerPulse)" className="animate-pulse transition-all duration-300 hover:r-9" />
+                <circle cx="0" cy="0" r="3.5" fill="#00C6FB" filter="url(#glow)" className="transition-all duration-300 hover:r-5.5" />
+                <circle cx="0" cy="0" r="2" fill="white" className="transition-all duration-300 hover:r-3" />
               </g>
             </g>
             
@@ -169,37 +169,19 @@ const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
               <path d="M50,120 L140,130 L170,100" strokeDasharray="2,3" className="animate-dash" style={{animationDelay: '1.5s'}} />
             </g>
             
-            {/* New connections animating in */}
-            <g id="new-connections">
-              {/* Connection 1 - fades in periodically */}
+            {/* Interactive hover connections */}
+            <g id="hover-connections">
               <line x1="70" y1="40" x2="50" y2="120" 
-                    stroke="#00C6FB" strokeWidth="1.5" opacity="0" filter="url(#glow)">
-                <animate attributeName="opacity" 
-                         values="0;0.8;0" 
-                         dur="4s" 
-                         repeatCount="indefinite" 
-                         begin="0s" />
-              </line>
+                    stroke="#00C6FB" strokeWidth="1" opacity="0.3" filter="url(#glow)"
+                    className="transition-all duration-300 hover:opacity-80 hover:stroke-[2]" />
               
-              {/* Connection 2 - fades in periodically */}
               <line x1="110" y1="45" x2="140" y2="130" 
-                    stroke="#005BEA" strokeWidth="1.5" opacity="0" filter="url(#glow)">
-                <animate attributeName="opacity" 
-                         values="0;0.8;0" 
-                         dur="4s" 
-                         repeatCount="indefinite" 
-                         begin="2s" />
-              </line>
+                    stroke="#005BEA" strokeWidth="1" opacity="0.3" filter="url(#glow)"
+                    className="transition-all duration-300 hover:opacity-80 hover:stroke-[2]" />
               
-              {/* Connection 3 - fades in periodically */}
               <path d="M130,80 Q100,100 80,150" 
-                    stroke="#00C6FB" strokeWidth="1.5" opacity="0" filter="url(#glow)">
-                <animate attributeName="opacity" 
-                         values="0;0.8;0" 
-                         dur="4s" 
-                         repeatCount="indefinite" 
-                         begin="1s" />
-              </path>
+                    stroke="#00C6FB" strokeWidth="1" opacity="0.3" filter="url(#glow)"
+                    className="transition-all duration-300 hover:opacity-80 hover:stroke-[2]" />
             </g>
             
             {/* Central Energy Hub */}
