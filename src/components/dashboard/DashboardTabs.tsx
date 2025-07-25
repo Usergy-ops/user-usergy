@@ -39,7 +39,9 @@ const DashboardTabs = () => {
       description: 'Test voice recognition accuracy and response quality',
       reward: 18,
       completedDate: '2024-01-15',
-      rating: 4.8
+      rating: 4.8,
+      status: 'completed',
+      paymentStatus: 'paid'
     }
   ];
 
@@ -50,7 +52,9 @@ const DashboardTabs = () => {
       description: 'Test IoT devices and smart home integration',
       reward: 25,
       deadline: '2024-02-10',
-      difficulty: 'Medium'
+      difficulty: 'Medium',
+      expiresIn: '3 days',
+      isNew: true
     }
   ];
 
