@@ -6,9 +6,9 @@ interface DashboardHeroProps {
 
 const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-background via-background/95 to-primary/5 rounded-2xl p-8 mb-8">
+    <div className="relative overflow-hidden bg-gradient-to-br from-background via-background/80 to-primary/5 rounded-2xl p-8 mb-8">
       {/* Animated background pattern */}
-      <div className="absolute inset-0 opacity-10">
+      <div className="absolute inset-0 opacity-20">
         <svg className="w-full h-full" viewBox="0 0 1200 400">
           <defs>
             <linearGradient id="networkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
