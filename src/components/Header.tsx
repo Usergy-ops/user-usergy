@@ -2,12 +2,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, User, Settings, FolderKanban, CreditCard } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export const Header: React.FC = () => {
   const { signOut, user } = useAuth();
+  const { profileData } = useProfile();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -29,7 +32,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/50">
-      <div className="container mx-auto px-4 h-full flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 h-full flex items-center justify-between">
         {/* Logo */}
         <Link 
           to="/dashboard" 
@@ -55,59 +58,70 @@ export const Header: React.FC = () => {
 
         {/* Right Navigation - Only show when authenticated */}
         {user && (
-          <div className="flex items-center space-x-4">
-            {/* Projects Button */}
-            <Button
-              variant="ghost"
-              onClick={handleDashboardClick}
-              className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
+          <div className="flex items-center space-x-6">
+            {/* Projects Navigation Link */}
+            <Link 
+              to="/dashboard" 
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-300"
             >
-              <FolderKanban className="w-4 h-4" />
-              <span className="hidden md:inline">Projects</span>
-            </Button>
-
-            {/* Profile Button */}
-            <Button
-              variant="ghost"
-              onClick={handleProfileClick}
-              className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-300"
-            >
-              <User className="w-4 h-4" />
-              <span className="hidden md:inline">Profile</span>
-            </Button>
-
-            {/* Settings Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-105"
+              Projects & Invites
+            </Link>
+            
+            {/* Avatar with enhanced dropdown */}
+            <div className="relative group">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="relative w-10 h-10 rounded-full overflow-hidden transition-transform duration-300 hover:scale-105">
+                    {/* Animated gradient border */}
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00C6FB] to-[#005BEA] opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-spin-slow" />
+                    <div className="absolute inset-[2px] rounded-full bg-background" />
+                    <Avatar className="relative w-full h-full">
+                      <AvatarImage src={profileData?.avatar_url} alt={profileData?.full_name || ''} />
+                      <AvatarFallback className="text-xs font-medium bg-primary text-primary-foreground">
+                        {profileData?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                
+                <DropdownMenuContent 
+                  className="w-48 bg-card/95 backdrop-blur-sm rounded-lg shadow-xl border border-border/50 animate-in slide-in-from-top-2" 
+                  align="end"
                 >
-                  <Settings className="w-4 h-4 transition-transform duration-300 hover:rotate-90" />
-                  <span className="hidden md:inline">Settings</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                className="w-48 bg-card/95 backdrop-blur-sm rounded-lg shadow-xl border border-border/50 animate-in slide-in-from-top-2" 
-                align="end"
-              >
-                <DropdownMenuItem 
-                  onClick={handlePaymentsClick}
-                  className="flex items-center space-x-2 text-foreground hover:bg-primary/10 transition-colors cursor-pointer"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span>Payments</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleLogout}
-                  className="flex items-center space-x-2 text-foreground hover:bg-primary/10 transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-medium text-foreground">
+                      {profileData?.full_name || 'Explorer'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleProfileClick}
+                    className="flex items-center space-x-2 text-foreground hover:bg-primary/10 transition-colors cursor-pointer"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handlePaymentsClick}
+                    className="flex items-center space-x-2 text-foreground hover:bg-primary/10 transition-colors cursor-pointer"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Payments</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 text-foreground hover:bg-primary/10 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         )}
       </div>
