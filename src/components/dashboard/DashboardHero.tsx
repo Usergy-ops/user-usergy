@@ -47,7 +47,7 @@ const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
           </p>
         </div>
         
-        {/* The Feedback Bridge Illustration */}
+        {/* The Constellation Network Illustration */}
         <div className="hidden md:block">
           <svg width="200" height="200" viewBox="0 0 200 200">
             <defs>
@@ -59,156 +59,177 @@ const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
               
               {/* Glow effect */}
               <filter id="glow">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
                 <feMerge>
                   <feMergeNode in="coloredBlur"/>
                   <feMergeNode in="SourceGraphic"/>
                 </feMerge>
               </filter>
               
-              {/* Pulse animation gradient */}
-              <radialGradient id="pulseGradient">
-                <stop offset="0%" stopColor="#00C6FB" stopOpacity="0.6" />
+              {/* Pulse gradient for company nodes */}
+              <radialGradient id="companyPulse">
+                <stop offset="0%" stopColor="#00C6FB" stopOpacity="0.4" />
                 <stop offset="100%" stopColor="#00C6FB" stopOpacity="0" />
+              </radialGradient>
+              
+              {/* Explorer pulse gradient */}
+              <radialGradient id="explorerPulse">
+                <stop offset="0%" stopColor="#005BEA" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#005BEA" stopOpacity="0" />
               </radialGradient>
             </defs>
             
-            {/* Company Side (Left) */}
-            <g id="company-side" opacity="0.8">
-              {/* Product representation */}
-              <rect x="20" y="70" width="50" height="60" rx="8" 
-                    fill="none" stroke="#6B7280" strokeWidth="2" />
-              
-              {/* Screen inside product */}
-              <rect x="25" y="75" width="40" height="35" rx="4" fill="#E5E7EB" />
-              
-              {/* Question marks seeking feedback */}
-              <g className="animate-float">
-                <text x="35" y="95" fontSize="14" fill="#6B7280" opacity="0.7">?</text>
-                <text x="50" y="100" fontSize="12" fill="#6B7280" opacity="0.5">?</text>
-                <text x="30" y="105" fontSize="10" fill="#6B7280" opacity="0.4">?</text>
+            {/* Background constellation glow */}
+            <g opacity="0.1">
+              <circle cx="100" cy="100" r="80" fill="url(#usergyGradient)" />
+            </g>
+            
+            {/* Company Nodes (Larger) */}
+            <g id="company-nodes">
+              {/* Company 1 - Top Left */}
+              <g transform="translate(40, 60)">
+                <circle cx="0" cy="0" r="20" fill="url(#companyPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="12" fill="url(#usergyGradient)" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="8" fill="white" opacity="0.9" />
+                {/* Company icon */}
+                <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#00C6FB" />
               </g>
               
-              {/* Signal waves */}
-              <g className="animate-pulse">
-                <circle cx="45" cy="100" r="15" fill="none" stroke="#6B7280" 
-                        strokeWidth="1" opacity="0.3" />
-                <circle cx="45" cy="100" r="25" fill="none" stroke="#6B7280" 
-                        strokeWidth="1" opacity="0.2" />
-                <circle cx="45" cy="100" r="35" fill="none" stroke="#6B7280" 
-                        strokeWidth="1" opacity="0.1" />
+              {/* Company 2 - Top Right */}
+              <g transform="translate(160, 50)">
+                <circle cx="0" cy="0" r="18" fill="url(#companyPulse)" className="animate-pulse" style={{animationDelay: '1s'}} />
+                <circle cx="0" cy="0" r="10" fill="url(#usergyGradient)" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="6" fill="white" opacity="0.9" />
+                {/* Company icon */}
+                <rect x="-2.5" y="-2.5" width="5" height="5" rx="1" fill="#005BEA" />
+              </g>
+              
+              {/* Company 3 - Bottom */}
+              <g transform="translate(80, 150)">
+                <circle cx="0" cy="0" r="22" fill="url(#companyPulse)" className="animate-pulse" style={{animationDelay: '2s'}} />
+                <circle cx="0" cy="0" r="14" fill="url(#usergyGradient)" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="10" fill="white" opacity="0.9" />
+                {/* Company icon */}
+                <rect x="-4" y="-4" width="8" height="8" rx="1" fill="#00C6FB" />
               </g>
             </g>
             
-            {/* The Bridge (Center) */}
-            <g id="feedback-bridge">
-              {/* Main connection path */}
-              <path d="M70,100 Q100,80 130,100" 
-                    stroke="url(#usergyGradient)" 
-                    strokeWidth="3" 
-                    fill="none"
-                    opacity="0.8" />
-              
-              {/* Animated data particles */}
-              <g className="animate-flow">
-                {/* Particle 1 */}
-                <circle r="3" fill="#00C6FB" filter="url(#glow)">
-                  <animateMotion dur="3s" repeatCount="indefinite">
-                    <mpath href="#particle-path-1" />
-                  </animateMotion>
-                </circle>
-                
-                {/* Particle 2 */}
-                <circle r="2.5" fill="#005BEA" filter="url(#glow)">
-                  <animateMotion dur="3s" repeatCount="indefinite" begin="1s">
-                    <mpath href="#particle-path-1" />
-                  </animateMotion>
-                </circle>
-                
-                {/* Particle 3 */}
-                <circle r="2" fill="#00C6FB" filter="url(#glow)">
-                  <animateMotion dur="3s" repeatCount="indefinite" begin="2s">
-                    <mpath href="#particle-path-1" />
-                  </animateMotion>
-                </circle>
+            {/* Explorer Nodes (Smaller) */}
+            <g id="explorer-nodes">
+              {/* Explorer 1 */}
+              <g transform="translate(70, 40)" className="animate-float">
+                <circle cx="0" cy="0" r="8" fill="url(#explorerPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="4" fill="#005BEA" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="2" fill="white" />
               </g>
               
-              {/* Hidden path for particle animation */}
-              <path id="particle-path-1" d="M70,100 Q100,80 130,100" fill="none" />
+              {/* Explorer 2 */}
+              <g transform="translate(130, 80)" className="animate-float" style={{animationDelay: '0.5s'}}>
+                <circle cx="0" cy="0" r="6" fill="url(#explorerPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="3" fill="#00C6FB" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="1.5" fill="white" />
+              </g>
               
-              {/* Center node - Usergy logo mark */}
-              <g transform="translate(100, 90)">
-                <circle cx="0" cy="0" r="12" fill="white" stroke="url(#usergyGradient)" 
-                        strokeWidth="2" />
-                <circle cx="-4" cy="0" r="2" fill="#00C6FB" />
-                <circle cx="4" cy="-4" r="2" fill="#005BEA" />
-                <circle cx="4" cy="4" r="2" fill="#00C6FB" />
-                <path d="M-4,0 L4,-4 L4,4" stroke="url(#usergyGradient)" 
-                      strokeWidth="1" fill="none" opacity="0.5" />
+              {/* Explorer 3 */}
+              <g transform="translate(50, 120)" className="animate-float" style={{animationDelay: '1s'}}>
+                <circle cx="0" cy="0" r="7" fill="url(#explorerPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="3.5" fill="#005BEA" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="2" fill="white" />
+              </g>
+              
+              {/* Explorer 4 */}
+              <g transform="translate(140, 130)" className="animate-float" style={{animationDelay: '1.5s'}}>
+                <circle cx="0" cy="0" r="5" fill="url(#explorerPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="2.5" fill="#00C6FB" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="1.5" fill="white" />
+              </g>
+              
+              {/* Explorer 5 */}
+              <g transform="translate(110, 45)" className="animate-float" style={{animationDelay: '2s'}}>
+                <circle cx="0" cy="0" r="6" fill="url(#explorerPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="3" fill="#005BEA" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="1.5" fill="white" />
+              </g>
+              
+              {/* Explorer 6 */}
+              <g transform="translate(170, 100)" className="animate-float" style={{animationDelay: '2.5s'}}>
+                <circle cx="0" cy="0" r="7" fill="url(#explorerPulse)" className="animate-pulse" />
+                <circle cx="0" cy="0" r="3.5" fill="#00C6FB" filter="url(#glow)" />
+                <circle cx="0" cy="0" r="2" fill="white" />
               </g>
             </g>
             
-            {/* Explorer Side (Right) */}
-            <g id="explorer-side">
-              {/* Explorer avatar */}
-              <g transform="translate(145, 100)">
-                {/* Head */}
-                <circle cx="0" cy="-10" r="12" fill="#4B5563" />
-                
-                {/* Headphones */}
-                <path d="M-12,-10 Q0,-25 12,-10" 
-                      stroke="#00C6FB" strokeWidth="3" fill="none" />
-                <rect x="-14" y="-12" width="4" height="8" rx="2" fill="#00C6FB" />
-                <rect x="10" y="-12" width="4" height="8" rx="2" fill="#00C6FB" />
-                
-                {/* Body with laptop */}
-                <ellipse cx="0" cy="10" rx="15" ry="20" fill="#6B7280" />
-                <rect x="-10" y="5" width="20" height="12" rx="2" fill="#1F2937" />
-                <rect x="-8" y="7" width="16" height="8" rx="1" fill="#00C6FB" opacity="0.8" />
-              </g>
+            {/* Constellation Connections */}
+            <g id="connections" stroke="url(#usergyGradient)" strokeWidth="1" fill="none" opacity="0.6">
+              {/* Main constellation lines */}
+              <path d="M40,60 L70,40 L130,80 L160,50" strokeDasharray="2,3" className="animate-dash" />
+              <path d="M40,60 L50,120 L80,150" strokeDasharray="2,3" className="animate-dash" style={{animationDelay: '1s'}} />
+              <path d="M160,50 L170,100 L140,130 L80,150" strokeDasharray="2,3" className="animate-dash" style={{animationDelay: '2s'}} />
+              <path d="M130,80 L110,45 L160,50" strokeDasharray="2,3" className="animate-dash" style={{animationDelay: '0.5s'}} />
+              <path d="M50,120 L140,130 L170,100" strokeDasharray="2,3" className="animate-dash" style={{animationDelay: '1.5s'}} />
+            </g>
+            
+            {/* New connections animating in */}
+            <g id="new-connections">
+              {/* Connection 1 - fades in periodically */}
+              <line x1="70" y1="40" x2="50" y2="120" 
+                    stroke="#00C6FB" strokeWidth="1.5" opacity="0" filter="url(#glow)">
+                <animate attributeName="opacity" 
+                         values="0;0.8;0" 
+                         dur="4s" 
+                         repeatCount="indefinite" 
+                         begin="0s" />
+              </line>
               
-              {/* Insight indicators */}
-              <g className="animate-twinkle">
-                {/* Lightbulb */}
-                <g transform="translate(170, 70)">
-                  <path d="M0,-8 Q-3,-3 -3,0 Q-3,3 0,3 Q3,3 3,0 Q3,-3 0,-8" 
-                        fill="#FCD34D" stroke="#F59E0B" strokeWidth="1" />
-                  <rect x="-2" y="3" width="4" height="3" fill="#F59E0B" />
-                  <line x1="-1" y1="6" x2="-1" y2="8" stroke="#F59E0B" strokeWidth="0.5" />
-                  <line x1="1" y1="6" x2="1" y2="8" stroke="#F59E0B" strokeWidth="0.5" />
-                </g>
-                
-                {/* Star insights */}
-                <g transform="translate(125, 70)">
-                  <path d="M0,-5 L1.5,-1.5 L5,-1 L2.5,1.5 L3,5 L0,3 L-3,5 L-2.5,1.5 L-5,-1 L-1.5,-1.5 Z" 
-                        fill="#00C6FB" opacity="0.8" />
-                </g>
-                
-                <g transform="translate(165, 85)" style={{animationDelay: '0.5s'}}>
-                  <path d="M0,-3 L1,-1 L3,-0.5 L1.5,1 L2,3 L0,2 L-2,3 L-1.5,1 L-3,-0.5 L-1,-1 Z" 
-                        fill="#005BEA" opacity="0.6" />
-                </g>
-              </g>
+              {/* Connection 2 - fades in periodically */}
+              <line x1="110" y1="45" x2="140" y2="130" 
+                    stroke="#005BEA" strokeWidth="1.5" opacity="0" filter="url(#glow)">
+                <animate attributeName="opacity" 
+                         values="0;0.8;0" 
+                         dur="4s" 
+                         repeatCount="indefinite" 
+                         begin="2s" />
+              </line>
               
-              {/* Completed/Active indicator */}
-              <g className="animate-pulse-slow">
-                <circle cx="145" cy="100" r="30" fill="url(#pulseGradient)" />
+              {/* Connection 3 - fades in periodically */}
+              <path d="M130,80 Q100,100 80,150" 
+                    stroke="#00C6FB" strokeWidth="1.5" opacity="0" filter="url(#glow)">
+                <animate attributeName="opacity" 
+                         values="0;0.8;0" 
+                         dur="4s" 
+                         repeatCount="indefinite" 
+                         begin="1s" />
+              </path>
+            </g>
+            
+            {/* Central Energy Hub */}
+            <g transform="translate(100, 100)">
+              <circle cx="0" cy="0" r="25" fill="url(#usergyGradient)" opacity="0.1" className="animate-pulse" />
+              <circle cx="0" cy="0" r="6" fill="url(#usergyGradient)" filter="url(#glow)" />
+              <circle cx="0" cy="0" r="3" fill="white" opacity="0.8" />
+              {/* Usergy logo symbol */}
+              <g opacity="0.8">
+                <circle cx="-2" cy="-1" r="1" fill="#00C6FB" />
+                <circle cx="2" cy="-1" r="1" fill="#005BEA" />
+                <circle cx="0" cy="2" r="1" fill="#00C6FB" />
               </g>
             </g>
             
-            {/* Floating UI elements showing value exchange */}
-            <g id="value-indicators" opacity="0.8">
-              {/* Gift card icon (rewards) */}
-              <g transform="translate(30, 140)" className="animate-float" style={{animationDelay: '1s'}}>
-                <rect x="0" y="0" width="25" height="15" rx="2" fill="#10B981" />
-                <text x="12.5" y="10" fontSize="8" fill="white" textAnchor="middle">$</text>
+            {/* Floating constellation stars */}
+            <g id="constellation-stars" className="animate-twinkle">
+              <g transform="translate(25, 30)">
+                <path d="M0,-2 L0.5,-0.5 L2,0 L0.5,0.5 L0,2 L-0.5,0.5 L-2,0 L-0.5,-0.5 Z" 
+                      fill="#00C6FB" opacity="0.6" />
               </g>
               
-              {/* Check mark (quality) */}
-              <g transform="translate(145, 140)" className="animate-float" style={{animationDelay: '2s'}}>
-                <circle cx="10" cy="10" r="10" fill="#10B981" />
-                <path d="M5,10 L9,14 L15,6" stroke="white" strokeWidth="2" 
-                      fill="none" strokeLinecap="round" />
+              <g transform="translate(175, 75)" style={{animationDelay: '1s'}}>
+                <path d="M0,-1.5 L0.4,-0.4 L1.5,0 L0.4,0.4 L0,1.5 L-0.4,0.4 L-1.5,0 L-0.4,-0.4 Z" 
+                      fill="#005BEA" opacity="0.5" />
+              </g>
+              
+              <g transform="translate(30, 170)" style={{animationDelay: '2s'}}>
+                <path d="M0,-1 L0.3,-0.3 L1,0 L0.3,0.3 L0,1 L-0.3,0.3 L-1,0 L-0.3,-0.3 Z" 
+                      fill="#00C6FB" opacity="0.4" />
               </g>
             </g>
           </svg>
