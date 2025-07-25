@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -73,6 +72,11 @@ const ProfileCompletion = () => {
       resumeIncompleteSection();
     }
   }, [user, loading, isProfileComplete, resumeIncompleteSection]);
+
+  // Scroll to top when currentStep changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
 
   if (!user) {
     return <Navigate to="/" replace />;

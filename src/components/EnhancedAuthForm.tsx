@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -227,7 +226,7 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder={mode === 'signup' ? "Create a secure password (12+ characters)" : "Enter your password"}
+              placeholder={mode === 'signup' ? "Set your password" : "Enter your password"}
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
               className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
