@@ -17,8 +17,7 @@ interface CompletedProjectCardProps {
 
 const CompletedProjectCard: React.FC<CompletedProjectCardProps> = ({ project }) => {
   return (
-    <div className="group relative bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50 
-                   transition-all duration-300 hover:shadow-2xl hover:scale-[1.01] hover:-translate-y-1">
+    <div className="group relative bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50">
       {/* Success indicator */}
       <div className="absolute -top-2 -right-2">
         <div className="bg-green-500 rounded-full p-1">

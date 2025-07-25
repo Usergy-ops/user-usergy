@@ -18,13 +18,10 @@ const ActiveProjectCard: React.FC<ActiveProjectCardProps> = ({ project }) => {
   
   return (
     <div 
-      className="group relative bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50 
-                 transition-all duration-300 hover:shadow-2xl hover:scale-[1.01] hover:-translate-y-1"
+      className="group relative bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Animated gradient border on hover */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#00C6FB] to-[#005BEA] opacity-0 group-hover:opacity-20 blur transition-opacity duration-300" />
       
       {/* Content */}
       <div className="relative z-10">

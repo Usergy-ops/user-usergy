@@ -6,7 +6,7 @@ interface DashboardHeroProps {
 
 const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-background via-background/80 to-primary/5 rounded-2xl p-8 mb-8">
+    <div className="relative overflow-hidden bg-gradient-to-br from-background via-background/80 to-primary/5 rounded-2xl p-8 mb-8 shadow-lg shadow-primary/5 border-b border-gradient-to-r from-transparent via-primary/10 to-transparent">
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-20">
         <svg className="w-full h-full" viewBox="0 0 1200 400">
