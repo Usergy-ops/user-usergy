@@ -68,30 +68,36 @@ const DashboardTabs: React.FC = () => {
           </TabsList>
         </div>
         
-        {/* Tab Content - Removed animation class to prevent content remounting */}
+        {/* Tab Content - Keep content mounted to prevent reload */}
         <div className="min-h-[400px]">
-          <TabsContent value="projects" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="projects" className="mt-0" forceMount>
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${
+              activeTab === 'projects' ? 'block' : 'hidden'
+            }`}>
               <ActiveProjectCard project={mockActiveProject} />
               {/* Add more active projects here */}
             </div>
           </TabsContent>
           
-          <TabsContent value="invitations" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="invitations" className="mt-0" forceMount>
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${
+              activeTab === 'invitations' ? 'block' : 'hidden'
+            }`}>
               <InvitationCard invitation={mockInvitation} />
               {/* Add more invitations here */}
             </div>
           </TabsContent>
           
-          <TabsContent value="browse" className="mt-0">
-            <div>
+          <TabsContent value="browse" className="mt-0" forceMount>
+            <div className={activeTab === 'browse' ? 'block' : 'hidden'}>
               <EmptyStateBrowse />
             </div>
           </TabsContent>
           
-          <TabsContent value="past" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="past" className="mt-0" forceMount>
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${
+              activeTab === 'past' ? 'block' : 'hidden'
+            }`}>
               <CompletedProjectCard project={mockCompletedProject} />
               {/* Add more completed projects here */}
             </div>

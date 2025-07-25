@@ -1,15 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Sparkles, Users, Zap } from 'lucide-react';
 
 export const CompletionCelebration: React.FC = () => {
-  const { profileData } = useProfile();
+  const { profileData, updateProfileData } = useProfile();
   const navigate = useNavigate();
 
+  // Ensure profile_completed flag is set
+  useEffect(() => {
+    const ensureProfileCompleted = async () => {
+      if (profileData?.completion_percentage >= 100 && !profileData?.profile_completed) {
+        await updateProfileData('profile', { 
+          profile_completed: true,
+          completion_percentage: 100 
+        });
+      }
+    };
+    
+    ensureProfileCompleted();
+  }, [profileData, updateProfileData]);
+
   const handleContinue = () => {
-    navigate('/dashboard');
+    // Navigate with replace to prevent back navigation to celebration
+    navigate('/dashboard', { replace: true });
   };
 
   return (

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/contexts/ProfileContext';
 
@@ -15,6 +15,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { user, loading: authLoading } = useAuth();
   const { isProfileComplete, loading: profileLoading, profileData } = useProfile();
+  const location = useLocation();
 
   // Show loading while authentication or profile data is being loaded
   if (authLoading || profileLoading) {
@@ -32,21 +33,25 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // For routes that require complete profile, check completion status
   if (requireCompleteProfile) {
-    // Enhanced profile completion check with better race condition handling
     const completionPercentage = profileData?.completion_percentage || 0;
     const profileCompleted = profileData?.profile_completed || false;
     const hasProfileData = profileData && Object.keys(profileData).length > 0;
     
+    // If we're already on the celebration page, don't check completion
+    const isOnCelebrationPage = location.pathname === '/profile-completion' && 
+                                profileCompleted === true;
+    
     // Only redirect if we have profile data and the profile is definitively incomplete
-    if (hasProfileData) {
-      const isComplete = profileCompleted || completionPercentage >= 100;
+    if (hasProfileData && !isOnCelebrationPage) {
+      const isComplete = profileCompleted === true || completionPercentage >= 100;
       
       console.log('ProtectedRoute profile check:', {
         completionPercentage,
         profileCompleted,
         isComplete,
         hasProfileData,
-        isProfileComplete
+        isProfileComplete,
+        pathname: location.pathname
       });
       
       if (!isComplete) {

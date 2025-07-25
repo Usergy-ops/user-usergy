@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,18 +39,40 @@ const Index = () => {
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
     setIsLoading(true);
+    
     if (authMode === 'signup') {
       console.log('Attempting signup for:', email);
-      const {
-        error
-      } = await signUp(email, password);
+      const { error } = await signUp(email, password);
+      
       if (error) {
         console.error('Signup failed:', error);
-        toast({
-          title: "Sign up failed",
-          description: error,
-          variant: "destructive"
-        });
+        
+        // Check if it's a duplicate email error
+        if (error.includes('already registered') || error.includes('already exists')) {
+          toast({
+            title: "Email Already Registered",
+            description: "This email is already associated with an account. Please sign in instead.",
+            variant: "destructive",
+            action: (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setAuthMode('signin');
+                  // Preserve the email in the form
+                }}
+              >
+                Switch to Sign In
+              </Button>
+            )
+          });
+        } else {
+          toast({
+            title: "Sign up failed",
+            description: error,
+            variant: "destructive"
+          });
+        }
       } else {
         console.log('Signup successful, showing OTP verification');
         setPendingSignup({
@@ -63,9 +87,8 @@ const Index = () => {
       }
     } else {
       console.log('Attempting signin for:', email);
-      const {
-        error
-      } = await signIn(email, password);
+      const { error } = await signIn(email, password);
+      
       if (error) {
         console.error('Signin failed:', error);
         toast({
@@ -81,6 +104,7 @@ const Index = () => {
         });
       }
     }
+    
     setIsLoading(false);
   };
   const handleGoogleAuth = async () => {

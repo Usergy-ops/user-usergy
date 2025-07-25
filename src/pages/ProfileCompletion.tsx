@@ -10,11 +10,12 @@ import { EnhancedSocialPresenceSection } from '@/components/profile/EnhancedSoci
 import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSection';
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
 
 const ProfileCompletion = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { 
     currentStep, 
     setCurrentStep, 
@@ -72,6 +73,13 @@ const ProfileCompletion = () => {
       resumeIncompleteSection();
     }
   }, [user, loading, isProfileComplete, resumeIncompleteSection]);
+
+  // Check if profile is complete and redirect to dashboard
+  useEffect(() => {
+    if (isProfileComplete && profileData?.profile_completed === true && currentStep !== 7) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isProfileComplete, profileData?.profile_completed, currentStep, navigate]);
 
   // Scroll to top when currentStep changes
   useEffect(() => {

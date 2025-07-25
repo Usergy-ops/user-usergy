@@ -116,7 +116,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Sign up error:', error);
-        const authError = createAuthenticationError(error.message || 'Failed to send verification code');
+        
+        // Handle specific error cases
+        let userFriendlyMessage = error.message || 'Failed to send verification code';
+        
+        if (error.message?.includes('User already registered')) {
+          userFriendlyMessage = 'This email is already registered. Please sign in instead.';
+        } else if (error.message?.includes('duplicate key value')) {
+          userFriendlyMessage = 'An account with this email already exists. Please sign in.';
+        }
+        
+        const authError = createAuthenticationError(userFriendlyMessage);
         await handleCentralizedError(authError, 'auth_signup', undefined, { email });
         
         // Handle rate limiting errors
@@ -129,7 +139,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.error) {
         console.error('Sign up data error:', data.error);
-        const authError = createAuthenticationError(data.error);
+        
+        // Handle specific error cases
+        let userFriendlyMessage = data.error;
+        
+        if (data.error.includes('User already registered') || data.error.includes('already exists')) {
+          userFriendlyMessage = 'This email is already registered. Please sign in instead.';
+        }
+        
+        const authError = createAuthenticationError(userFriendlyMessage);
         await handleCentralizedError(authError, 'auth_signup', undefined, { email });
         
         // Handle rate limiting errors
