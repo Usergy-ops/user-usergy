@@ -44,6 +44,22 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/dashboard/project/:id" 
+                element={
+                  <ProtectedRoute requireCompleteProfile={true}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard/payments" 
+                element={
+                  <ProtectedRoute requireCompleteProfile={true}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

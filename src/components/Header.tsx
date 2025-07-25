@@ -2,13 +2,20 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     await signOut();
+    navigate('/');
+  };
+
+  const handleDashboardClick = () => {
+    navigate('/dashboard');
   };
 
   return (
@@ -31,15 +38,26 @@ export const Header: React.FC = () => {
             </span>
           </div>
 
-          {/* Logout Button */}
-          <Button
-            variant="ghost"
-            onClick={handleLogout}
-            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </Button>
+          {/* Navigation */}
+          <div className="flex items-center space-x-4">
+            {user && (
+              <Button
+                variant="ghost"
+                onClick={handleDashboardClick}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-300"
+              >
+                Dashboard
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </Button>
+          </div>
         </div>
       </div>
     </header>
