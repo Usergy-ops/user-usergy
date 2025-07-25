@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { NetworkNodes } from '@/components/NetworkNodes';
 import { WorkspaceSidebar } from './WorkspaceSidebar';
@@ -11,6 +12,8 @@ interface ProjectWorkspaceProps {
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId }) => {
   const [activeSection, setActiveSection] = useState('instructions');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  console.log('ProjectWorkspace component rendered with projectId:', projectId);
   
   // Mock project data - In a real app, this would come from an API
   const project = {

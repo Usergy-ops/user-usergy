@@ -61,7 +61,7 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              {/* Catch-all route for 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
