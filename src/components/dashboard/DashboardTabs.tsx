@@ -1,108 +1,168 @@
 
 import React, { useState } from 'react';
-import { Rocket, Mail, Search, Clock } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar, DollarSign, Clock, CheckCircle, Users, MessageSquare } from "lucide-react";
 import ActiveProjectCard from './ActiveProjectCard';
+import CompletedProjectCard from './CompletedProjectCard';
 import InvitationCard from './InvitationCard';
 import EmptyStateBrowse from './EmptyStateBrowse';
-import CompletedProjectCard from './CompletedProjectCard';
 
-// Mock data
-const mockActiveProject = {
-  id: '1',
-  name: 'AI Product Testing Mission',
-  description: 'Test and provide feedback on cutting-edge AI tools',
-  reward: 15,
-  progress: 75,
-  status: 'active'
-};
+const DashboardTabs = () => {
+  const [activeTab, setActiveTab] = useState('active');
 
-const mockInvitation = {
-  id: '2',
-  name: 'Mobile App Usability Study',
-  description: 'Help shape the future of mobile productivity apps',
-  reward: 15,
-  expiresIn: '2d 14h',
-  isNew: true
-};
-
-const mockCompletedProject = {
-  id: '3',
-  name: 'E-commerce Platform Review',
-  description: 'Evaluated checkout flow and user experience',
-  completedDate: 'July 20, 2025',
-  status: 'approved',
-  paymentStatus: 'paid',
-  reward: 15
-};
-
-const DashboardTabs: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('projects');
-  
-  const tabs = [
-    { id: 'projects', label: 'Your Projects', icon: Rocket },
-    { id: 'invitations', label: 'Invitations', icon: Mail },
-    { id: 'browse', label: 'Browse Public Projects', icon: Search },
-    { id: 'past', label: 'Your Past Projects', icon: Clock }
+  // Mock data with proper IDs
+  const activeProjects = [
+    {
+      id: '1', // Ensure this has a proper string ID
+      name: 'AI Product Testing Mission',
+      description: 'Test and provide feedback on cutting-edge AI tools to help shape the future of artificial intelligence',
+      reward: 15,
+      progress: 75,
+      status: 'active'
+    },
+    {
+      id: '2',
+      name: 'Mobile App User Experience Study',
+      description: 'Evaluate the user interface and experience of a new mobile application',
+      reward: 12,
+      progress: 40,
+      status: 'active'
+    }
   ];
-  
+
+  const completedProjects = [
+    {
+      id: '3',
+      name: 'Voice Assistant Evaluation',
+      description: 'Test voice recognition accuracy and response quality',
+      reward: 18,
+      completedDate: '2024-01-15',
+      rating: 4.8
+    }
+  ];
+
+  const invitations = [
+    {
+      id: '4',
+      name: 'Smart Home Device Testing',
+      description: 'Test IoT devices and smart home integration',
+      reward: 25,
+      deadline: '2024-02-10',
+      difficulty: 'Medium'
+    }
+  ];
+
+  console.log('Active projects with IDs:', activeProjects);
+
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        {/* Custom tab navigation with premium styling */}
-        <div className="relative bg-card/50 backdrop-blur-sm rounded-xl p-1 border border-border/50 mb-6">
-          <TabsList className="grid grid-cols-4 gap-1 bg-transparent p-0 h-auto">
-            {tabs.map((tab) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="relative flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium rounded-lg 
-                          transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#00C6FB] 
-                          data-[state=active]:to-[#005BEA] data-[state=active]:text-white text-muted-foreground 
-                          hover:text-foreground data-[state=active]:shadow-lg"
-              >
-                <tab.icon className="w-4 h-4" />
-                <span className="hidden md:inline">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-        
-        {/* Tab Content - Keep content mounted to prevent reload */}
-        <div className="min-h-[400px]">
-          <TabsContent value="projects" className="mt-0" forceMount>
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${
-              activeTab === 'projects' ? 'block' : 'hidden'
-            }`}>
-              <ActiveProjectCard project={mockActiveProject} />
-              {/* Add more active projects here */}
-            </div>
-          </TabsContent>
+        <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsTrigger value="active" className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Active
+            <Badge variant="secondary" className="ml-1">
+              {activeProjects.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            Completed
+            <Badge variant="secondary" className="ml-1">
+              {completedProjects.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="invitations" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Invitations
+            <Badge variant="secondary" className="ml-1">
+              {invitations.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="browse" className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Browse
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-6">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold mb-2">Active Projects</h2>
+            <p className="text-muted-foreground">
+              Continue working on your current assignments
+            </p>
+          </div>
           
-          <TabsContent value="invitations" className="mt-0" forceMount>
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${
-              activeTab === 'invitations' ? 'block' : 'hidden'
-            }`}>
-              <InvitationCard invitation={mockInvitation} />
-              {/* Add more invitations here */}
+          {activeProjects.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {activeProjects.map((project) => (
+                <ActiveProjectCard key={project.id} project={project} />
+              ))}
             </div>
-          </TabsContent>
+          ) : (
+            <EmptyStateBrowse />
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-6">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold mb-2">Completed Projects</h2>
+            <p className="text-muted-foreground">
+              Review your finished work and earnings
+            </p>
+          </div>
           
-          <TabsContent value="browse" className="mt-0" forceMount>
-            <div className={activeTab === 'browse' ? 'block' : 'hidden'}>
-              <EmptyStateBrowse />
+          {completedProjects.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {completedProjects.map((project) => (
+                <CompletedProjectCard key={project.id} project={project} />
+              ))}
             </div>
-          </TabsContent>
+          ) : (
+            <Card className="text-center py-12">
+              <CardContent>
+                <CheckCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <CardTitle className="mb-2">No Completed Projects</CardTitle>
+                <CardDescription>
+                  Complete your first project to see it here
+                </CardDescription>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="invitations" className="space-y-6">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold mb-2">Project Invitations</h2>
+            <p className="text-muted-foreground">
+              Accept invitations to join new projects
+            </p>
+          </div>
           
-          <TabsContent value="past" className="mt-0" forceMount>
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${
-              activeTab === 'past' ? 'block' : 'hidden'
-            }`}>
-              <CompletedProjectCard project={mockCompletedProject} />
-              {/* Add more completed projects here */}
+          {invitations.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {invitations.map((invitation) => (
+                <InvitationCard key={invitation.id} invitation={invitation} />
+              ))}
             </div>
-          </TabsContent>
-        </div>
+          ) : (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <CardTitle className="mb-2">No Invitations</CardTitle>
+                <CardDescription>
+                  Project invitations will appear here
+                </CardDescription>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="browse">
+          <EmptyStateBrowse />
+        </TabsContent>
       </Tabs>
     </div>
   );

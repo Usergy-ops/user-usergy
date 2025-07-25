@@ -20,7 +20,18 @@ const ActiveProjectCard: React.FC<ActiveProjectCardProps> = ({ project }) => {
   const navigate = useNavigate();
 
   const handleViewProject = () => {
-    navigate(`/dashboard/project/${project.id}`);
+    console.log('Navigating to project with ID:', project.id);
+    console.log('Full project object:', project);
+    
+    // Ensure we have a valid project ID
+    if (!project.id) {
+      console.error('Project ID is missing or undefined');
+      return;
+    }
+    
+    const projectPath = `/dashboard/project/${project.id}`;
+    console.log('Navigating to path:', projectPath);
+    navigate(projectPath);
   };
   
   return (
