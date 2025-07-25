@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Clock, Calendar, CheckCircle, CircleDot, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { CompletionCelebration } from '../shared/CompletionCelebration';
 
 interface TasksViewProps {
   project: any;
@@ -16,7 +17,7 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const TaskCard: React.FC<{ task: any }> = ({ task }) => {
+const TaskCard: React.FC<{ task: any; onComplete: (task: any) => void }> = ({ task, onComplete }) => {
   const statusConfig = {
     pending: {
       color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
@@ -79,6 +80,7 @@ const TaskCard: React.FC<{ task: any }> = ({ task }) => {
             <Button 
               className="bg-gradient-to-r from-[#00C6FB] to-[#005BEA] text-white font-medium transition-all duration-300 hover:shadow-lg hover:scale-105"
               disabled={task.status === 'completed'}
+              onClick={() => task.status !== 'completed' && onComplete(task)}
             >
               {task.status === 'completed' ? 'Completed' : 'Start Task'}
             </Button>
@@ -90,6 +92,13 @@ const TaskCard: React.FC<{ task: any }> = ({ task }) => {
 };
 
 export const TasksView: React.FC<TasksViewProps> = ({ project }) => {
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [completedTask, setCompletedTask] = useState<any>(null);
+
+  const handleTaskComplete = (task: any) => {
+    setCompletedTask(task);
+    setShowCelebration(true);
+  };
   const tasks = [
     {
       id: '1',
@@ -172,9 +181,19 @@ export const TasksView: React.FC<TasksViewProps> = ({ project }) => {
       {/* Tasks List */}
       <div className="space-y-4">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard key={task.id} task={task} onComplete={handleTaskComplete} />
         ))}
       </div>
+
+      {/* Completion Celebration */}
+      <CompletionCelebration
+        isOpen={showCelebration}
+        onClose={() => setShowCelebration(false)}
+        type="task"
+        title="Task Completed!"
+        description={`Great work on "${completedTask?.title}"`}
+        reward={5}
+      />
 
       {/* Help Section */}
       <Card className="bg-muted/30 border border-border/50">

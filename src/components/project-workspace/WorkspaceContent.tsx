@@ -42,7 +42,7 @@ export const WorkspaceContent: React.FC<WorkspaceContentProps> = ({
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <div 
           key={activeSection}
-          className="animate-fade-in"
+          className="animate-slide-up"
         >
           {renderSection()}
         </div>

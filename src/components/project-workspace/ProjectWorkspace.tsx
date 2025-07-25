@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NetworkNodes } from '@/components/NetworkNodes';
 import { WorkspaceSidebar } from './WorkspaceSidebar';
 import { WorkspaceContent } from './WorkspaceContent';
+import { ErrorBoundary } from './shared/ErrorHandling';
 
 interface ProjectWorkspaceProps {
   projectId: string;
@@ -62,26 +63,28 @@ Remember: Your insights are valuable and will shape the future of AI technology!
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Animated background nodes */}
-      <NetworkNodes />
-      
-      {/* Main workspace container */}
-      <div className="relative z-10 flex">
-        <WorkspaceSidebar 
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-          project={project}
-          isOpen={isSidebarOpen}
-          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        />
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        {/* Animated background nodes */}
+        <NetworkNodes />
         
-        <WorkspaceContent 
-          activeSection={activeSection}
-          project={project}
-          sidebarOpen={isSidebarOpen}
-        />
+        {/* Main workspace container */}
+        <div className="relative z-10 flex">
+          <WorkspaceSidebar 
+            activeSection={activeSection}
+            onSectionChange={setActiveSection}
+            project={project}
+            isOpen={isSidebarOpen}
+            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
+          
+          <WorkspaceContent 
+            activeSection={activeSection}
+            project={project}
+            sidebarOpen={isSidebarOpen}
+          />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 };

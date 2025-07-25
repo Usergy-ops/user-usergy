@@ -32,7 +32,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({ section, isActive, onCl
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden",
+        "w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden hover-lift",
         isActive 
           ? "bg-gradient-to-r from-[#00C6FB] to-[#005BEA] text-white shadow-lg transform scale-[1.02]" 
           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
