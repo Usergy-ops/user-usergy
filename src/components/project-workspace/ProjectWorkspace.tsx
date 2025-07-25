@@ -4,6 +4,8 @@ import { NetworkNodes } from '@/components/NetworkNodes';
 import { WorkspaceSidebar } from './WorkspaceSidebar';
 import { WorkspaceContent } from './WorkspaceContent';
 import { ErrorBoundary } from './shared/ErrorHandling';
+import { useProject } from '@/hooks/useProject';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProjectWorkspaceProps {
   projectId: string;
@@ -12,58 +14,68 @@ interface ProjectWorkspaceProps {
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId }) => {
   const [activeSection, setActiveSection] = useState('instructions');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { project, loading, error } = useProject(projectId);
   
   console.log('ProjectWorkspace component rendered with projectId:', projectId);
   
-  // Mock project data - In a real app, this would come from an API
-  const project = {
-    id: projectId,
-    title: 'AI Product Testing Mission',
-    description: 'Test and provide feedback on cutting-edge AI tools to help shape the future of artificial intelligence',
-    deadline: '2025-08-15',
-    reward: 15,
-    status: 'active' as const,
-    progress: 75,
-    instructions: `# Welcome to the AI Product Testing Mission
+  if (loading) {
+    return (
+      <ErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+          <NetworkNodes />
+          <div className="relative z-10 flex">
+            <div className="hidden md:block w-[280px] h-[calc(100vh-4rem)] fixed left-0 top-16 bg-card/80 backdrop-blur-md border-r border-border/50">
+              <div className="p-6">
+                <Skeleton className="h-8 w-48 mb-4" />
+                <Skeleton className="h-4 w-32 mb-2" />
+                <Skeleton className="h-2 w-full mb-8" />
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <main className="flex-1 md:ml-[280px] pt-16 pb-20 md:pb-8">
+              <div className="max-w-4xl mx-auto p-4 md:p-8">
+                <Skeleton className="h-8 w-64 mb-4" />
+                <Skeleton className="h-4 w-96 mb-8" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            </main>
+          </div>
+        </div>
+      </ErrorBoundary>
+    );
+  }
 
-## Overview
-You have been selected to participate in an exclusive AI product testing program. Your feedback will directly influence the development of next-generation AI tools.
+  if (error) {
+    return (
+      <ErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-foreground mb-2">Error Loading Project</h2>
+            <p className="text-muted-foreground mb-4">
+              {error.message || 'An unexpected error occurred while loading the project.'}
+            </p>
+          </div>
+        </div>
+      </ErrorBoundary>
+    );
+  }
 
-## Objectives
-1. **Evaluate Core Features**: Test all primary functionalities
-2. **User Experience Assessment**: Document your interaction experience
-3. **Performance Analysis**: Monitor speed and responsiveness
-4. **Bug Identification**: Report any issues encountered
-
-## Testing Guidelines
-- Test each feature thoroughly
-- Document both positive and negative feedback
-- Include screenshots when reporting issues
-- Complete all assigned surveys
-
-## Timeline
-- **Week 1**: Initial setup and basic testing
-- **Week 2**: Advanced feature evaluation
-- **Week 3**: Final assessment and reporting
-
-Remember: Your insights are valuable and will shape the future of AI technology!`,
-    attachments: [
-      {
-        id: '1',
-        name: 'Testing Checklist.pdf',
-        size: '2.4 MB',
-        type: 'pdf',
-        url: '#'
-      },
-      {
-        id: '2',
-        name: 'Setup Guide.docx',
-        size: '1.8 MB',
-        type: 'docx',
-        url: '#'
-      }
-    ]
-  };
+  if (!project) {
+    return (
+      <ErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-foreground mb-2">Project Not Found</h2>
+            <p className="text-muted-foreground">The requested project could not be found.</p>
+          </div>
+        </div>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
