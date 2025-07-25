@@ -4,6 +4,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { Navigate } from 'react-router-dom';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
+import DashboardTabs from '@/components/dashboard/DashboardTabs';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -29,24 +30,7 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="text-center py-12">
-        <h1 className="text-4xl font-bold text-foreground mb-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-          Welcome to your Explorer Dashboard, {profileData.full_name}!
-        </h1>
-        <p className="text-xl text-muted-foreground mb-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 delay-75">
-          Your profile is {profileData.completion_percentage}% complete. Ready to explore amazing projects!
-        </p>
-        
-        <div className="bg-card/80 backdrop-blur-sm usergy-shadow-strong rounded-3xl p-8 border border-border/50 max-w-2xl mx-auto animate-in fade-in-0 slide-in-from-bottom-2 duration-300 delay-150">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">
-            🚀 Dashboard Coming Soon
-          </h2>
-          <p className="text-muted-foreground">
-            Your complete Explorer dashboard with project matching, applications, and community features is being built. 
-            Stay tuned for an amazing experience!
-          </p>
-        </div>
-      </div>
+      <DashboardTabs />
     </DashboardLayout>
   );
 };
