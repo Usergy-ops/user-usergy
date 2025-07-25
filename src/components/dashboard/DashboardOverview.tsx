@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Calendar,
   Target,
-  Award
+  Award,
+  Search
 } from 'lucide-react';
 import { useProfile } from '@/contexts/ProfileContext';
 

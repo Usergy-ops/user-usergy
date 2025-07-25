@@ -78,7 +78,7 @@ export const DashboardHeader: React.FC = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-10 px-2 hover:bg-accent/50">
                 <Avatar className="w-8 h-8 mr-2">
-                  <AvatarImage src={profileData.profile_picture_url} />
+                  <AvatarImage src={profileData.profile_picture_url || undefined} />
                   <AvatarFallback className="bg-primary/20 text-primary">
                     {profileData.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
                   </AvatarFallback>

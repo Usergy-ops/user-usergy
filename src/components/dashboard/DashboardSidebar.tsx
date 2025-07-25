@@ -44,7 +44,8 @@ const bottomItems = [
 ];
 
 export const DashboardSidebar: React.FC = () => {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const location = useLocation();
   const { user } = useAuth();
   const { profileData } = useProfile();
@@ -124,7 +125,7 @@ export const DashboardSidebar: React.FC = () => {
           <div className="p-3 mt-4 bg-gradient-to-r from-primary-start/10 to-primary-end/10 rounded-lg border border-primary/20">
             <div className="flex items-center space-x-3">
               <Avatar className="w-8 h-8">
-                <AvatarImage src={profileData.profile_picture_url} />
+                <AvatarImage src={profileData.profile_picture_url || undefined} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {profileData.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
                 </AvatarFallback>
