@@ -32,13 +32,26 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // For routes that require complete profile, check completion status
   if (requireCompleteProfile) {
-    // Only redirect if we're certain the profile is incomplete
-    // This prevents race conditions where completion_percentage hasn't been calculated yet
+    // Enhanced profile completion check with better race condition handling
     const completionPercentage = profileData?.completion_percentage || 0;
-    const hasCompletionData = typeof profileData?.completion_percentage === 'number';
+    const profileCompleted = profileData?.profile_completed || false;
+    const hasProfileData = profileData && Object.keys(profileData).length > 0;
     
-    if (hasCompletionData && completionPercentage < 100) {
-      return <Navigate to="/profile-completion" replace />;
+    // Only redirect if we have profile data and the profile is definitively incomplete
+    if (hasProfileData) {
+      const isComplete = profileCompleted || completionPercentage >= 100;
+      
+      console.log('ProtectedRoute profile check:', {
+        completionPercentage,
+        profileCompleted,
+        isComplete,
+        hasProfileData,
+        isProfileComplete
+      });
+      
+      if (!isComplete) {
+        return <Navigate to="/profile-completion" replace />;
+      }
     }
   }
 

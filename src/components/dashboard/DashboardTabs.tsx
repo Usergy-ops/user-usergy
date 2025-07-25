@@ -68,30 +68,30 @@ const DashboardTabs: React.FC = () => {
           </TabsList>
         </div>
         
-        {/* Tab Content - Optimized for immediate rendering */}
+        {/* Tab Content - Removed animation class to prevent content remounting */}
         <div className="min-h-[400px]">
           <TabsContent value="projects" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in-0 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <ActiveProjectCard project={mockActiveProject} />
               {/* Add more active projects here */}
             </div>
           </TabsContent>
           
           <TabsContent value="invitations" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in-0 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <InvitationCard invitation={mockInvitation} />
               {/* Add more invitations here */}
             </div>
           </TabsContent>
           
           <TabsContent value="browse" className="mt-0">
-            <div className="animate-in fade-in-0 duration-200">
+            <div>
               <EmptyStateBrowse />
             </div>
           </TabsContent>
           
           <TabsContent value="past" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in-0 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <CompletedProjectCard project={mockCompletedProject} />
               {/* Add more completed projects here */}
             </div>

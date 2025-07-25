@@ -69,11 +69,19 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentStep, setCurrentStep] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const isProfileComplete = (profileData.completion_percentage || 0) >= 100;
+  // Enhanced profile completion check with better race condition handling
+  const isProfileComplete = React.useMemo(() => {
+    const completionPercentage = profileData.completion_percentage || 0;
+    const profileCompleted = profileData.profile_completed || false;
+    
+    // Profile is complete if either flag is true OR completion percentage is 100%
+    return profileCompleted || completionPercentage >= 100;
+  }, [profileData.completion_percentage, profileData.profile_completed]);
 
   console.log('ProfileProvider state:', {
     profileData: {
       completion_percentage: profileData.completion_percentage,
+      profile_completed: profileData.profile_completed,
       section_4_completed: profileData.section_4_completed,
       technical_experience_level: profileData.technical_experience_level,
       ai_familiarity_level: profileData.ai_familiarity_level
@@ -133,26 +141,43 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     console.log('Frontend completion calculation:', {
       percentage,
-      currentStoredPercentage: profileData.completion_percentage
+      currentStoredPercentage: profileData.completion_percentage,
+      currentProfileCompleted: profileData.profile_completed
     });
     
-    // Update completion percentage in state and database if changed
-    if (user && percentage !== profileData.completion_percentage && !isUpdating) {
-      console.log('Updating completion percentage from', profileData.completion_percentage, 'to', percentage);
-      setProfileData(prev => ({ ...prev, completion_percentage: percentage }));
+    // Update completion percentage and profile_completed flag if needed
+    if (user && !isUpdating) {
+      const needsUpdate = percentage !== profileData.completion_percentage || 
+                         (percentage >= 100 && !profileData.profile_completed);
       
-      // Update in database
-      supabase
-        .from('profiles')
-        .update({ completion_percentage: percentage } as ProfileUpdate)
-        .eq('user_id', user.id)
-        .then(({ error }) => {
-          if (error) {
-            console.error('Error updating completion percentage:', error);
-          } else {
-            console.log('Completion percentage updated successfully:', percentage);
-          }
+      if (needsUpdate) {
+        console.log('Updating completion data:', {
+          oldPercentage: profileData.completion_percentage,
+          newPercentage: percentage,
+          oldCompleted: profileData.profile_completed,
+          newCompleted: percentage >= 100
         });
+        
+        const updateData = {
+          completion_percentage: percentage,
+          profile_completed: percentage >= 100
+        };
+        
+        setProfileData(prev => ({ ...prev, ...updateData }));
+        
+        // Update in database
+        supabase
+          .from('profiles')
+          .update(updateData as ProfileUpdate)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) {
+              console.error('Error updating completion data:', error);
+            } else {
+              console.log('Completion data updated successfully:', updateData);
+            }
+          });
+      }
     }
     
     return percentage;
@@ -245,7 +270,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           profileResult.data?.section_5_completed,
           profileResult.data?.section_6_completed
         ].filter(Boolean).length,
-        completion_percentage: profileResult.data?.completion_percentage || 0
+        completion_percentage: profileResult.data?.completion_percentage || 0,
+        profile_completed: profileResult.data?.profile_completed || false
       });
 
     } catch (error) {
