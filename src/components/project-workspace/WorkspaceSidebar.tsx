@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, Brain, Share2, Bug, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -72,7 +73,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
     <>
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden md:block h-[calc(100vh-4rem)] fixed left-0 top-16 bg-card/80 backdrop-blur-md border-r border-border/50 overflow-hidden transition-all duration-300 z-30",
+        "hidden md:block h-[calc(100vh-8rem)] fixed left-0 top-24 bg-card/80 backdrop-blur-md border-r border-border/50 overflow-hidden transition-all duration-300 z-30",
         isOpen ? "w-[280px]" : "w-[60px]"
       )}
       style={{ boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.05)' }}
