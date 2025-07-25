@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-start to-primary-end rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#00C6FB] to-[#005BEA] rounded-xl flex items-center justify-center">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
                 <circle cx="6" cy="12" r="3" />
                 <circle cx="18" cy="6" r="3" />
@@ -33,7 +33,7 @@ export const Header: React.FC = () => {
                 <path d="M8.5 10l7 4" stroke="white" strokeWidth="2" />
               </svg>
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary-start to-primary-end bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#00C6FB] to-[#005BEA] bg-clip-text text-transparent">
               Usergy
             </span>
           </div>

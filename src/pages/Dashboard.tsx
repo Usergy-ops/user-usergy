@@ -1,17 +1,16 @@
+
 import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/contexts/ProfileContext';
-import { Navigate } from 'react-router-dom';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardTabs from '@/components/dashboard/DashboardTabs';
+import { useProfile } from '@/contexts/ProfileContext';
 
 const Dashboard = () => {
-  const { user, loading: authLoading } = useAuth();
   const { profileData, loading: profileLoading } = useProfile();
 
-  if (authLoading || profileLoading) {
+  if (profileLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -25,20 +24,18 @@ const Dashboard = () => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        {/* Hero Section */}
-        <DashboardHero userName={profileData?.full_name || 'Explorer'} />
-        
-        {/* Dashboard Tabs */}
-        <DashboardTabs />
-      </div>
-    </DashboardLayout>
+    <ProtectedRoute requireCompleteProfile={true}>
+      <DashboardLayout>
+        <div className="space-y-8">
+          {/* Hero Section */}
+          <DashboardHero userName={profileData?.full_name || 'Explorer'} />
+          
+          {/* Dashboard Tabs */}
+          <DashboardTabs />
+        </div>
+      </DashboardLayout>
+    </ProtectedRoute>
   );
 };
 

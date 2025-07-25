@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -35,25 +36,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Premium Glassmorphic Header */}
       <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          {/* Logo with hover animation */}
-          <Link to="/dashboard" className="flex items-center space-x-2 group">
+          {/* Logo with correct Usergy branding */}
+          <Link to="/dashboard" className="flex items-center space-x-3 group">
             <div className="relative">
-              <svg className="w-8 h-8 transition-transform duration-300 group-hover:scale-105" viewBox="0 0 40 40">
-                {/* Animated Usergy logo icon */}
+              <svg className="w-8 h-8 transition-transform duration-300 group-hover:scale-105" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                   <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#00C6FB" />
                     <stop offset="100%" stopColor="#005BEA" />
                   </linearGradient>
                 </defs>
-                <path d="M20 5 L35 20 L20 35 L5 20 Z" fill="url(#logoGradient)" className="animate-pulse-slow" />
-                <circle cx="20" cy="20" r="8" fill="#FFFFFF" opacity="0.9" />
-                <circle cx="20" cy="20" r="4" fill="url(#logoGradient)" />
+                <circle cx="6" cy="12" r="3" fill="url(#logoGradient)" />
+                <circle cx="18" cy="6" r="3" fill="url(#logoGradient)" />
+                <circle cx="18" cy="18" r="3" fill="url(#logoGradient)" />
+                <path d="M8.5 14l7-4" stroke="url(#logoGradient)" strokeWidth="2" />
+                <path d="M8.5 10l7 4" stroke="url(#logoGradient)" strokeWidth="2" />
               </svg>
               {/* Rotating glow effect on hover */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00C6FB] to-[#005BEA] opacity-0 group-hover:opacity-30 blur-xl transition-opacity duration-300" />
             </div>
-            <span className="text-lg font-semibold text-foreground">Usergy</span>
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#00C6FB] to-[#005BEA] bg-clip-text text-transparent">
+              Usergy
+            </span>
           </Link>
 
           {/* Right side navigation */}

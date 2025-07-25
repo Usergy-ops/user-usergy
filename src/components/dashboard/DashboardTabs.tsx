@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Rocket, Mail, Search, Clock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,7 +48,7 @@ const DashboardTabs: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="projects" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Custom tab navigation with premium styling */}
         <div className="relative bg-card/50 backdrop-blur-sm rounded-xl p-1 border border-border/50 mb-6">
           <TabsList className="grid grid-cols-4 gap-1 bg-transparent p-0 h-auto">
@@ -67,28 +68,30 @@ const DashboardTabs: React.FC = () => {
           </TabsList>
         </div>
         
-        {/* Tab Content */}
+        {/* Tab Content - Optimized for immediate rendering */}
         <div className="min-h-[400px]">
           <TabsContent value="projects" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in-0 duration-200">
               <ActiveProjectCard project={mockActiveProject} />
               {/* Add more active projects here */}
             </div>
           </TabsContent>
           
           <TabsContent value="invitations" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in-0 duration-200">
               <InvitationCard invitation={mockInvitation} />
               {/* Add more invitations here */}
             </div>
           </TabsContent>
           
           <TabsContent value="browse" className="mt-0">
-            <EmptyStateBrowse />
+            <div className="animate-in fade-in-0 duration-200">
+              <EmptyStateBrowse />
+            </div>
           </TabsContent>
           
           <TabsContent value="past" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in-0 duration-200">
               <CompletedProjectCard project={mockCompletedProject} />
               {/* Add more completed projects here */}
             </div>
