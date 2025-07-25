@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface ActiveProject {
   id: string;
@@ -15,6 +17,11 @@ interface ActiveProjectCardProps {
 
 const ActiveProjectCard: React.FC<ActiveProjectCardProps> = ({ project }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
+
+  const handleViewProject = () => {
+    navigate(`/dashboard/project/${project.id}`);
+  };
   
   return (
     <div 
@@ -62,7 +69,10 @@ const ActiveProjectCard: React.FC<ActiveProjectCardProps> = ({ project }) => {
         </div>
         
         {/* CTA Button */}
-        <button className="group/btn relative w-full py-3 bg-gradient-to-r from-[#00C6FB] to-[#005BEA] text-white font-medium rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg">
+        <button 
+          onClick={handleViewProject}
+          className="group/btn relative w-full py-3 bg-gradient-to-r from-[#00C6FB] to-[#005BEA] text-white font-medium rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg"
+        >
           <span className="relative z-10 flex items-center justify-center space-x-2">
             <span>View Project</span>
             <svg className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
