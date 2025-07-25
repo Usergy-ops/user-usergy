@@ -1,0 +1,22 @@
+import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { ProjectWorkspace as ProjectWorkspaceComponent } from '@/components/project-workspace/ProjectWorkspace';
+
+const ProjectWorkspace: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  
+  if (!id) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-foreground mb-2">Project Not Found</h2>
+          <p className="text-muted-foreground">The requested project could not be found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <ProjectWorkspaceComponent projectId={id} />;
+};
+
+export default ProjectWorkspace;

@@ -11,6 +11,7 @@ import { scheduleCleanup } from "@/utils/cleanup";
 import Index from "./pages/Index";
 import ProfileCompletion from "./pages/ProfileCompletion";
 import Dashboard from "./pages/Dashboard";
+import ProjectWorkspace from "./pages/ProjectWorkspace";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,7 +49,7 @@ const App = () => (
                 path="/dashboard/project/:id" 
                 element={
                   <ProtectedRoute requireCompleteProfile={true}>
-                    <Dashboard />
+                    <ProjectWorkspace />
                   </ProtectedRoute>
                 } 
               />
