@@ -1,11 +1,11 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/contexts/ProfileContext';
-import { useNavigate } from 'react-router-dom';
-import { User, CreditCard, LogOut } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { LogOut, User, CreditCard } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { NetworkNodes } from '@/components/NetworkNodes';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -26,100 +26,85 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Abstract Vector Network Pattern Background */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0">
-        <svg className="w-full h-full animate-[float_20s_ease-in-out_infinite]" viewBox="0 0 1200 800">
-          <defs>
-            <linearGradient id="networkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#00C6FB" />
-              <stop offset="100%" stopColor="#005BEA" />
-            </linearGradient>
-          </defs>
-          {/* Network Nodes */}
-          <circle cx="200" cy="150" r="4" fill="url(#networkGradient)" />
-          <circle cx="400" cy="200" r="3" fill="url(#networkGradient)" />
-          <circle cx="600" cy="120" r="5" fill="url(#networkGradient)" />
-          <circle cx="800" cy="250" r="3" fill="url(#networkGradient)" />
-          <circle cx="1000" cy="180" r="4" fill="url(#networkGradient)" />
-          <circle cx="300" cy="400" r="3" fill="url(#networkGradient)" />
-          <circle cx="700" cy="450" r="4" fill="url(#networkGradient)" />
-          <circle cx="500" cy="600" r="3" fill="url(#networkGradient)" />
-          <circle cx="900" cy="550" r="5" fill="url(#networkGradient)" />
-          
-          {/* Network Connections */}
-          <path d="M200,150 Q300,175 400,200" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M400,200 Q500,160 600,120" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M600,120 Q700,185 800,250" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M800,250 Q900,215 1000,180" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M300,400 Q500,500 700,450" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M700,450 Q800,500 900,550" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M400,200 Q350,300 300,400" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-          <path d="M600,120 Q650,285 700,450" stroke="url(#networkGradient)" strokeWidth="1" fill="none" />
-        </svg>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 relative overflow-hidden">
+      {/* Animated Network Background */}
+      <div className="fixed inset-0 z-0">
+        <NetworkNodes />
       </div>
 
-      {/* Glassmorphic Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <button
-              onClick={handleLogoClick}
-              className="flex items-center space-x-3 ml-6 transition-transform duration-200 hover:scale-105 active:scale-95"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-[#00C6FB] to-[#005BEA] rounded-xl flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="6" r="3" />
-                  <circle cx="18" cy="18" r="3" />
-                  <path d="M8.5 14l7-4" stroke="white" strokeWidth="2" />
-                  <path d="M8.5 10l7 4" stroke="white" strokeWidth="2" />
-                </svg>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-[#00C6FB] to-[#005BEA] bg-clip-text text-transparent">
-                Usergy
-              </span>
-            </button>
+      {/* Premium Glassmorphic Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/50">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 h-full flex items-center justify-between">
+          {/* Logo with hover animation */}
+          <Link to="/dashboard" className="flex items-center space-x-2 group">
+            <div className="relative">
+              <svg className="w-8 h-8 transition-transform duration-300 group-hover:scale-105" viewBox="0 0 40 40">
+                {/* Animated Usergy logo icon */}
+                <defs>
+                  <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#00C6FB" />
+                    <stop offset="100%" stopColor="#005BEA" />
+                  </linearGradient>
+                </defs>
+                <path d="M20 5 L35 20 L20 35 L5 20 Z" fill="url(#logoGradient)" className="animate-pulse-slow" />
+                <circle cx="20" cy="20" r="8" fill="#FFFFFF" opacity="0.9" />
+                <circle cx="20" cy="20" r="4" fill="url(#logoGradient)" />
+              </svg>
+              {/* Rotating glow effect on hover */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00C6FB] to-[#005BEA] opacity-0 group-hover:opacity-30 blur-xl transition-opacity duration-300" />
+            </div>
+            <span className="text-lg font-semibold text-foreground">Usergy</span>
+          </Link>
 
-            {/* Right Navigation */}
-            <div className="flex items-center space-x-6">
-              {/* Projects & Invites Link */}
-              <Button
-                variant="ghost"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-300"
-              >
-                Projects & Invites
-              </Button>
-
-              {/* User Avatar Dropdown */}
+          {/* Right side navigation */}
+          <div className="flex items-center space-x-6">
+            <Link to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-300">
+              Projects & Invites
+            </Link>
+            
+            {/* Avatar with dropdown */}
+            <div className="relative group">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[#00C6FB] to-[#005BEA] rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 animate-[spin_2s_linear_infinite] group-hover:animate-[spin_2s_linear_infinite]"></div>
-                    <Avatar className="relative w-10 h-10 transition-transform duration-200 hover:scale-105">
-                      <AvatarImage src={profileData?.avatar_url} />
-                      <AvatarFallback className="bg-gradient-to-br from-[#00C6FB] to-[#005BEA] text-white font-semibold">
-                        {profileData?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  <button className="relative w-10 h-10 rounded-full overflow-hidden transition-transform duration-300 hover:scale-105">
+                    {/* Animated gradient border */}
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00C6FB] to-[#005BEA] opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-spin-slow" />
+                    <div className="absolute inset-[2px] rounded-full bg-background" />
+                    <Avatar className="relative w-full h-full">
+                      <AvatarImage src={profileData?.avatar_url} alt={profileData?.full_name || ''} />
+                      <AvatarFallback className="text-xs font-medium bg-primary text-primary-foreground">
+                        {profileData?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
+                
+                {/* Dropdown menu with slide animation */}
                 <DropdownMenuContent 
-                  align="end" 
-                  className="w-48 mt-2 animate-in slide-in-from-top-2 duration-200 shadow-lg"
+                  className="w-48 bg-card/95 backdrop-blur-sm rounded-lg shadow-xl border border-border/50 animate-in slide-in-from-top-2" 
+                  align="end"
                 >
-                  <DropdownMenuItem className="cursor-pointer hover:bg-primary/10 transition-colors duration-200">
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-medium text-foreground">
+                      {profileData?.full_name || 'Explorer'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-sm text-foreground hover:bg-primary/10 transition-colors cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer hover:bg-primary/10 transition-colors duration-200">
+                  <DropdownMenuItem className="text-sm text-foreground hover:bg-primary/10 transition-colors cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Payments
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={handleLogout}
-                    className="cursor-pointer hover:bg-primary/10 transition-colors duration-200"
+                    className="text-sm text-foreground hover:bg-primary/10 transition-colors cursor-pointer"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -132,11 +117,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
-          <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-            {children}
-          </div>
+      <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-24 pb-8">
+        <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+          {children}
         </div>
       </main>
     </div>
