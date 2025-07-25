@@ -18,7 +18,8 @@ const ActiveProjectCard: React.FC<ActiveProjectCardProps> = ({ project }) => {
   
   return (
     <div 
-      className="group relative bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50"
+      className="group relative bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50 
+                 transition-all duration-300 hover:shadow-2xl hover:scale-[1.01] hover:-translate-y-1"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
