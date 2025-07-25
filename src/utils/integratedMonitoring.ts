@@ -5,7 +5,7 @@
 
 import { monitoring } from './monitoring';
 import { handleCentralizedError } from './centralizedErrorHandling';
-import { checkRateLimit, checkEnhancedRateLimit } from './consistentRateLimiting';
+import { checkRateLimit } from './rateLimit';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface MonitoringAlert {
@@ -50,16 +50,8 @@ class IntegratedMonitoringSystem {
     const startTime = performance.now();
     
     try {
-      // Check both standard and enhanced rate limits
-      const [standardResult, enhancedResult] = await Promise.all([
-        checkRateLimit(identifier, action, customConfig),
-        checkEnhancedRateLimit(identifier, action, customConfig)
-      ]);
-
-      // Use the more restrictive result
-      const result = !standardResult.allowed || !enhancedResult.allowed 
-        ? (standardResult.allowed ? enhancedResult : standardResult)
-        : standardResult;
+      // Check rate limits
+      const result = await checkRateLimit(identifier, action, customConfig);
 
       // Record metrics
       this.metrics.rateLimitHits++;

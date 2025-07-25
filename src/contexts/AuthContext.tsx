@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { validateEmail, validatePassword } from '@/utils/security';
 import { ValidationError, AuthError } from '@/utils/errorHandling';
-import { checkEnhancedRateLimit } from '@/utils/enhancedRateLimiting';
+import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createAuthenticationError, createRateLimitError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
@@ -73,8 +73,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_signup');
       
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(email, 'signup');
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'signup');
       if (!rateLimitResult.allowed) {
         const error = createRateLimitError(
           `Too many signup attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
@@ -181,8 +181,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_otp_verify');
       
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(email, 'otp_verify');
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'otp_verify');
       if (!rateLimitResult.allowed) {
         const error = createRateLimitError(
           `Too many OTP verification attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
@@ -278,8 +278,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_otp_resend');
       
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(email, 'otp_resend');
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'otp_resend');
       if (!rateLimitResult.allowed) {
         const error = createRateLimitError(
           `Too many OTP resend attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
@@ -356,8 +356,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_signin');
       
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(email, 'signin');
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'signin');
       if (!rateLimitResult.allowed) {
         const error = createRateLimitError(
           `Too many signin attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
@@ -430,8 +430,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       monitoring.startTiming('auth_password_reset');
       
-      // Check enhanced rate limiting
-      const rateLimitResult = await checkEnhancedRateLimit(email, 'password_reset');
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'password_reset');
       if (!rateLimitResult.allowed) {
         const error = createRateLimitError(
           `Too many password reset attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
