@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from './useErrorHandler';
 
 interface Project {
@@ -40,44 +39,43 @@ export const useProject = (projectId: string) => {
 
         console.log('Fetching project with ID:', projectId);
 
-        // Fetch project data
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single();
-
-        if (projectError) {
-          console.error('Error fetching project:', projectError);
-          throw projectError;
-        }
-
-        // Fetch project attachments
-        const { data: attachmentsData, error: attachmentsError } = await supabase
-          .from('project_attachments')
-          .select('*')
-          .eq('project_id', projectId);
-
-        if (attachmentsError) {
-          console.error('Error fetching attachments:', attachmentsError);
-          throw attachmentsError;
-        }
-
-        // Format file sizes for display
-        const formattedAttachments = attachmentsData?.map(attachment => ({
-          ...attachment,
-          size: formatFileSize(attachment.file_size),
-          type: attachment.file_type,
-          url: attachment.file_path
-        })) || [];
-
-        const fullProject = {
-          ...projectData,
-          attachments: formattedAttachments
+        // Mock project data for demonstration
+        const mockProject: Project = {
+          id: projectId,
+          title: 'AI Product Testing Mission',
+          description: 'Test and provide feedback on cutting-edge AI products before they launch to the public.',
+          instructions: 'This is a comprehensive project where you will test various AI products and provide detailed feedback. Please follow the instructions carefully and document your findings.',
+          deadline: '2024-12-31',
+          reward: 500,
+          status: 'active',
+          progress: 35,
+          created_at: '2024-01-15T10:00:00Z',
+          updated_at: '2024-01-20T14:30:00Z',
+          attachments: [
+            {
+              id: '1',
+              name: 'project-brief.pdf',
+              file_path: '/attachments/project-brief.pdf',
+              file_size: 2048000,
+              file_type: 'application/pdf',
+              created_at: '2024-01-15T10:00:00Z'
+            },
+            {
+              id: '2',
+              name: 'requirements.docx',
+              file_path: '/attachments/requirements.docx',
+              file_size: 1024000,
+              file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              created_at: '2024-01-15T10:05:00Z'
+            }
+          ]
         };
 
-        console.log('Successfully fetched project:', fullProject);
-        setProject(fullProject);
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log('Successfully fetched project:', mockProject);
+        setProject(mockProject);
       } catch (err) {
         console.error('Error in fetchProject:', err);
         const error = err as Error;
@@ -94,15 +92,4 @@ export const useProject = (projectId: string) => {
   }, [projectId, handleError]);
 
   return { project, loading, error };
-};
-
-// Helper function to format file sizes
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };

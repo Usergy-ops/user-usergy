@@ -13,6 +13,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import Index from '@/pages/Index';
 import ProfileCompletion from '@/pages/ProfileCompletion';
 import Dashboard from '@/pages/Dashboard';
+import ProjectWorkspace from '@/pages/ProjectWorkspace';
 import { SystemMonitoring } from '@/pages/SystemMonitoring';
 import NotFound from '@/pages/NotFound';
 
@@ -55,6 +56,11 @@ function App() {
                   <Route path="/dashboard" element={
                     <ProtectedRoute requireCompleteProfile>
                       <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/project/:id" element={
+                    <ProtectedRoute requireCompleteProfile>
+                      <ProjectWorkspace />
                     </ProtectedRoute>
                   } />
                   <Route path="/monitoring" element={

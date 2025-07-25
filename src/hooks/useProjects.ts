@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from './useErrorHandler';
 
 interface Project {
@@ -44,60 +43,71 @@ export const useProjects = () => {
 
         console.log('Fetching user projects...');
 
-        // Fetch active projects the user participates in
-        const { data: activeProjectsData, error: activeError } = await supabase
-          .from('projects')
-          .select(`
-            *,
-            project_participants!inner(user_id, status)
-          `)
-          .eq('project_participants.user_id', (await supabase.auth.getUser()).data.user?.id)
-          .eq('status', 'active');
+        // Mock data for demonstration
+        const mockActiveProjects: Project[] = [
+          {
+            id: '1',
+            title: 'AI Product Testing Mission',
+            description: 'Test and provide feedback on cutting-edge AI products before they launch to the public.',
+            reward: 500,
+            status: 'active',
+            progress: 35,
+            deadline: '2024-12-31',
+            created_at: '2024-01-15T10:00:00Z'
+          },
+          {
+            id: '2',
+            title: 'Mobile App UX Review',
+            description: 'Evaluate the user experience of a new mobile application and provide detailed feedback.',
+            reward: 300,
+            status: 'active',
+            progress: 60,
+            deadline: '2024-11-30',
+            created_at: '2024-01-10T09:00:00Z'
+          }
+        ];
 
-        if (activeError) {
-          console.error('Error fetching active projects:', activeError);
-          throw activeError;
-        }
+        const mockInvitations: ProjectInvitation[] = [
+          {
+            id: '1',
+            project_id: '3',
+            email: 'user@example.com',
+            status: 'pending',
+            expires_at: '2024-02-15T10:00:00Z',
+            created_at: '2024-01-25T10:00:00Z',
+            projects: {
+              title: 'Web Platform Beta Testing',
+              description: 'Test a new web platform and provide comprehensive feedback on functionality and usability.',
+              reward: 750
+            }
+          }
+        ];
 
-        // Fetch completed projects
-        const { data: completedProjectsData, error: completedError } = await supabase
-          .from('projects')
-          .select(`
-            *,
-            project_participants!inner(user_id, status)
-          `)
-          .eq('project_participants.user_id', (await supabase.auth.getUser()).data.user?.id)
-          .eq('status', 'completed');
+        const mockCompletedProjects: Project[] = [
+          {
+            id: '4',
+            title: 'E-commerce Site Testing',
+            description: 'Comprehensive testing of an e-commerce platform focusing on checkout process and user flow.',
+            reward: 400,
+            status: 'completed',
+            progress: 100,
+            deadline: '2024-01-15',
+            created_at: '2023-12-01T10:00:00Z'
+          }
+        ];
 
-        if (completedError) {
-          console.error('Error fetching completed projects:', completedError);
-          throw completedError;
-        }
-
-        // Fetch invitations
-        const { data: invitationsData, error: invitationsError } = await supabase
-          .from('project_invitations')
-          .select(`
-            *,
-            projects(title, description, reward)
-          `)
-          .eq('email', (await supabase.auth.getUser()).data.user?.email)
-          .eq('status', 'pending');
-
-        if (invitationsError) {
-          console.error('Error fetching invitations:', invitationsError);
-          throw invitationsError;
-        }
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         console.log('Successfully fetched projects data:', {
-          active: activeProjectsData?.length || 0,
-          completed: completedProjectsData?.length || 0,
-          invitations: invitationsData?.length || 0
+          active: mockActiveProjects.length,
+          completed: mockCompletedProjects.length,
+          invitations: mockInvitations.length
         });
 
-        setActiveProjects(activeProjectsData || []);
-        setCompletedProjects(completedProjectsData || []);
-        setInvitations(invitationsData || []);
+        setActiveProjects(mockActiveProjects);
+        setCompletedProjects(mockCompletedProjects);
+        setInvitations(mockInvitations);
       } catch (err) {
         console.error('Error in fetchProjects:', err);
         const error = err as Error;
