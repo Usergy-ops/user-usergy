@@ -20,7 +20,7 @@ export const Header: React.FC = () => {
   };
 
   const handleProfileClick = () => {
-    navigate('/profile');
+    navigate('/profile-completion');
   };
 
   const handlePaymentsClick = () => {
