@@ -1,8 +1,15 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { validateUnified } from '@/utils/validation/unifiedValidation';
+import { 
+  validateProfileData, 
+  validateDeviceData, 
+  validateTechFluencyData, 
+  validateSkillsData, 
+  validateSocialPresenceData 
+} from '@/utils/dataValidation';
 import { ValidationError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
@@ -69,6 +76,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const completionPercentage = profileData?.completion_percentage || 0;
     const profileCompleted = profileData?.profile_completed || false;
     
+    // Profile is complete if either flag is true OR completion percentage is 100%
     return profileCompleted || completionPercentage >= 100;
   }, [profileData?.completion_percentage, profileData?.profile_completed]);
 
@@ -105,6 +113,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       section_6_completed: profileData?.section_6_completed
     });
     
+    // Check which sections are completed and set the current step accordingly
     if (!profileData?.section_1_completed) {
       setCurrentStep(1);
     } else if (!profileData?.section_2_completed) {
@@ -118,7 +127,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } else if (!profileData?.section_6_completed) {
       setCurrentStep(6);
     } else {
-      setCurrentStep(1);
+      setCurrentStep(1); // All sections completed, start from beginning
     }
   }, [profileData, user]);
 
@@ -138,6 +147,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       currentProfileCompleted: profileData?.profile_completed
     });
     
+    // Update completion percentage and profile_completed flag if needed
     if (user && !isUpdating) {
       const needsUpdate = percentage !== profileData?.completion_percentage || 
                          (percentage >= 100 && !profileData?.profile_completed);
@@ -157,6 +167,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         
         setProfileData(prev => ({ ...prev, ...updateData }));
         
+        // Update in database
         supabase
           .from('profiles')
           .update(updateData as ProfileUpdate)
@@ -182,12 +193,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user]);
 
+  // Recalculate completion whenever data changes
   useEffect(() => {
     if (user && !loading && !isUpdating) {
       calculateCompletion();
     }
   }, [profileData, deviceData, techFluencyData, skillsData, calculateCompletion, user, loading, isUpdating]);
 
+  // Resume incomplete section when profile data is loaded
   useEffect(() => {
     if (user && !loading && !isProfileComplete) {
       resumeIncompleteSection();
@@ -203,8 +216,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       console.log('Loading profile data for user:', user.id);
 
+      // Ensure user has account type before loading profile
       await ensureUserHasAccountType(user.id);
 
+      // Check rate limiting using unified system
       const rateLimitResult = await checkRateLimit(user.id, 'profile_load');
       if (!rateLimitResult.allowed) {
         const error = createDatabaseError('Too many profile load requests. Please try again later.', 'profile_load', user.id);
@@ -212,6 +227,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
+      // Load all data in parallel using consolidated_social_presence
       const [profileResult, devicesResult, techResult, skillsResult, socialResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('user_id', user.id).single(),
         supabase.from('user_devices').select('*').eq('user_id', user.id).maybeSingle(),
@@ -228,16 +244,36 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         socialPresence: socialResult.data
       });
 
+      // Set data with null safety
       if (profileResult.data) {
         setProfileData(profileResult.data);
       } else if (profileResult.error) {
         console.warn('Profile not found, this should not happen after migration:', profileResult.error);
       }
 
-      setDeviceData(devicesResult.data || {});
-      setTechFluencyData(techResult.data || {});
-      setSkillsData(skillsResult.data || {});
-      setSocialPresenceData(socialResult.data || {});
+      if (devicesResult.data) {
+        setDeviceData(devicesResult.data);
+      } else {
+        setDeviceData({});
+      }
+
+      if (techResult.data) {
+        setTechFluencyData(techResult.data);
+      } else {
+        setTechFluencyData({});
+      }
+
+      if (skillsResult.data) {
+        setSkillsData(skillsResult.data);
+      } else {
+        setSkillsData({});
+      }
+
+      if (socialResult.data) {
+        setSocialPresenceData(socialResult.data);
+      } else {
+        setSocialPresenceData({});
+      }
 
       monitoring.endTiming('profile_load');
       
@@ -271,8 +307,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log(`Updating ${section} with data:`, data);
       monitoring.startTiming(`profile_update_${section}`);
 
+      // Ensure user has account type before updating
       await ensureUserHasAccountType(user.id);
 
+      // Check rate limiting using unified system
       const rateLimitResult = await checkRateLimit(user.id, 'profile_update');
       if (!rateLimitResult.allowed) {
         const error = createDatabaseError('Too many profile update requests. Please try again later.', 'profile_update', user.id);
@@ -280,28 +318,37 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
-      // Use unified validation system
-      const validationResult = validateUnified(data, {
-        isAutoSave: !data.hasOwnProperty('section_1_completed') && !data.hasOwnProperty('section_2_completed') && 
-                   !data.hasOwnProperty('section_3_completed') && !data.hasOwnProperty('section_4_completed') &&
-                   !data.hasOwnProperty('section_5_completed') && !data.hasOwnProperty('section_6_completed'),
-        isSubmission: data.hasOwnProperty('section_1_completed') || data.hasOwnProperty('section_2_completed') || 
-                     data.hasOwnProperty('section_3_completed') || data.hasOwnProperty('section_4_completed') ||
-                     data.hasOwnProperty('section_5_completed') || data.hasOwnProperty('section_6_completed'),
-        isRealTime: false,
-        section
-      });
+      // Validate data before updating
+      let validationResult;
+      
+      switch (section) {
+        case 'profile':
+          validationResult = validateProfileData(data);
+          break;
+        case 'devices':
+          validationResult = validateDeviceData(data);
+          break;
+        case 'tech_fluency':
+          validationResult = validateTechFluencyData(data);
+          break;
+        case 'skills':
+          validationResult = validateSkillsData(data);
+          break;
+        case 'social_presence':
+          validationResult = validateSocialPresenceData(data);
+          break;
+        default:
+          validationResult = { isValid: true, errors: [] };
+      }
 
-      console.log(`Unified validation result for ${section}:`, validationResult);
+      console.log(`Validation result for ${section}:`, validationResult);
 
-      // For auto-save, we allow validation errors (partial data is OK)
-      // For submissions, validation must pass
-      const isSubmission = data.hasOwnProperty('section_1_completed') || data.hasOwnProperty('section_2_completed') || 
-                          data.hasOwnProperty('section_3_completed') || data.hasOwnProperty('section_4_completed') ||
-                          data.hasOwnProperty('section_5_completed') || data.hasOwnProperty('section_6_completed');
-
-      if (isSubmission && !validationResult.isValid) {
-        const errorMessage = validationResult.errors.join(', ');
+      if (!validationResult.isValid) {
+        // Handle validation errors properly - errors are now arrays
+        const errorMessage = Array.isArray(validationResult.errors) 
+          ? validationResult.errors.join(', ')
+          : Object.values(validationResult.errors).join(', ');
+        
         const error = createValidationError(errorMessage, section, user.id);
         await handleCentralizedError(error, `profile_update_${section}`, user.id);
         throw error;
@@ -344,6 +391,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           break;
 
         case 'tech_fluency':
+          // Handle duplicate key constraint for tech_fluency
           try {
             updateResult = await supabase
               .from('user_tech_fluency')
@@ -363,6 +411,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           } catch (upsertError: any) {
             console.error('Tech fluency upsert error:', upsertError);
             
+            // If upsert fails, try update first
             const existingResult = await supabase
               .from('user_tech_fluency')
               .select('id')
@@ -370,11 +419,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
               .maybeSingle();
             
             if (existingResult.data) {
+              // Record exists, update it
               updateResult = await supabase
                 .from('user_tech_fluency')
                 .update(data)
                 .eq('user_id', user.id);
             } else {
+              // Record doesn't exist, insert it
               updateResult = await supabase
                 .from('user_tech_fluency')
                 .insert({ 
@@ -388,24 +439,61 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             }
             
             setTechFluencyData(prev => ({ ...prev, ...data }));
-            console.log('Tech fluency updated successfully after retry:', data);
+            console.log('Tech fluency updated successfully (fallback):', data);
           }
           break;
 
         case 'skills':
-          updateResult = await supabase
-            .from('user_skills')
-            .upsert({ 
-              user_id: user.id, 
-              ...data
-            });
-          
-          if (updateResult.error) {
-            throw updateResult.error;
+          // Handle duplicate key constraint for skills
+          try {
+            updateResult = await supabase
+              .from('user_skills')
+              .upsert({ 
+                user_id: user.id, 
+                ...data
+              }, {
+                onConflict: 'user_id'
+              });
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setSkillsData(prev => ({ ...prev, ...data }));
+            console.log('Skills updated successfully');
+          } catch (upsertError: any) {
+            console.error('Skills upsert error:', upsertError);
+            
+            // If upsert fails, try update first
+            const existingResult = await supabase
+              .from('user_skills')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (existingResult.data) {
+              // Record exists, update it
+              updateResult = await supabase
+                .from('user_skills')
+                .update(data)
+                .eq('user_id', user.id);
+            } else {
+              // Record doesn't exist, insert it
+              updateResult = await supabase
+                .from('user_skills')
+                .insert({ 
+                  user_id: user.id, 
+                  ...data 
+                });
+            }
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setSkillsData(prev => ({ ...prev, ...data }));
+            console.log('Skills updated successfully (fallback)');
           }
-          
-          setSkillsData(prev => ({ ...prev, ...data }));
-          console.log('Skills updated successfully');
           break;
 
         case 'social_presence':
@@ -423,17 +511,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setSocialPresenceData(prev => ({ ...prev, ...data }));
           console.log('Social presence updated successfully');
           break;
-
-        default:
-          throw new Error(`Unknown section: ${section}`);
       }
 
       monitoring.endTiming(`profile_update_${section}`);
       
-      trackUserAction('profile_section_updated', {
+      trackUserAction('profile_updated', {
         section,
-        user_id: user.id,
-        data_keys: Object.keys(data)
+        data_keys: Object.keys(data),
+        user_id: user.id
       });
 
     } catch (error) {
@@ -447,45 +532,89 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const uploadProfilePicture = async (file: File): Promise<string> => {
-    if (!user) throw new Error('No user logged in');
+    if (!user) throw new Error('User not authenticated');
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+    try {
+      monitoring.startTiming('profile_picture_upload');
 
-    const { error: uploadError } = await supabase.storage
-      .from('profile-pictures')
-      .upload(filePath, file, { upsert: true });
+      // Ensure user has account type before uploading
+      await ensureUserHasAccountType(user.id);
 
-    if (uploadError) {
-      throw uploadError;
+      // Check rate limiting using unified system
+      const rateLimitResult = await checkRateLimit(user.id, 'file_upload');
+      if (!rateLimitResult.allowed) {
+        const error = createDatabaseError('Too many file upload requests. Please try again later.', 'file_upload', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
+      }
+
+      // Validate file
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      
+      if (file.size > maxSize) {
+        const error = createValidationError('File size must be less than 5MB', 'file_size', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
+      }
+      
+      if (!allowedTypes.includes(file.type)) {
+        const error = createValidationError('File must be a JPEG, PNG, or WebP image', 'file_type', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        const error = createDatabaseError(uploadError.message, 'file_upload', user.id);
+        await handleCentralizedError(error, 'profile_picture_upload', user.id);
+        throw error;
+      }
+
+      const { data } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+      monitoring.endTiming('profile_picture_upload');
+      
+      trackUserAction('profile_picture_uploaded', {
+        file_size: file.size,
+        file_type: file.type,
+        user_id: user.id
+      });
+
+      return data.publicUrl;
+    } catch (error) {
+      await handleCentralizedError(error as Error, 'profile_picture_upload', user.id);
+      handleError(error, 'ProfileContext.uploadProfilePicture');
+      throw error;
     }
+  };
 
-    const { data } = supabase.storage
-      .from('profile-pictures')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
+  const value = {
+    profileData,
+    deviceData,
+    techFluencyData,
+    skillsData,
+    socialPresenceData,
+    loading,
+    currentStep,
+    isProfileComplete,
+    updateProfileData,
+    setCurrentStep,
+    calculateCompletion,
+    uploadProfilePicture,
+    resumeIncompleteSection
   };
 
   return (
-    <ProfileContext.Provider
-      value={{
-        profileData,
-        deviceData,
-        techFluencyData,
-        skillsData,
-        socialPresenceData,
-        loading,
-        currentStep,
-        isProfileComplete,
-        updateProfileData,
-        setCurrentStep,
-        calculateCompletion,
-        uploadProfilePicture,
-        resumeIncompleteSection,
-      }}
-    >
+    <ProfileContext.Provider value={value}>
       {children}
     </ProfileContext.Provider>
   );

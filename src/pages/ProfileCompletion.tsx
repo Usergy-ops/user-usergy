@@ -1,9 +1,8 @@
-
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
-import BasicProfileSection from '@/components/profile/BasicProfileSection';
+import { BasicProfileSection } from '@/components/profile/BasicProfileSection';
 import { DevicesSection } from '@/components/profile/DevicesSection';
 import { EducationWorkSection } from '@/components/profile/EducationWorkSection';
 import { EnhancedTechFluencySection } from '@/components/profile/EnhancedTechFluencySection';
@@ -13,12 +12,10 @@ import { CompletionCelebration } from '@/components/profile/CompletionCelebratio
 import { ChevronLeft } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
-import { useToast } from '@/hooks/use-toast';
 
 const ProfileCompletion = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { 
     currentStep, 
     setCurrentStep, 
@@ -80,13 +77,9 @@ const ProfileCompletion = () => {
   // Check if profile is complete and redirect to dashboard
   useEffect(() => {
     if (isProfileComplete && profileData?.profile_completed === true && currentStep !== 7) {
-      toast({
-        title: "Profile Complete!",
-        description: "Your profile has been completed successfully. Redirecting to dashboard...",
-      });
       navigate('/dashboard', { replace: true });
     }
-  }, [isProfileComplete, profileData?.profile_completed, currentStep, navigate, toast]);
+  }, [isProfileComplete, profileData?.profile_completed, currentStep, navigate]);
 
   // Scroll to top when currentStep changes
   useEffect(() => {

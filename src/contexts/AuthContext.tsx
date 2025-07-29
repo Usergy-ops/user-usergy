@@ -1,8 +1,9 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { validateEmail, validatePasswordSync } from '@/utils/security';
+import { validateEmail, validatePassword } from '@/utils/security';
 import { ValidationError, AuthError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createAuthenticationError, createRateLimitError } from '@/utils/centralizedErrorHandling';
@@ -152,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: error.message };
       }
       
-      const passwordValidation = validatePasswordSync(password);
+      const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
         const error = createAuthenticationError(passwordValidation.errors.join(', '));
         await handleCentralizedError(error, 'auth_signup', undefined, { email });

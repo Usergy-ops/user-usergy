@@ -4,10 +4,13 @@ import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { validateForAutoSave, validateForSubmission } from '@/utils/validation/formValidation';
 import { Brain, Code, Zap, Save, AlertCircle } from 'lucide-react';
 
 interface TechFluencyFormData {
@@ -19,7 +22,7 @@ interface TechFluencyFormData {
   coding_experience_years: number;
 }
 
-const AUTO_SAVE_DELAY = 2000;
+const AUTO_SAVE_DELAY = 2000; // 2 seconds
 
 export const EnhancedTechFluencySection: React.FC = () => {
   const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
@@ -27,6 +30,13 @@ export const EnhancedTechFluencySection: React.FC = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedData, setLastSavedData] = useState<TechFluencyFormData | null>(null);
+
+  // User-specific localStorage key
+  const getAutoSaveKey = useCallback(() => {
+    if (!user?.id) return null;
+    return `tech_fluency_form_data_${user.id}`;
+  }, [user?.id]);
 
   console.log('EnhancedTechFluencySection rendered with data:', {
     profileData: {
@@ -51,12 +61,114 @@ export const EnhancedTechFluencySection: React.FC = () => {
     }
   });
 
-  // Simplified auto-save without complex validation
+  // Auto-save functionality with user-specific keys
+  const saveToLocalStorage = useCallback((data: TechFluencyFormData) => {
+    const autoSaveKey = getAutoSaveKey();
+    if (!autoSaveKey) return;
+
+    try {
+      localStorage.setItem(autoSaveKey, JSON.stringify(data));
+      console.log('Auto-saved to localStorage:', data);
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error);
+    }
+  }, [getAutoSaveKey]);
+
+  const loadFromLocalStorage = useCallback(() => {
+    const autoSaveKey = getAutoSaveKey();
+    if (!autoSaveKey) return;
+
+    try {
+      const saved = localStorage.getItem(autoSaveKey);
+      if (saved) {
+        const parsedData = JSON.parse(saved) as TechFluencyFormData;
+        console.log('Loaded from localStorage:', parsedData);
+        
+        // Only restore if current form is mostly empty AND we have meaningful saved data
+        const hasCurrentData = (
+          profileData.technical_experience_level ||
+          profileData.ai_familiarity_level ||
+          (techFluencyData.ai_interests && techFluencyData.ai_interests.length > 0) ||
+          (techFluencyData.ai_models_used && techFluencyData.ai_models_used.length > 0)
+        );
+
+        const hasSavedData = (
+          parsedData.technical_experience_level ||
+          parsedData.ai_familiarity_level ||
+          (parsedData.ai_interests && parsedData.ai_interests.length > 0) ||
+          (parsedData.ai_models_used && parsedData.ai_models_used.length > 0)
+        );
+
+        // Only restore if we don't have current data but we have saved data
+        if (!hasCurrentData && hasSavedData) {
+          // Type-safe setValue calls
+          if (parsedData.technical_experience_level) {
+            setValue('technical_experience_level', parsedData.technical_experience_level);
+          }
+          if (parsedData.ai_familiarity_level) {
+            setValue('ai_familiarity_level', parsedData.ai_familiarity_level);
+          }
+          if (parsedData.ai_interests) {
+            setValue('ai_interests', parsedData.ai_interests);
+          }
+          if (parsedData.ai_models_used) {
+            setValue('ai_models_used', parsedData.ai_models_used);
+          }
+          if (parsedData.programming_languages) {
+            setValue('programming_languages', parsedData.programming_languages);
+          }
+          if (parsedData.coding_experience_years !== undefined) {
+            setValue('coding_experience_years', parsedData.coding_experience_years);
+          }
+          
+          toast({
+            title: "Form data restored",
+            description: "Your previous selections have been restored.",
+            duration: 3000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+    }
+  }, [setValue, profileData, techFluencyData, toast, getAutoSaveKey]);
+
+  const clearLocalStorage = useCallback(() => {
+    const autoSaveKey = getAutoSaveKey();
+    if (!autoSaveKey) return;
+
+    try {
+      localStorage.removeItem(autoSaveKey);
+      console.log('Cleared localStorage for tech fluency form');
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+  }, [getAutoSaveKey]);
+
+  // Load from localStorage on component mount
+  useEffect(() => {
+    if (user?.id) {
+      loadFromLocalStorage();
+    }
+  }, [loadFromLocalStorage, user?.id]);
+
+  // Clean up localStorage when user changes
+  useEffect(() => {
+    return () => {
+      // Clean up old localStorage entries when component unmounts
+      clearLocalStorage();
+    };
+  }, [clearLocalStorage]);
+
+  // Auto-save on form changes with proper validation
   useEffect(() => {
     if (!user?.id) return;
 
     const subscription = watch((data) => {
       if (data && Object.keys(data).length > 0) {
+        saveToLocalStorage(data as TechFluencyFormData);
+        
+        // Auto-save to database with debounce and proper validation
         const timeoutId = setTimeout(async () => {
           try {
             setAutoSaveStatus('saving');
@@ -74,34 +186,43 @@ export const EnhancedTechFluencySection: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [watch, user?.id]);
+  }, [watch, user?.id, saveToLocalStorage]);
 
   const autoSaveToDatabase = async (data: TechFluencyFormData) => {
     console.log('Auto-saving to database:', data);
     
     try {
-      // Save profile data - only save valid, non-empty values
-      const profileDataToSave: any = {};
-      if (data.technical_experience_level && data.technical_experience_level.trim() !== '') {
-        profileDataToSave.technical_experience_level = data.technical_experience_level;
-      }
-      if (data.ai_familiarity_level && data.ai_familiarity_level.trim() !== '') {
-        profileDataToSave.ai_familiarity_level = data.ai_familiarity_level;
-      }
+      // Validate data for auto-save (lenient validation)
+      const profileValidation = validateForAutoSave({
+        technical_experience_level: data.technical_experience_level,
+        ai_familiarity_level: data.ai_familiarity_level,
+      }, 'profile');
 
-      if (Object.keys(profileDataToSave).length > 0) {
-        await updateProfileData('profile', profileDataToSave);
-      }
-
-      // Save tech fluency data - allow empty arrays during auto-save
-      const techFluencyDataToSave: any = {
+      const techValidation = validateForAutoSave({
         ai_interests: data.ai_interests || [],
         ai_models_used: data.ai_models_used || [],
         programming_languages: data.programming_languages || [],
         coding_experience_years: data.coding_experience_years || 0,
-      };
+      }, 'tech_fluency');
 
-      await updateProfileData('tech_fluency', techFluencyDataToSave);
+      // Only save if validation passes (format/type checks)
+      if (profileValidation.isValid) {
+        await updateProfileData('profile', {
+          technical_experience_level: data.technical_experience_level,
+          ai_familiarity_level: data.ai_familiarity_level,
+        });
+      }
+
+      if (techValidation.isValid) {
+        await updateProfileData('tech_fluency', {
+          ai_interests: data.ai_interests || [],
+          ai_models_used: data.ai_models_used || [],
+          programming_languages: data.programming_languages || [],
+          coding_experience_years: data.coding_experience_years || 0,
+        });
+      }
+
+      setLastSavedData(data);
       console.log('Auto-save successful');
     } catch (error) {
       console.error('Auto-save failed:', error);
@@ -125,38 +246,33 @@ export const EnhancedTechFluencySection: React.FC = () => {
     try {
       setIsSubmitting(true);
       
-      // Simple validation - only check tech fluency requirements
-      if (!data.technical_experience_level) {
+      // Validate for final submission (strict validation)
+      const profileValidation = validateForSubmission({
+        technical_experience_level: data.technical_experience_level,
+        ai_familiarity_level: data.ai_familiarity_level,
+      }, 'profile');
+
+      const techValidation = validateForSubmission({
+        ai_interests: data.ai_interests || [],
+        ai_models_used: data.ai_models_used || [],
+        programming_languages: data.programming_languages || [],
+        coding_experience_years: data.coding_experience_years || 0,
+      }, 'tech_fluency');
+
+      // Check validation results
+      if (!profileValidation.isValid) {
         toast({
-          title: "Technical experience required",
-          description: "Please select your technical experience level.",
+          title: "Validation Error",
+          description: profileValidation.errors.join(', '),
           variant: "destructive"
         });
         return;
       }
 
-      if (!data.ai_familiarity_level) {
+      if (!techValidation.isValid) {
         toast({
-          title: "AI familiarity required",
-          description: "Please select your AI familiarity level.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.ai_interests || data.ai_interests.length === 0) {
-        toast({
-          title: "AI interests required",
-          description: "Please select at least one AI interest.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.ai_models_used || data.ai_models_used.length === 0) {
-        toast({
-          title: "AI models required",
-          description: "Please select at least one AI model you've used.",
+          title: "Validation Error",
+          description: techValidation.errors.join(', '),
           variant: "destructive"
         });
         return;
@@ -176,6 +292,9 @@ export const EnhancedTechFluencySection: React.FC = () => {
         programming_languages: data.programming_languages || [],
         coding_experience_years: data.coding_experience_years || 0,
       });
+      
+      // Clear localStorage after successful save
+      clearLocalStorage();
       
       toast({
         title: "Tech fluency saved!",

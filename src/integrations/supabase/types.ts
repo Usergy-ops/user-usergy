@@ -152,8 +152,6 @@ export type Database = {
           id: string
           identifier: string
           metadata: Json | null
-          security_level: string | null
-          threat_detected: boolean | null
           updated_at: string | null
           window_end: string | null
           window_start: string | null
@@ -166,8 +164,6 @@ export type Database = {
           id?: string
           identifier: string
           metadata?: Json | null
-          security_level?: string | null
-          threat_detected?: boolean | null
           updated_at?: string | null
           window_end?: string | null
           window_start?: string | null
@@ -180,8 +176,6 @@ export type Database = {
           id?: string
           identifier?: string
           metadata?: Json | null
-          security_level?: string | null
-          threat_detected?: boolean | null
           updated_at?: string | null
           window_end?: string | null
           window_start?: string | null
@@ -358,8 +352,6 @@ export type Database = {
           created_at: string | null
           id: string
           identifier: string
-          security_level: string | null
-          threat_detected: boolean | null
           updated_at: string | null
           window_start: string | null
         }
@@ -370,8 +362,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           identifier: string
-          security_level?: string | null
-          threat_detected?: boolean | null
           updated_at?: string | null
           window_start?: string | null
         }
@@ -382,40 +372,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           identifier?: string
-          security_level?: string | null
-          threat_detected?: boolean | null
           updated_at?: string | null
           window_start?: string | null
-        }
-        Relationships: []
-      }
-      security_audit_log: {
-        Row: {
-          created_at: string | null
-          event_data: Json | null
-          event_type: string
-          id: string
-          ip_address: unknown | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          event_data?: Json | null
-          event_type: string
-          id?: string
-          ip_address?: unknown | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          event_data?: Json | null
-          event_type?: string
-          id?: string
-          ip_address?: unknown | null
-          user_agent?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -752,16 +710,6 @@ export type Database = {
         Args: { user_id_param?: string }
         Returns: boolean
       }
-      log_security_event: {
-        Args: {
-          p_user_id: string
-          p_event_type: string
-          p_event_data?: Json
-          p_ip_address?: unknown
-          p_user_agent?: string
-        }
-        Returns: undefined
-      }
       monitor_account_type_coverage: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -769,10 +717,6 @@ export type Database = {
       validate_password_requirements: {
         Args: { password_hash: string }
         Returns: boolean
-      }
-      validate_password_security: {
-        Args: { password_text: string }
-        Returns: Json
       }
       validate_password_strength: {
         Args: { password: string }

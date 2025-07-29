@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { validateEmail, validatePasswordSync, getPasswordStrength } from '@/utils/security';
+import { validateEmail, validatePassword, getPasswordStrength } from '@/utils/security';
 import { GoogleAuth } from './GoogleAuth';
 
 interface EnhancedAuthFormProps {
@@ -68,7 +68,7 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (mode === 'signup') {
-      const passwordValidation = validatePasswordSync(formData.password);
+      const passwordValidation = validatePassword(formData.password);
       if (!passwordValidation.isValid) {
         newErrors.password = passwordValidation.errors[0];
       }
