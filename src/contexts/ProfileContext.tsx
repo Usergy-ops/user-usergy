@@ -1,9 +1,8 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { validateForAutoSave } from '@/utils/validation/formValidation';
+import { validateUnified } from '@/utils/validation/unifiedValidation';
 import { ValidationError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
@@ -281,36 +280,28 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
-      // Simplified validation using the new validation functions
-      let validationResult;
-      
-      switch (section) {
-        case 'profile':
-          validationResult = validateForAutoSave(data, 'profile');
-          break;
-        case 'devices':
-          validationResult = validateForAutoSave(data, 'devices');
-          break;
-        case 'tech_fluency':
-          validationResult = validateForAutoSave(data, 'tech_fluency');
-          break;
-        case 'skills':
-          validationResult = validateForAutoSave(data, 'skills');
-          break;
-        case 'social_presence':
-          validationResult = validateForAutoSave(data, 'social_presence');
-          break;
-        default:
-          validationResult = { isValid: true, errors: [] };
-      }
+      // Use unified validation system
+      const validationResult = validateUnified(data, {
+        isAutoSave: !data.hasOwnProperty('section_1_completed') && !data.hasOwnProperty('section_2_completed') && 
+                   !data.hasOwnProperty('section_3_completed') && !data.hasOwnProperty('section_4_completed') &&
+                   !data.hasOwnProperty('section_5_completed') && !data.hasOwnProperty('section_6_completed'),
+        isSubmission: data.hasOwnProperty('section_1_completed') || data.hasOwnProperty('section_2_completed') || 
+                     data.hasOwnProperty('section_3_completed') || data.hasOwnProperty('section_4_completed') ||
+                     data.hasOwnProperty('section_5_completed') || data.hasOwnProperty('section_6_completed'),
+        isRealTime: false,
+        section
+      });
 
-      console.log(`Validation result for ${section}:`, validationResult);
+      console.log(`Unified validation result for ${section}:`, validationResult);
 
-      if (!validationResult.isValid) {
-        const errorMessage = Array.isArray(validationResult.errors) 
-          ? validationResult.errors.join(', ')
-          : Object.values(validationResult.errors).join(', ');
-        
+      // For auto-save, we allow validation errors (partial data is OK)
+      // For submissions, validation must pass
+      const isSubmission = data.hasOwnProperty('section_1_completed') || data.hasOwnProperty('section_2_completed') || 
+                          data.hasOwnProperty('section_3_completed') || data.hasOwnProperty('section_4_completed') ||
+                          data.hasOwnProperty('section_5_completed') || data.hasOwnProperty('section_6_completed');
+
+      if (isSubmission && !validationResult.isValid) {
+        const errorMessage = validationResult.errors.join(', ');
         const error = createValidationError(errorMessage, section, user.id);
         await handleCentralizedError(error, `profile_update_${section}`, user.id);
         throw error;

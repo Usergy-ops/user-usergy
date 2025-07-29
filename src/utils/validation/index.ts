@@ -1,6 +1,6 @@
 
 /**
- * Consolidated validation utilities
+ * Consolidated validation utilities - now with unified validation system
  */
 
 export { 
@@ -22,7 +22,14 @@ export {
 
 export {
   validateForAutoSave,
-  validateForSubmission
+  validateForSubmission,
+  validateForRealTime
 } from './formValidation';
+
+export {
+  validateUnified,
+  shouldAllowAutoSave,
+  isReadyForSubmission
+} from './unifiedValidation';
 
 export type { ValidationResult, ValidationRule, ValidationSchema } from './types';
