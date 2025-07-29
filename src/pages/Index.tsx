@@ -36,6 +36,7 @@ const Index = () => {
       navigate('/profile-completion');
     }
   }, [user, navigate]);
+
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
     setIsLoading(true);
@@ -107,6 +108,7 @@ const Index = () => {
     
     setIsLoading(false);
   };
+
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     try {
@@ -138,6 +140,7 @@ const Index = () => {
     }
     setIsLoading(false);
   };
+
   const handleOTPSuccess = () => {
     console.log('OTP verification successful');
     setShowOTPVerification(false);
@@ -147,26 +150,29 @@ const Index = () => {
       description: "Your account has been created successfully."
     });
   };
+
   const handleBackToSignup = () => {
     console.log('Going back to signup form');
     setShowOTPVerification(false);
     setPendingSignup(null);
   };
-  return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
       {/* Animated Background Elements */}
       <NetworkNodes />
       
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+      <main className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             
             {/* Left Side - Hero Content */}
-            <div className="text-center lg:text-left animate-fade-in">
+            <article className="text-center lg:text-left animate-fade-in">
               {/* Logo */}
-              <div className="mb-8">
+              <header className="mb-8">
                 <div className="inline-flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-primary-start to-primary-end rounded-lg flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white" aria-hidden="true">
                       <circle cx="6" cy="12" r="3" />
                       <circle cx="18" cy="6" r="3" />
                       <circle cx="18" cy="18" r="3" />
@@ -178,7 +184,7 @@ const Index = () => {
                     Usergy
                   </span>
                 </div>
-              </div>
+              </header>
 
               {/* Hero Headlines */}
               <div className="mb-8 space-y-4">
@@ -188,30 +194,32 @@ const Index = () => {
                     Meets Insight
                   </span>
                 </h1>
-                <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">Join a community of digital pioneers shaping tomorrow's products. Your expertise matter - help build the future, one product at a time.</p>
+                <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">
+                  Join a community of digital pioneers shaping tomorrow's products. Your expertise matters - help build the future, one product at a time with our AI-powered user insights platform.
+                </p>
               </div>
 
               {/* Trust Indicators */}
-              <div className="hidden lg:block">
+              <aside className="hidden lg:block">
                 <div className="flex items-center space-x-8 text-sm text-muted-foreground">
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-success rounded-full animate-pulse" aria-hidden="true"></div>
                     <span>2,500+ Active Explorers</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-start rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-primary-start rounded-full animate-pulse" aria-hidden="true"></div>
                     <span>150+ Partner Companies</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-end rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-primary-end rounded-full animate-pulse" aria-hidden="true"></div>
                     <span>Enterprise Grade Security</span>
                   </div>
                 </div>
-              </div>
-            </div>
+              </aside>
+            </article>
 
             {/* Right Side - Auth Form */}
-            <div className="animate-slide-up">
+            <aside className="animate-slide-up">
               <div className="bg-card/80 backdrop-blur-sm usergy-shadow-strong rounded-3xl p-8 lg:p-10 border border-border/50">
                 
                 {/* Form Header */}
@@ -220,10 +228,10 @@ const Index = () => {
                   
                   <div className="mt-6">
                     <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
-                      {showOTPVerification ? 'Verify your email' : authMode === 'signup' ? 'Welcome to where innovation finds its voice' : 'Welcome back to the community'}
+                      {showOTPVerification ? 'Verify your email' : authMode === 'signup' ? 'Welcome to where innovation finds its voice' : 'Welcome back to the tech community'}
                     </h2>
                     <p className="text-muted-foreground">
-                      {showOTPVerification ? 'Enter the verification code we sent to your email' : authMode === 'signup' ? 'Join thousands of digital explorers already making an impact' : "We're excited to see you again, explorer"}
+                      {showOTPVerification ? 'Enter the verification code we sent to your email' : authMode === 'signup' ? 'Join thousands of digital explorers already making an impact with paid opportunities' : "We're excited to see you again, explorer"}
                     </p>
                   </div>
                 </div>
@@ -264,16 +272,18 @@ const Index = () => {
                         </span>}
                     </div>
                     
-                    <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
+                    <nav className="flex justify-center space-x-6 text-xs text-muted-foreground">
                       <a href="#" className="hover:text-foreground transition-colors duration-300">Privacy Policy</a>
                       <a href="#" className="hover:text-foreground transition-colors duration-300">Terms of Service</a>
-                    </div>
+                    </nav>
                   </div>}
               </div>
-            </div>
+            </aside>
           </div>
         </div>
-      </div>
-    </div>;
+      </main>
+    </div>
+  );
 };
+
 export default Index;

@@ -41,12 +41,12 @@ export const WorkspaceContent: React.FC<WorkspaceContentProps> = ({
       sidebarOpen ? "md:ml-[280px]" : "md:ml-[60px]"
     )}>
       <div className="max-w-4xl mx-auto p-4 md:p-8">
-        <div 
+        <section 
           key={activeSection}
           className="animate-slide-up"
         >
           {renderSection()}
-        </div>
+        </section>
       </div>
     </main>
   );

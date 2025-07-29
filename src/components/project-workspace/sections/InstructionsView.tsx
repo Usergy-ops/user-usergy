@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Calendar, DollarSign, Clock, Download, FileText, File } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,16 +53,16 @@ const AttachmentCard: React.FC<{ file: any }> = ({ file }) => {
 
 export const InstructionsView: React.FC<InstructionsViewProps> = ({ project }) => {
   return (
-    <div className="space-y-6">
+    <article className="space-y-6">
       {/* Header */}
-      <div className="text-center md:text-left">
+      <header className="text-center md:text-left">
         <h1 className="text-3xl font-bold text-foreground mb-2">
           Project Instructions
         </h1>
         <p className="text-muted-foreground">
           Please read all instructions carefully before proceeding with the project tasks.
         </p>
-      </div>
+      </header>
       
       {/* Project details card */}
       <Card className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg">
@@ -105,11 +106,11 @@ export const InstructionsView: React.FC<InstructionsViewProps> = ({ project }) =
             <div className="text-foreground space-y-4">
               {project.instructions.split('\n').map((line: string, index: number) => {
                 if (line.startsWith('# ')) {
-                  return <h1 key={index} className="text-2xl font-bold mb-4">{line.slice(2)}</h1>;
+                  return <h2 key={index} className="text-2xl font-bold mb-4">{line.slice(2)}</h2>;
                 } else if (line.startsWith('## ')) {
-                  return <h2 key={index} className="text-xl font-semibold mb-3 mt-6">{line.slice(3)}</h2>;
+                  return <h3 key={index} className="text-xl font-semibold mb-3 mt-6">{line.slice(3)}</h3>;
                 } else if (line.startsWith('### ')) {
-                  return <h3 key={index} className="text-lg font-medium mb-2 mt-4">{line.slice(4)}</h3>;
+                  return <h4 key={index} className="text-lg font-medium mb-2 mt-4">{line.slice(4)}</h4>;
                 } else if (line.startsWith('- ')) {
                   return <li key={index} className="ml-4">{line.slice(2)}</li>;
                 } else if (line.match(/^\d+\. /)) {
@@ -128,7 +129,7 @@ export const InstructionsView: React.FC<InstructionsViewProps> = ({ project }) =
       
       {/* Attachments */}
       {project.attachments && project.attachments.length > 0 && (
-        <div>
+        <section>
           <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
             <FileText className="w-5 h-5" />
             <span>Attachments</span>
@@ -138,8 +139,8 @@ export const InstructionsView: React.FC<InstructionsViewProps> = ({ project }) =
               <AttachmentCard key={file.id} file={file} />
             ))}
           </div>
-        </div>
+        </section>
       )}
-    </div>
+    </article>
   );
 };
