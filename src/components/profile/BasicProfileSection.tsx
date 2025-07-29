@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { validateForAutoSave, validateForSubmission } from '@/utils/validation/formValidation';
 import { Upload, User } from 'lucide-react';
 
 interface BasicProfileFormData {
@@ -28,8 +29,9 @@ export const BasicProfileSection: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<BasicProfileFormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors }, clearErrors } = useForm<BasicProfileFormData>({
     defaultValues: {
       full_name: profileData.full_name || '',
       phone_number: profileData.phone_number || '',
@@ -42,7 +44,19 @@ export const BasicProfileSection: React.FC = () => {
     }
   });
 
-  // Debounced auto-save with validation and user check
+  // Clear validation errors when user starts typing or making changes
+  useEffect(() => {
+    const subscription = watch(() => {
+      if (validationErrors.length > 0) {
+        setValidationErrors([]);
+        clearErrors();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, validationErrors, clearErrors]);
+
+  // Simplified auto-save with better error handling
   useEffect(() => {
     if (!user?.id) return;
 
@@ -52,54 +66,56 @@ export const BasicProfileSection: React.FC = () => {
           try {
             setIsSaving(true);
             
-            // Only save non-empty, valid values
-            const dataToSave: any = {};
+            // Validate for auto-save (lenient validation)
+            const validationResult = validateForAutoSave(value, 'profile');
             
-            // Handle string fields
-            if (value.full_name && value.full_name.trim() !== '') {
-              dataToSave.full_name = value.full_name.trim();
-            }
-            if (value.phone_number && value.phone_number.trim() !== '') {
-              dataToSave.phone_number = value.phone_number.trim();
-            }
-            if (value.city && value.city.trim() !== '') {
-              dataToSave.city = value.city.trim();
-            }
-            if (value.country && value.country !== '') {
-              dataToSave.country = value.country;
-            }
-            if (value.gender && value.gender !== '') {
-              dataToSave.gender = value.gender;
-            }
-            if (value.timezone && value.timezone !== '') {
-              dataToSave.timezone = value.timezone;
-            }
-            
-            // Handle date of birth - only save if it's a valid date
-            if (value.date_of_birth && value.date_of_birth.trim() !== '') {
-              const dateValue = new Date(value.date_of_birth);
-              if (!isNaN(dateValue.getTime())) {
-                dataToSave.date_of_birth = value.date_of_birth;
+            if (validationResult.isValid) {
+              // Only save non-empty, valid values
+              const dataToSave: any = {};
+              
+              if (value.full_name && typeof value.full_name === 'string' && value.full_name.trim() !== '') {
+                dataToSave.full_name = value.full_name.trim();
               }
-            }
-            
-            // Handle age - only save if it's a valid number > 0
-            if (value.age && typeof value.age === 'number' && value.age > 0) {
-              dataToSave.age = value.age;
-            }
-            
-            // Only update if there's actually data to save
-            if (Object.keys(dataToSave).length > 0) {
-              console.log('Auto-saving basic profile data:', dataToSave);
-              await updateProfileData('profile', dataToSave);
+              if (value.phone_number && typeof value.phone_number === 'string' && value.phone_number.trim() !== '') {
+                dataToSave.phone_number = value.phone_number.trim();
+              }
+              if (value.city && typeof value.city === 'string' && value.city.trim() !== '') {
+                dataToSave.city = value.city.trim();
+              }
+              if (value.country && typeof value.country === 'string' && value.country !== '') {
+                dataToSave.country = value.country;
+              }
+              if (value.gender && typeof value.gender === 'string' && value.gender !== '') {
+                dataToSave.gender = value.gender;
+              }
+              if (value.timezone && typeof value.timezone === 'string' && value.timezone !== '') {
+                dataToSave.timezone = value.timezone;
+              }
+              
+              if (value.date_of_birth && typeof value.date_of_birth === 'string' && value.date_of_birth.trim() !== '') {
+                const dateValue = new Date(value.date_of_birth);
+                if (!isNaN(dateValue.getTime())) {
+                  dataToSave.date_of_birth = value.date_of_birth;
+                }
+              }
+              
+              if (value.age && typeof value.age === 'number' && value.age > 0) {
+                dataToSave.age = value.age;
+              }
+              
+              if (Object.keys(dataToSave).length > 0) {
+                console.log('Auto-saving basic profile data:', dataToSave);
+                await updateProfileData('profile', dataToSave);
+              }
+            } else {
+              console.warn('Auto-save validation failed:', validationResult.errors);
             }
           } catch (error) {
             console.error('Auto-save failed:', error);
-            // Don't show error toast for auto-save failures to prevent spam
           } finally {
             setIsSaving(false);
           }
-        }, 1500); // Increased debounce time to reduce API calls
+        }, 1500);
 
         return () => clearTimeout(timeoutId);
       }
@@ -172,61 +188,20 @@ export const BasicProfileSection: React.FC = () => {
   };
 
   const onSubmit = async (data: BasicProfileFormData) => {
-    if (isSaving) return; // Prevent duplicate submissions
+    if (isSaving) return;
     
     try {
       setIsSaving(true);
+      setValidationErrors([]);
       
-      // Validate required fields
-      if (!data.full_name?.trim()) {
+      // Validate for final submission
+      const validationResult = validateForSubmission(data, 'profile');
+      
+      if (!validationResult.isValid) {
+        setValidationErrors(validationResult.errors);
         toast({
           title: "Validation Error",
-          description: "Full name is required.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.age || data.age <= 0) {
-        toast({
-          title: "Validation Error", 
-          description: "Age is required.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.gender) {
-        toast({
-          title: "Validation Error",
-          description: "Gender is required.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.country) {
-        toast({
-          title: "Validation Error",
-          description: "Country is required.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.city?.trim()) {
-        toast({
-          title: "Validation Error",
-          description: "City is required.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.timezone) {
-        toast({
-          title: "Validation Error",
-          description: "Timezone is required.",
+          description: validationResult.errors[0],
           variant: "destructive"
         });
         return;
@@ -324,6 +299,18 @@ export const BasicProfileSection: React.FC = () => {
         </p>
       </div>
 
+      {/* Show validation errors if any */}
+      {validationErrors.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-destructive mb-2">Please fix the following issues:</h4>
+          <ul className="list-disc list-inside text-sm text-destructive space-y-1">
+            {validationErrors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Profile Picture Upload */}
       <div className="flex flex-col items-center space-y-4">
         <div className="relative">
@@ -369,13 +356,10 @@ export const BasicProfileSection: React.FC = () => {
             </Label>
             <Input
               id="full_name"
-              {...register('full_name', { required: 'Full name is required' })}
+              {...register('full_name')}
               className="bg-background"
               placeholder="Your full name"
             />
-            {errors.full_name && (
-              <p className="text-sm text-destructive">{errors.full_name.message}</p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -469,13 +453,10 @@ export const BasicProfileSection: React.FC = () => {
             </Label>
             <Input
               id="city"
-              {...register('city', { required: 'City is required' })}
+              {...register('city')}
               className="bg-background"
               placeholder="Your city"
             />
-            {errors.city && (
-              <p className="text-sm text-destructive">{errors.city.message}</p>
-            )}
           </div>
 
           <div className="space-y-2">
