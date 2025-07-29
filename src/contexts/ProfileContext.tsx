@@ -4,12 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { 
-  validateProfileData, 
-  validateDeviceData, 
-  validateTechFluencyData, 
-  validateSkillsData, 
-  validateSocialPresenceData 
-} from '@/utils/dataValidation';
+  validateForAutoSave,
+  validateForSubmission
+} from '@/utils/validation/formValidation';
 import { ValidationError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
@@ -97,7 +94,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     },
     isProfileComplete,
     loading,
-    isUpdating
+    isUpdating,
+    userAuthenticated: !!user
   });
 
   const resumeIncompleteSection = useCallback(() => {
@@ -311,33 +309,19 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
-      // Validate data before updating
-      let validationResult;
+      // Use context-aware validation - auto-save for non-submit operations
+      const isAutoSave = !data._isSubmission;
       
-      switch (section) {
-        case 'profile':
-          validationResult = validateProfileData(data);
-          break;
-        case 'devices':
-          validationResult = validateDeviceData(data);
-          break;
-        case 'tech_fluency':
-          validationResult = validateTechFluencyData(data);
-          break;
-        case 'skills':
-          validationResult = validateSkillsData(data);
-          break;
-        case 'social_presence':
-          validationResult = validateSocialPresenceData(data);
-          break;
-        default:
-          validationResult = { isValid: true, errors: [] };
+      let validationResult;
+      if (isAutoSave) {
+        validationResult = validateForAutoSave(data, section);
+      } else {
+        validationResult = validateForSubmission(data, section);
       }
 
-      console.log(`Validation result for ${section}:`, validationResult);
+      console.log(`Validation result for ${section} (autoSave: ${isAutoSave}):`, validationResult);
 
       if (!validationResult.isValid) {
-        // Handle validation errors properly - errors are now arrays
         const errorMessage = Array.isArray(validationResult.errors) 
           ? validationResult.errors.join(', ')
           : Object.values(validationResult.errors).join(', ');
@@ -347,11 +331,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
+      // Remove internal flags before saving
+      const { _isSubmission, ...cleanData } = data;
+      
       let updateResult;
       
       switch (section) {
         case 'profile':
-          const { completion_percentage, ...profileDataToSave } = data;
+          const { completion_percentage, ...profileDataToSave } = cleanData;
           const profileUpdate: ProfileUpdate = profileDataToSave;
           
           updateResult = await supabase
@@ -363,7 +350,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             throw updateResult.error;
           }
           
-          setProfileData(prev => ({ ...prev, ...data }));
+          setProfileData(prev => ({ ...prev, ...cleanData }));
           console.log('Profile updated successfully');
           break;
 
@@ -372,14 +359,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_devices')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             });
           
           if (updateResult.error) {
             throw updateResult.error;
           }
           
-          setDeviceData(prev => ({ ...prev, ...data }));
+          setDeviceData(prev => ({ ...prev, ...cleanData }));
           console.log('Devices updated successfully');
           break;
 
@@ -388,7 +375,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_tech_fluency')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             }, {
               onConflict: 'user_id'
             });
@@ -397,8 +384,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             throw updateResult.error;
           }
           
-          setTechFluencyData(prev => ({ ...prev, ...data }));
-          console.log('Tech fluency updated successfully:', data);
+          setTechFluencyData(prev => ({ ...prev, ...cleanData }));
+          console.log('Tech fluency updated successfully:', cleanData);
           break;
 
         case 'skills':
@@ -406,7 +393,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_skills')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             }, {
               onConflict: 'user_id'
             });
@@ -415,7 +402,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             throw updateResult.error;
           }
           
-          setSkillsData(prev => ({ ...prev, ...data }));
+          setSkillsData(prev => ({ ...prev, ...cleanData }));
           console.log('Skills updated successfully');
           break;
 
@@ -424,14 +411,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('consolidated_social_presence')
             .upsert({ 
               user_id: user.id, 
-              ...data
+              ...cleanData
             });
           
           if (updateResult.error) {
             throw updateResult.error;
           }
           
-          setSocialPresenceData(prev => ({ ...prev, ...data }));
+          setSocialPresenceData(prev => ({ ...prev, ...cleanData }));
           console.log('Social presence updated successfully');
           break;
       }
@@ -440,8 +427,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       trackUserAction('profile_updated', {
         section,
-        data_keys: Object.keys(data),
-        user_id: user.id
+        data_keys: Object.keys(cleanData),
+        user_id: user.id,
+        is_auto_save: isAutoSave
       });
 
     } catch (error) {

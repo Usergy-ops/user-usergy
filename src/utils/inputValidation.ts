@@ -1,7 +1,6 @@
 
 /**
- * Input validation utilities - now using consolidated modules
- * @deprecated Use individual modules from src/utils/validation/ instead
+ * Input validation utilities - now using consolidated modules with context awareness
  */
 
 export {

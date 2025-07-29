@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -135,19 +136,21 @@ export const TechFluencySection: React.FC = () => {
         return;
       }
 
-      // Update profile with basic tech levels
+      // Update profile with basic tech levels - mark as submission
       await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
         ai_familiarity_level: data.ai_familiarity_level,
-        section_4_completed: true
+        section_4_completed: true,
+        _isSubmission: true
       });
 
-      // Update tech fluency details
+      // Update tech fluency details - mark as submission
       await updateProfileData('tech_fluency', {
         ai_interests: data.ai_interests || [],
         ai_models_used: data.ai_models_used || [],
         programming_languages: data.programming_languages || [],
         coding_experience_years: data.coding_experience_years || 0,
+        _isSubmission: true
       });
       
       toast({

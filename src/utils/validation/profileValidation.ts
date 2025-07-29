@@ -6,7 +6,7 @@
 import { validateEmail, validateAge, validateCompletionPercentage, validateCodingExperience } from '../security';
 import { ValidationResult } from './types';
 
-export const validateProfileData = (data: any): ValidationResult => {
+export const validateProfileData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
   // Ensure data is not null/undefined
@@ -18,19 +18,33 @@ export const validateProfileData = (data: any): ValidationResult => {
     };
   }
 
-  // Email validation
-  if (data.email && !validateEmail(data.email)) {
-    errors.push('Invalid email format');
-  }
+  // For auto-save, only validate format, not required fields
+  if (isAutoSave) {
+    // Email validation - only if provided
+    if (data.email && data.email.trim() !== '' && !validateEmail(data.email)) {
+      errors.push('Invalid email format');
+    }
 
-  // Age validation
-  if (data.age !== undefined && data.age !== null && !validateAge(data.age)) {
-    errors.push('Age must be between 13 and 120');
-  }
+    // Age validation - only if provided
+    if (data.age !== undefined && data.age !== null && !validateAge(data.age)) {
+      errors.push('Age must be between 13 and 120');
+    }
 
-  // Full name validation - only validate if provided and not empty
-  if (data.full_name && data.full_name.trim() !== '') {
-    if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
+    // Full name validation - only if provided and not empty
+    if (data.full_name && data.full_name.trim() !== '' && (data.full_name.trim().length < 2 || data.full_name.trim().length > 100)) {
+      errors.push('Full name must be between 2 and 100 characters');
+    }
+  } else {
+    // For final submission, validate required fields
+    if (!data.email || data.email.trim() === '') {
+      errors.push('Email is required');
+    } else if (!validateEmail(data.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (!data.full_name || data.full_name.trim() === '') {
+      errors.push('Full name is required');
+    } else if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
       errors.push('Full name must be between 2 and 100 characters');
     }
   }
@@ -68,7 +82,7 @@ export const validateProfileData = (data: any): ValidationResult => {
   };
 };
 
-export const validateDeviceData = (data: any): ValidationResult => {
+export const validateDeviceData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
   // Ensure data is not null/undefined
@@ -80,20 +94,18 @@ export const validateDeviceData = (data: any): ValidationResult => {
     };
   }
 
-  // Validate arrays are not empty when provided - but allow null/undefined for optional fields
+  // Validate arrays are not empty when provided
   const arrayFields = ['operating_systems', 'devices_owned', 'mobile_manufacturers', 'email_clients'];
   
   arrayFields.forEach(field => {
     if (data[field] !== undefined && data[field] !== null) {
       if (!Array.isArray(data[field])) {
         errors.push(`${field.replace('_', ' ')} must be an array`);
-      }
-      // Only validate non-empty for required fields during final submission
-      else if (['operating_systems', 'devices_owned', 'mobile_manufacturers', 'email_clients'].includes(field)) {
-        if (data[field].length === 0) {
-          // Only error if this is clearly a final submission attempt
-          console.warn(`${field} is empty - may be auto-save`);
-        }
+      } else if (!isAutoSave && field === 'operating_systems' && data[field].length === 0) {
+        // Only validate required fields during final submission
+        errors.push('At least one operating system is required');
+      } else if (!isAutoSave && field === 'devices_owned' && data[field].length === 0) {
+        errors.push('At least one device is required');
       }
     }
   });
@@ -124,29 +136,20 @@ export const validateTechFluencyData = (data: any, isAutoSave: boolean = false):
     }
   }
 
-  // Array fields validation - Fixed logic for array validation
+  // Array fields validation
   const arrayFields = ['ai_models_used', 'ai_interests', 'programming_languages'];
   
   arrayFields.forEach(field => {
     if (data[field] !== undefined && data[field] !== null) {
       if (!Array.isArray(data[field])) {
         errors.push(`${field.replace('_', ' ')} must be an array`);
-      }
-      // For auto-save, don't validate required fields - allow empty arrays
-      else if (!isAutoSave && (field === 'ai_models_used' || field === 'ai_interests')) {
+      } else if (!isAutoSave && (field === 'ai_models_used' || field === 'ai_interests')) {
         // Only validate required fields during final submission
         if (data[field].length === 0) {
           errors.push(`${field.replace('_', ' ')} is required`);
         }
       }
     }
-  });
-
-  console.log('TechFluencyData validation:', {
-    data,
-    isAutoSave,
-    errors,
-    isValid: errors.length === 0
   });
 
   return {
@@ -156,7 +159,7 @@ export const validateTechFluencyData = (data: any, isAutoSave: boolean = false):
   };
 };
 
-export const validateSkillsData = (data: any): ValidationResult => {
+export const validateSkillsData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
   // Ensure data is not null/undefined
@@ -168,13 +171,13 @@ export const validateSkillsData = (data: any): ValidationResult => {
     };
   }
 
-  // Validate interests array - now mandatory only during final submission
+  // Validate interests array
   if (data.interests !== undefined && data.interests !== null) {
     if (!Array.isArray(data.interests)) {
       errors.push('Interests must be an array');
-    } else if (data.interests.length === 0) {
+    } else if (!isAutoSave && data.interests.length === 0) {
       // Only require non-empty during final submission
-      console.warn('Interests array is empty - may be auto-save');
+      errors.push('At least one interest is required');
     }
   }
 
@@ -195,7 +198,7 @@ export const validateSkillsData = (data: any): ValidationResult => {
   };
 };
 
-export const validateSocialPresenceData = (data: any): ValidationResult => {
+export const validateSocialPresenceData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
   // Ensure data is not null/undefined
