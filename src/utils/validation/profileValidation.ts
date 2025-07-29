@@ -1,6 +1,6 @@
 
 /**
- * Profile-specific validation utilities
+ * Profile-specific validation utilities - removed cross-section validations
  */
 
 import { validateEmail, validateAge, validateCompletionPercentage, validateCodingExperience } from '../security';
@@ -49,7 +49,7 @@ export const validateProfileData = (data: any, isAutoSave: boolean = false): Val
     }
   }
 
-  // Date of birth validation - only validate if provided
+  // Optional field validations
   if (data.date_of_birth) {
     const dateValue = new Date(data.date_of_birth);
     if (isNaN(dateValue.getTime())) {
@@ -65,12 +65,10 @@ export const validateProfileData = (data: any, isAutoSave: boolean = false): Val
     }
   }
 
-  // Completion percentage validation
   if (data.completion_percentage !== undefined && data.completion_percentage !== null && !validateCompletionPercentage(data.completion_percentage)) {
     errors.push('Completion percentage must be between 0 and 100');
   }
 
-  // Languages spoken validation - ensure it's an array if provided
   if (data.languages_spoken && !Array.isArray(data.languages_spoken)) {
     errors.push('Languages spoken must be an array');
   }
@@ -85,7 +83,6 @@ export const validateProfileData = (data: any, isAutoSave: boolean = false): Val
 export const validateDeviceData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
-  // Ensure data is not null/undefined
   if (!data || typeof data !== 'object') {
     return {
       isValid: false,
@@ -94,7 +91,6 @@ export const validateDeviceData = (data: any, isAutoSave: boolean = false): Vali
     };
   }
 
-  // Validate arrays are not empty when provided
   const arrayFields = ['operating_systems', 'devices_owned', 'mobile_manufacturers', 'email_clients'];
   
   arrayFields.forEach(field => {
@@ -102,7 +98,6 @@ export const validateDeviceData = (data: any, isAutoSave: boolean = false): Vali
       if (!Array.isArray(data[field])) {
         errors.push(`${field.replace('_', ' ')} must be an array`);
       } else if (!isAutoSave && field === 'operating_systems' && data[field].length === 0) {
-        // Only validate required fields during final submission
         errors.push('At least one operating system is required');
       } else if (!isAutoSave && field === 'devices_owned' && data[field].length === 0) {
         errors.push('At least one device is required');
@@ -120,7 +115,6 @@ export const validateDeviceData = (data: any, isAutoSave: boolean = false): Vali
 export const validateTechFluencyData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
-  // Ensure data is not null/undefined
   if (!data || typeof data !== 'object') {
     return {
       isValid: false,
@@ -129,14 +123,13 @@ export const validateTechFluencyData = (data: any, isAutoSave: boolean = false):
     };
   }
 
-  // Coding experience validation - always validate if provided
+  // Only validate tech fluency fields, never profile fields
   if (data.coding_experience_years !== undefined && data.coding_experience_years !== null) {
     if (!validateCodingExperience(data.coding_experience_years)) {
       errors.push('Coding experience must be between 0 and 50 years');
     }
   }
 
-  // Array fields validation
   const arrayFields = ['ai_models_used', 'ai_interests', 'programming_languages'];
   
   arrayFields.forEach(field => {
@@ -144,7 +137,6 @@ export const validateTechFluencyData = (data: any, isAutoSave: boolean = false):
       if (!Array.isArray(data[field])) {
         errors.push(`${field.replace('_', ' ')} must be an array`);
       } else if (!isAutoSave && (field === 'ai_models_used' || field === 'ai_interests')) {
-        // Only validate required fields during final submission
         if (data[field].length === 0) {
           errors.push(`${field.replace('_', ' ')} is required`);
         }
@@ -162,7 +154,6 @@ export const validateTechFluencyData = (data: any, isAutoSave: boolean = false):
 export const validateSkillsData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
-  // Ensure data is not null/undefined
   if (!data || typeof data !== 'object') {
     return {
       isValid: false,
@@ -171,22 +162,19 @@ export const validateSkillsData = (data: any, isAutoSave: boolean = false): Vali
     };
   }
 
-  // Validate interests array
+  // Only validate skills fields, never profile fields
   if (data.interests !== undefined && data.interests !== null) {
     if (!Array.isArray(data.interests)) {
       errors.push('Interests must be an array');
     } else if (!isAutoSave && data.interests.length === 0) {
-      // Only require non-empty during final submission
       errors.push('At least one interest is required');
     }
   }
 
-  // Validate product categories array - optional but must be array if provided
   if (data.product_categories && !Array.isArray(data.product_categories)) {
     errors.push('Product categories must be an array');
   }
 
-  // Validate skills object
   if (data.skills && typeof data.skills !== 'object') {
     errors.push('Skills must be an object');
   }
@@ -201,7 +189,6 @@ export const validateSkillsData = (data: any, isAutoSave: boolean = false): Vali
 export const validateSocialPresenceData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
-  // Ensure data is not null/undefined
   if (!data || typeof data !== 'object') {
     return {
       isValid: false,
@@ -210,17 +197,15 @@ export const validateSocialPresenceData = (data: any, isAutoSave: boolean = fals
     };
   }
 
-  // Validate additional links array - Allow empty arrays
+  // Only validate social presence fields, never profile fields
   if (data.additional_links && !Array.isArray(data.additional_links)) {
     errors.push('Additional links must be an array');
   }
 
-  // Validate other social networks object
   if (data.other_social_networks && typeof data.other_social_networks !== 'object') {
     errors.push('Other social networks must be an object');
   }
 
-  // Validate URL fields if provided
   const urlFields = ['linkedin_url', 'github_url', 'twitter_url', 'portfolio_url'];
   
   urlFields.forEach(field => {

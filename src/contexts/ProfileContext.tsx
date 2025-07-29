@@ -321,7 +321,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log(`Validation result for ${section} (autoSave: ${isAutoSave}):`, validationResult);
 
-      if (!validationResult.isValid) {
+      // Only throw validation errors for the current section during submission
+      if (!validationResult.isValid && !isAutoSave) {
         const errorMessage = Array.isArray(validationResult.errors) 
           ? validationResult.errors.join(', ')
           : Object.values(validationResult.errors).join(', ');
@@ -434,6 +435,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     } catch (error) {
       console.error(`Error updating ${section}:`, error);
+      // Only show errors for submissions, not auto-save
+      if (!data._isSubmission) {
+        console.log('Suppressing auto-save error from UI');
+        return; // Don't show error for auto-save
+      }
       await handleCentralizedError(error as Error, `profile_update_${section}`, user.id);
       handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;

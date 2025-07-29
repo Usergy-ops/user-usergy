@@ -92,7 +92,7 @@ export const validateForAutoSave = (data: any, dataType: string): ValidationResu
 export const validateForSubmission = (data: any, dataType: string): ValidationResult => {
   const errors: string[] = [];
   
-  // For final submission, validate all requirements
+  // For final submission, only validate the specific section being submitted
   switch (dataType) {
     case 'profile':
       if (!data.full_name || data.full_name.trim() === '') {
