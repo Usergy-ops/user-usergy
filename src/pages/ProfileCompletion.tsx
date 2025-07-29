@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
-import { BasicProfileSection } from '@/components/profile/BasicProfileSection';
+import BasicProfileSection from '@/components/profile/BasicProfileSection';
 import { DevicesSection } from '@/components/profile/DevicesSection';
 import { EducationWorkSection } from '@/components/profile/EducationWorkSection';
 import { EnhancedTechFluencySection } from '@/components/profile/EnhancedTechFluencySection';
