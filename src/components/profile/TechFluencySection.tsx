@@ -136,15 +136,14 @@ export const TechFluencySection: React.FC = () => {
         return;
       }
 
-      // Update profile with basic tech levels - mark as submission
+      // Update profile with basic tech levels using auto-save (no validation)
       await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
         ai_familiarity_level: data.ai_familiarity_level,
-        section_4_completed: true,
-        _isSubmission: true
+        section_4_completed: true
       });
 
-      // Update tech fluency details - mark as submission
+      // Update tech fluency details with submission validation
       await updateProfileData('tech_fluency', {
         ai_interests: data.ai_interests || [],
         ai_models_used: data.ai_models_used || [],

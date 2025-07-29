@@ -109,12 +109,22 @@ export const validateForSubmission = (data: any, dataType: string): ValidationRe
       break;
       
     case 'tech_fluency':
-      // Only validate tech fluency specific fields, not profile fields
+      // Only validate tech fluency specific fields, never profile fields
       if (!data.ai_interests || !Array.isArray(data.ai_interests) || data.ai_interests.length === 0) {
         errors.push('At least one AI interest is required');
       }
       if (!data.ai_models_used || !Array.isArray(data.ai_models_used) || data.ai_models_used.length === 0) {
         errors.push('At least one AI model is required');
+      }
+      
+      // Validate data types for tech fluency fields
+      if (data.programming_languages && !Array.isArray(data.programming_languages)) {
+        errors.push('Programming languages must be an array');
+      }
+      if (data.coding_experience_years !== undefined && data.coding_experience_years !== null) {
+        if (typeof data.coding_experience_years !== 'number' || data.coding_experience_years < 0 || data.coding_experience_years > 50) {
+          errors.push('Coding experience must be between 0 and 50 years');
+        }
       }
       break;
       
