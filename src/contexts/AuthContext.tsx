@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,12 +12,14 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  accountType: string | null;
   signUp: (email: string, password: string) => Promise<{ error?: string; attemptsLeft?: number }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string }>;
   resendOTP: (email: string) => Promise<{ error?: string; attemptsLeft?: number }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
+  refreshAccountType: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,16 +35,53 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [accountType, setAccountType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { handleError } = useErrorHandler();
+
+  // Function to get user's account type
+  const refreshAccountType = async () => {
+    if (!user) {
+      setAccountType(null);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_user_account_type', {
+        user_id_param: user.id
+      });
+
+      if (error) {
+        console.error('Error getting account type:', error);
+        setAccountType(null);
+      } else {
+        console.log('Account type retrieved:', data);
+        setAccountType(data || null);
+      }
+    } catch (error) {
+      console.error('Error in refreshAccountType:', error);
+      setAccountType(null);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state change:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Get account type when user signs in
+        if (session?.user) {
+          // Defer account type fetch to avoid blocking auth state change
+          setTimeout(async () => {
+            await refreshAccountType();
+          }, 0);
+        } else {
+          setAccountType(null);
+        }
+        
         setLoading(false);
         
         // Track auth events
@@ -59,15 +97,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       console.log('Initial session:', session);
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        // Defer account type fetch to avoid blocking initial load
+        setTimeout(async () => {
+          await refreshAccountType();
+        }, 0);
+      }
+      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Update account type when user changes
+  useEffect(() => {
+    if (user) {
+      refreshAccountType();
+    }
+  }, [user?.id]);
 
   const signUp = async (email: string, password: string) => {
     try {
@@ -483,12 +536,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
+    accountType,
     signUp,
     signIn,
     signOut,
     verifyOTP,
     resendOTP,
-    resetPassword
+    resetPassword,
+    refreshAccountType
   };
 
   return (

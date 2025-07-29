@@ -585,6 +585,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_account_type_by_domain: {
+        Args: { user_id_param: string; user_email: string }
+        Returns: Json
+      }
       calculate_profile_completion: {
         Args: { user_uuid: string }
         Returns: number
@@ -664,6 +668,10 @@ export type Database = {
         Args: { user_uuid: string; user_email: string; user_full_name?: string }
         Returns: boolean
       }
+      fix_existing_users_without_account_types: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       force_create_client_account: {
         Args: { user_id_param: string }
         Returns: boolean
@@ -686,8 +694,16 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: Json
       }
+      get_user_account_type: {
+        Args: { user_id_param?: string }
+        Returns: string
+      }
       is_client_account: {
         Args: { user_id_param: string }
+        Returns: boolean
+      }
+      is_user_account: {
+        Args: { user_id_param?: string }
         Returns: boolean
       }
       validate_password_requirements: {
