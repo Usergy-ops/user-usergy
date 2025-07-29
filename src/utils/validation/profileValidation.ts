@@ -105,7 +105,7 @@ export const validateDeviceData = (data: any): ValidationResult => {
   };
 };
 
-export const validateTechFluencyData = (data: any): ValidationResult => {
+export const validateTechFluencyData = (data: any, isAutoSave: boolean = false): ValidationResult => {
   const errors: string[] = [];
 
   // Ensure data is not null/undefined
@@ -117,14 +117,14 @@ export const validateTechFluencyData = (data: any): ValidationResult => {
     };
   }
 
-  // Coding experience validation
+  // Coding experience validation - always validate if provided
   if (data.coding_experience_years !== undefined && data.coding_experience_years !== null) {
     if (!validateCodingExperience(data.coding_experience_years)) {
       errors.push('Coding experience must be between 0 and 50 years');
     }
   }
 
-  // AI models and interests validation - Fixed logic for array validation
+  // Array fields validation - Fixed logic for array validation
   const arrayFields = ['ai_models_used', 'ai_interests', 'programming_languages'];
   
   arrayFields.forEach(field => {
@@ -132,11 +132,10 @@ export const validateTechFluencyData = (data: any): ValidationResult => {
       if (!Array.isArray(data[field])) {
         errors.push(`${field.replace('_', ' ')} must be an array`);
       }
-      // Only validate non-empty for required fields during final submission
-      // During auto-save, empty arrays are acceptable
-      else if (field === 'ai_models_used' || field === 'ai_interests') {
-        // Only validate if this is a final submission (indicated by presence of technical_experience_level)
-        if (data.technical_experience_level && data[field].length === 0) {
+      // For auto-save, don't validate required fields - allow empty arrays
+      else if (!isAutoSave && (field === 'ai_models_used' || field === 'ai_interests')) {
+        // Only validate required fields during final submission
+        if (data[field].length === 0) {
           errors.push(`${field.replace('_', ' ')} is required`);
         }
       }
@@ -145,6 +144,7 @@ export const validateTechFluencyData = (data: any): ValidationResult => {
 
   console.log('TechFluencyData validation:', {
     data,
+    isAutoSave,
     errors,
     isValid: errors.length === 0
   });

@@ -4,6 +4,7 @@
  */
 
 import { ValidationResult } from './types';
+import { validateTechFluencyData } from './profileValidation';
 
 export const validateForAutoSave = (data: any, dataType: string): ValidationResult => {
   const errors: string[] = [];
@@ -22,17 +23,8 @@ export const validateForAutoSave = (data: any, dataType: string): ValidationResu
       break;
       
     case 'tech_fluency':
-      // For auto-save, just validate types but allow empty arrays
-      if (data.ai_interests && !Array.isArray(data.ai_interests)) {
-        errors.push('AI interests must be an array');
-      }
-      if (data.ai_models_used && !Array.isArray(data.ai_models_used)) {
-        errors.push('AI models used must be an array');
-      }
-      if (data.programming_languages && !Array.isArray(data.programming_languages)) {
-        errors.push('Programming languages must be an array');
-      }
-      break;
+      // Use the updated validation function with auto-save context
+      return validateTechFluencyData(data, true);
       
     case 'skills':
       // For auto-save, just validate types but allow empty arrays
@@ -72,19 +64,8 @@ export const validateForSubmission = (data: any, dataType: string): ValidationRe
       break;
       
     case 'tech_fluency':
-      if (!data.technical_experience_level) {
-        errors.push('Technical experience level is required');
-      }
-      if (!data.ai_familiarity_level) {
-        errors.push('AI familiarity level is required');
-      }
-      if (!data.ai_interests || !Array.isArray(data.ai_interests) || data.ai_interests.length === 0) {
-        errors.push('At least one AI interest is required');
-      }
-      if (!data.ai_models_used || !Array.isArray(data.ai_models_used) || data.ai_models_used.length === 0) {
-        errors.push('At least one AI model is required');
-      }
-      break;
+      // Use the updated validation function for final submission
+      return validateTechFluencyData(data, false);
       
     case 'skills':
       if (!data.interests || !Array.isArray(data.interests) || data.interests.length === 0) {
