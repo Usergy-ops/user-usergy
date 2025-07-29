@@ -19,19 +19,32 @@ interface TechFluencyFormData {
   coding_experience_years: number;
 }
 
+// Extended interface to include missing properties
+interface ExtendedTechFluencyData {
+  technical_experience_level?: string;
+  ai_familiarity_level?: string;
+  ai_interests?: string[];
+  ai_models_used?: string[];
+  programming_languages?: string[];
+  coding_experience_years?: number;
+}
+
 export const TechFluencySection: React.FC = () => {
   const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
+  // Cast techFluencyData to our extended type
+  const extendedTechFluencyData = techFluencyData as ExtendedTechFluencyData;
+
   const { register, handleSubmit, setValue, watch } = useForm<TechFluencyFormData>({
     defaultValues: {
-      technical_experience_level: techFluencyData.technical_experience_level || '',
-      ai_familiarity_level: techFluencyData.ai_familiarity_level || '',
-      ai_interests: techFluencyData.ai_interests || [],
-      ai_models_used: techFluencyData.ai_models_used || [],
-      programming_languages: techFluencyData.programming_languages || [],
-      coding_experience_years: techFluencyData.coding_experience_years || 0,
+      technical_experience_level: extendedTechFluencyData.technical_experience_level || '',
+      ai_familiarity_level: extendedTechFluencyData.ai_familiarity_level || '',
+      ai_interests: extendedTechFluencyData.ai_interests || [],
+      ai_models_used: extendedTechFluencyData.ai_models_used || [],
+      programming_languages: extendedTechFluencyData.programming_languages || [],
+      coding_experience_years: extendedTechFluencyData.coding_experience_years || 0,
     }
   });
 
