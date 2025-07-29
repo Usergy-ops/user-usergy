@@ -1,4 +1,3 @@
-
 /**
  * Enhanced security utilities with database-level validation
  */
@@ -31,6 +30,60 @@ export const validateEmail = (email: string): boolean => {
   }
 };
 
+// Basic age validation
+export const validateAge = (age: number): boolean => {
+  return age >= 13 && age <= 120;
+};
+
+// Completion percentage validation
+export const validateCompletionPercentage = (percentage: number): boolean => {
+  return percentage >= 0 && percentage <= 100;
+};
+
+// Coding experience validation
+export const validateCodingExperience = (years: number): boolean => {
+  return years >= 0 && years <= 50;
+};
+
+// Client-side password strength checking (synchronous)
+export const getPasswordStrength = (password: string): { score: number; feedback: string } => {
+  let score = 0;
+  const feedback: string[] = [];
+  
+  if (password.length >= 12) score += 2;
+  else feedback.push('Use at least 12 characters');
+  
+  if (/[a-z]/.test(password)) score += 1;
+  else feedback.push('Add lowercase letters');
+  
+  if (/[A-Z]/.test(password)) score += 1;
+  else feedback.push('Add uppercase letters');
+  
+  if (/[0-9]/.test(password)) score += 1;
+  else feedback.push('Add numbers');
+  
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+  else feedback.push('Add special characters');
+  
+  // Check for common patterns
+  if (!/(.)\1{2,}/.test(password)) score += 1;
+  else feedback.push('Avoid repeating characters');
+  
+  if (!/123|abc|qwe|password/i.test(password)) score += 1;
+  else feedback.push('Avoid common patterns');
+  
+  let strengthText = 'Very weak';
+  if (score >= 7) strengthText = 'Very strong';
+  else if (score >= 5) strengthText = 'Strong';
+  else if (score >= 3) strengthText = 'Medium';
+  else if (score >= 1) strengthText = 'Weak';
+  
+  return {
+    score,
+    feedback: feedback.length > 0 ? feedback.join(', ') : strengthText
+  };
+};
+
 // Enhanced password validation using database function
 export const validatePassword = async (password: string): Promise<{
   isValid: boolean;
@@ -48,12 +101,21 @@ export const validatePassword = async (password: string): Promise<{
       throw new Error(`Password validation failed: ${error.message}`);
     }
 
+    // Type assertion for the RPC response
+    const result = data as {
+      is_valid: boolean;
+      score: number;
+      max_score: number;
+      issues: string[];
+      strength: 'weak' | 'medium' | 'strong';
+    };
+
     return {
-      isValid: data.is_valid,
-      score: data.score,
-      maxScore: data.max_score,
-      issues: data.issues || [],
-      strength: data.strength || 'weak'
+      isValid: result.is_valid,
+      score: result.score,
+      maxScore: result.max_score,
+      issues: result.issues || [],
+      strength: result.strength || 'weak'
     };
   } catch (error) {
     logError(error as Error, 'password_validation');
@@ -65,6 +127,44 @@ export const validatePassword = async (password: string): Promise<{
       strength: 'weak'
     };
   }
+};
+
+// Simple synchronous password validation for client-side use
+export const validatePasswordSync = (password: string): {
+  isValid: boolean;
+  errors: string[];
+} => {
+  const errors: string[] = [];
+  
+  if (!password) {
+    errors.push('Password is required');
+    return { isValid: false, errors };
+  }
+  
+  if (password.length < 12) {
+    errors.push('Password must be at least 12 characters long');
+  }
+  
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  
+  if (!/[0-9]/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 };
 
 // Enhanced input sanitization
@@ -290,4 +390,3 @@ export const performBrowserSecurityChecks = (): {
     warnings
   };
 };
-
