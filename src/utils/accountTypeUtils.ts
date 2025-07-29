@@ -55,6 +55,68 @@ export const checkIsClientAccount = async (userId?: string): Promise<boolean> =>
   }
 };
 
+export const ensureUserHasAccountType = async (userId?: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc('ensure_user_has_account_type', {
+      user_id_param: userId || undefined
+    });
+
+    if (error) {
+      console.error('Error ensuring account type:', error);
+      return false;
+    }
+
+    return data || false;
+  } catch (error) {
+    console.error('Error in ensureUserHasAccountType:', error);
+    return false;
+  }
+};
+
+export const monitorAccountTypeCoverage = async (): Promise<{
+  total_users: number;
+  users_with_account_types: number;
+  users_without_account_types: number;
+  coverage_percentage: number;
+  is_healthy: boolean;
+  timestamp: string;
+}> => {
+  try {
+    const { data, error } = await supabase.rpc('monitor_account_type_coverage');
+
+    if (error) {
+      console.error('Error monitoring account type coverage:', error);
+      return {
+        total_users: 0,
+        users_with_account_types: 0,
+        users_without_account_types: 0,
+        coverage_percentage: 0,
+        is_healthy: false,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    return data || {
+      total_users: 0,
+      users_with_account_types: 0,
+      users_without_account_types: 0,
+      coverage_percentage: 0,
+      is_healthy: false,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Error in monitorAccountTypeCoverage:', error);
+    return {
+      total_users: 0,
+      users_with_account_types: 0,
+      users_without_account_types: 0,
+      coverage_percentage: 0,
+      is_healthy: false,
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
 export const fixExistingUsersWithoutAccountTypes = async (): Promise<{
   success: boolean;
   users_processed: number;
@@ -107,6 +169,39 @@ export const fixExistingUsersWithoutAccountTypes = async (): Promise<{
       success: false,
       users_processed: 0,
       users_fixed: 0,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
+
+export const assignAccountTypeByDomain = async (userId: string, email: string): Promise<{
+  success: boolean;
+  account_type?: string;
+  message?: string;
+  error?: string;
+}> => {
+  try {
+    const { data, error } = await supabase.rpc('assign_account_type_by_domain', {
+      user_id_param: userId,
+      user_email: email
+    });
+
+    if (error) {
+      console.error('Error assigning account type by domain:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    return data || {
+      success: false,
+      error: 'No data returned from function'
+    };
+  } catch (error) {
+    console.error('Error in assignAccountTypeByDomain:', error);
+    return {
+      success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }

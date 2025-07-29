@@ -668,6 +668,10 @@ export type Database = {
         Args: { user_uuid: string; user_email: string; user_full_name?: string }
         Returns: boolean
       }
+      ensure_user_has_account_type: {
+        Args: { user_id_param?: string }
+        Returns: boolean
+      }
       fix_existing_users_without_account_types: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -705,6 +709,10 @@ export type Database = {
       is_user_account: {
         Args: { user_id_param?: string }
         Returns: boolean
+      }
+      monitor_account_type_coverage: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       validate_password_requirements: {
         Args: { password_hash: string }

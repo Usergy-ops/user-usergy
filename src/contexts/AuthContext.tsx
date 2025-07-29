@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +8,7 @@ import { ValidationError, AuthError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createAuthenticationError, createRateLimitError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
+import { ensureUserHasAccountType } from '@/utils/accountTypeUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -39,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const { handleError } = useErrorHandler();
 
-  // Function to get user's account type
+  // Function to get user's account type with automatic assignment if missing
   const refreshAccountType = async () => {
     if (!user) {
       setAccountType(null);
@@ -47,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // First, ensure user has an account type (auto-assign if missing)
+      await ensureUserHasAccountType(user.id);
+
+      // Then get the account type
       const { data, error } = await supabase.rpc('get_user_account_type', {
         user_id_param: user.id
       });

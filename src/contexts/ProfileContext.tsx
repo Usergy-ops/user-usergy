@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -14,6 +15,7 @@ import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
+import { ensureUserHasAccountType } from '@/utils/accountTypeUtils';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -214,6 +216,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       console.log('Loading profile data for user:', user.id);
 
+      // Ensure user has account type before loading profile
+      await ensureUserHasAccountType(user.id);
+
       // Check rate limiting using unified system
       const rateLimitResult = await checkRateLimit(user.id, 'profile_load');
       if (!rateLimitResult.allowed) {
@@ -301,6 +306,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsUpdating(true);
       console.log(`Updating ${section} with data:`, data);
       monitoring.startTiming(`profile_update_${section}`);
+
+      // Ensure user has account type before updating
+      await ensureUserHasAccountType(user.id);
 
       // Check rate limiting using unified system
       const rateLimitResult = await checkRateLimit(user.id, 'profile_update');
@@ -528,6 +536,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       monitoring.startTiming('profile_picture_upload');
+
+      // Ensure user has account type before uploading
+      await ensureUserHasAccountType(user.id);
 
       // Check rate limiting using unified system
       const rateLimitResult = await checkRateLimit(user.id, 'file_upload');
