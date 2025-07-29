@@ -92,19 +92,24 @@ export const validateForAutoSave = (data: any, dataType: string): ValidationResu
 export const validateForSubmission = (data: any, dataType: string): ValidationResult => {
   const errors: string[] = [];
   
-  // For final submission, only validate the specific section being submitted
+  // For final submission, validate based on the specific section being submitted
   switch (dataType) {
     case 'profile':
-      if (!data.full_name || data.full_name.trim() === '') {
-        errors.push('Full name is required');
-      } else if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
-        errors.push('Full name must be between 2 and 100 characters');
+      // Only validate profile fields if they exist in the data being submitted
+      if (data.full_name !== undefined) {
+        if (!data.full_name || data.full_name.trim() === '') {
+          errors.push('Full name is required');
+        } else if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
+          errors.push('Full name must be between 2 and 100 characters');
+        }
       }
       
-      if (!data.email || data.email.trim() === '') {
-        errors.push('Email is required');
-      } else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
-        errors.push('Invalid email format');
+      if (data.email !== undefined) {
+        if (!data.email || data.email.trim() === '') {
+          errors.push('Email is required');
+        } else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
+          errors.push('Invalid email format');
+        }
       }
       break;
       

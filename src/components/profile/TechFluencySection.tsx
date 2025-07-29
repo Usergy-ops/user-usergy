@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -27,8 +26,8 @@ export const TechFluencySection: React.FC = () => {
 
   const { register, handleSubmit, setValue, watch } = useForm<TechFluencyFormData>({
     defaultValues: {
-      technical_experience_level: profileData.technical_experience_level || '',
-      ai_familiarity_level: profileData.ai_familiarity_level || '',
+      technical_experience_level: techFluencyData.technical_experience_level || '',
+      ai_familiarity_level: techFluencyData.ai_familiarity_level || '',
       ai_interests: techFluencyData.ai_interests || [],
       ai_models_used: techFluencyData.ai_models_used || [],
       programming_languages: techFluencyData.programming_languages || [],
@@ -44,22 +43,14 @@ export const TechFluencySection: React.FC = () => {
           try {
             setIsSaving(true);
             
-            // Save profile data - only non-empty values
-            const profileDataToSave: any = {};
+            // Save all tech fluency data including experience levels
+            const techFluencyDataToSave: any = {};
             if (value.technical_experience_level && value.technical_experience_level !== '') {
-              profileDataToSave.technical_experience_level = value.technical_experience_level;
+              techFluencyDataToSave.technical_experience_level = value.technical_experience_level;
             }
             if (value.ai_familiarity_level && value.ai_familiarity_level !== '') {
-              profileDataToSave.ai_familiarity_level = value.ai_familiarity_level;
+              techFluencyDataToSave.ai_familiarity_level = value.ai_familiarity_level;
             }
-            
-            if (Object.keys(profileDataToSave).length > 0) {
-              console.log('Auto-saving profile data:', profileDataToSave);
-              await updateProfileData('profile', profileDataToSave);
-            }
-
-            // Save tech fluency data - allow empty arrays during auto-save
-            const techFluencyDataToSave: any = {};
             if (value.ai_interests !== undefined) {
               techFluencyDataToSave.ai_interests = value.ai_interests || [];
             }
@@ -136,20 +127,20 @@ export const TechFluencySection: React.FC = () => {
         return;
       }
 
-      // Update profile with basic tech levels using auto-save (no validation)
-      await updateProfileData('profile', {
+      // Update tech fluency data with all fields including experience levels
+      await updateProfileData('tech_fluency', {
         technical_experience_level: data.technical_experience_level,
         ai_familiarity_level: data.ai_familiarity_level,
-        section_4_completed: true
-      });
-
-      // Update tech fluency details with submission validation
-      await updateProfileData('tech_fluency', {
         ai_interests: data.ai_interests || [],
         ai_models_used: data.ai_models_used || [],
         programming_languages: data.programming_languages || [],
         coding_experience_years: data.coding_experience_years || 0,
         _isSubmission: true
+      });
+
+      // Update section completion separately
+      await updateProfileData('profile', {
+        section_4_completed: true
       });
       
       toast({
