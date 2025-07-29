@@ -96,7 +96,29 @@ export const monitorAccountTypeCoverage = async (): Promise<{
       };
     }
 
-    return data || {
+    // Type guard to ensure data matches our expected structure
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const result = data as {
+        total_users?: number;
+        users_with_account_types?: number;
+        users_without_account_types?: number;
+        coverage_percentage?: number;
+        is_healthy?: boolean;
+        timestamp?: string;
+      };
+
+      return {
+        total_users: result.total_users ?? 0,
+        users_with_account_types: result.users_with_account_types ?? 0,
+        users_without_account_types: result.users_without_account_types ?? 0,
+        coverage_percentage: result.coverage_percentage ?? 0,
+        is_healthy: result.is_healthy ?? false,
+        timestamp: result.timestamp ?? new Date().toISOString()
+      };
+    }
+
+    // Fallback if data doesn't match expected structure
+    return {
       total_users: 0,
       users_with_account_types: 0,
       users_without_account_types: 0,
@@ -194,9 +216,27 @@ export const assignAccountTypeByDomain = async (userId: string, email: string): 
       };
     }
 
-    return data || {
+    // Type guard to ensure data matches our expected structure
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const result = data as {
+        success?: boolean;
+        account_type?: string;
+        message?: string;
+        error?: string;
+      };
+
+      return {
+        success: result.success ?? false,
+        account_type: result.account_type,
+        message: result.message,
+        error: result.error
+      };
+    }
+
+    // Fallback if data doesn't match expected structure
+    return {
       success: false,
-      error: 'No data returned from function'
+      error: 'Invalid response format from database function'
     };
   } catch (error) {
     console.error('Error in assignAccountTypeByDomain:', error);
