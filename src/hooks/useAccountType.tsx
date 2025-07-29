@@ -2,7 +2,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useAccountType = () => {
-  const { accountType, loading, refreshAccountType } = useAuth();
+  const { accountType, loading } = useAuth();
   
   const isUser = accountType === 'user';
   const isClient = accountType === 'client';
@@ -13,7 +13,6 @@ export const useAccountType = () => {
     isUser,
     isClient,
     isUnknown,
-    loading,
-    refreshAccountType
+    loading
   };
 };
