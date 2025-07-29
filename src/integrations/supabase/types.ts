@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_types: {
+        Row: {
+          account_type: string
+          auth_user_id: string | null
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          account_type: string
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          account_type?: string
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      client_email_confirmations: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: unknown | null
+          token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip_address?: unknown | null
+          token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_password_resets: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: unknown | null
+          token: string
+          used_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip_address?: unknown | null
+          token: string
+          used_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          token?: string
+          used_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       consolidated_social_presence: {
         Row: {
           additional_links: string[] | null
@@ -502,6 +589,17 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: number
       }
+      check_email_exists_for_account_type: {
+        Args: { email_param: string; account_type_param: string }
+        Returns: boolean
+      }
+      check_user_is_client: {
+        Args: { user_id_param: string }
+        Returns: {
+          is_client: boolean
+          account_exists: boolean
+        }[]
+      }
       cleanup_expired_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -521,6 +619,76 @@ export type Database = {
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      create_client_account_for_user: {
+        Args: {
+          user_id_param: string
+          company_name_param?: string
+          first_name_param?: string
+          last_name_param?: string
+        }
+        Returns: boolean
+      }
+      create_client_account_safe: {
+        Args: {
+          user_id_param: string
+          company_name_param?: string
+          first_name_param?: string
+          last_name_param?: string
+        }
+        Returns: Json
+      }
+      diagnose_user_account: {
+        Args: { user_id_param: string }
+        Returns: Json
+      }
+      ensure_client_account: {
+        Args: {
+          user_id_param: string
+          company_name_param?: string
+          first_name_param?: string
+          last_name_param?: string
+        }
+        Returns: Json
+      }
+      ensure_client_account_robust: {
+        Args: {
+          user_id_param: string
+          company_name_param?: string
+          first_name_param?: string
+          last_name_param?: string
+        }
+        Returns: Json
+      }
+      ensure_profile_exists: {
+        Args: { user_uuid: string; user_email: string; user_full_name?: string }
+        Returns: boolean
+      }
+      force_create_client_account: {
+        Args: { user_id_param: string }
+        Returns: boolean
+      }
+      generate_client_email_confirmation_token: {
+        Args: { user_id_param: string }
+        Returns: {
+          token: string
+          expires_at: string
+        }[]
+      }
+      generate_client_password_reset_token: {
+        Args: { user_email: string }
+        Returns: {
+          token: string
+          expires_at: string
+        }[]
+      }
+      get_client_account_status: {
+        Args: { user_id_param: string }
+        Returns: Json
+      }
+      is_client_account: {
+        Args: { user_id_param: string }
+        Returns: boolean
       }
       validate_password_requirements: {
         Args: { password_hash: string }

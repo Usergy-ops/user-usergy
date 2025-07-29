@@ -71,28 +71,28 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Enhanced profile completion check with better race condition handling
   const isProfileComplete = React.useMemo(() => {
-    const completionPercentage = profileData.completion_percentage || 0;
-    const profileCompleted = profileData.profile_completed || false;
+    const completionPercentage = profileData?.completion_percentage || 0;
+    const profileCompleted = profileData?.profile_completed || false;
     
     // Profile is complete if either flag is true OR completion percentage is 100%
     return profileCompleted || completionPercentage >= 100;
-  }, [profileData.completion_percentage, profileData.profile_completed]);
+  }, [profileData?.completion_percentage, profileData?.profile_completed]);
 
   console.log('ProfileProvider state:', {
     profileData: {
-      completion_percentage: profileData.completion_percentage,
-      profile_completed: profileData.profile_completed,
-      section_4_completed: profileData.section_4_completed,
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level
+      completion_percentage: profileData?.completion_percentage,
+      profile_completed: profileData?.profile_completed,
+      section_4_completed: profileData?.section_4_completed,
+      technical_experience_level: profileData?.technical_experience_level,
+      ai_familiarity_level: profileData?.ai_familiarity_level
     },
     techFluencyData: {
-      ai_interests: techFluencyData.ai_interests,
-      ai_models_used: techFluencyData.ai_models_used,
-      coding_experience_years: techFluencyData.coding_experience_years
+      ai_interests: techFluencyData?.ai_interests,
+      ai_models_used: techFluencyData?.ai_models_used,
+      coding_experience_years: techFluencyData?.coding_experience_years
     },
     skillsData: {
-      interests: skillsData.interests
+      interests: skillsData?.interests
     },
     isProfileComplete,
     loading,
@@ -103,26 +103,26 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) return;
     
     console.log('Resuming incomplete section, checking sections:', {
-      section_1_completed: profileData.section_1_completed,
-      section_2_completed: profileData.section_2_completed,
-      section_3_completed: profileData.section_3_completed,
-      section_4_completed: profileData.section_4_completed,
-      section_5_completed: profileData.section_5_completed,
-      section_6_completed: profileData.section_6_completed
+      section_1_completed: profileData?.section_1_completed,
+      section_2_completed: profileData?.section_2_completed,
+      section_3_completed: profileData?.section_3_completed,
+      section_4_completed: profileData?.section_4_completed,
+      section_5_completed: profileData?.section_5_completed,
+      section_6_completed: profileData?.section_6_completed
     });
     
     // Check which sections are completed and set the current step accordingly
-    if (!profileData.section_1_completed) {
+    if (!profileData?.section_1_completed) {
       setCurrentStep(1);
-    } else if (!profileData.section_2_completed) {
+    } else if (!profileData?.section_2_completed) {
       setCurrentStep(2);
-    } else if (!profileData.section_3_completed) {
+    } else if (!profileData?.section_3_completed) {
       setCurrentStep(3);
-    } else if (!profileData.section_4_completed) {
+    } else if (!profileData?.section_4_completed) {
       setCurrentStep(4);
-    } else if (!profileData.section_5_completed) {
+    } else if (!profileData?.section_5_completed) {
       setCurrentStep(5);
-    } else if (!profileData.section_6_completed) {
+    } else if (!profileData?.section_6_completed) {
       setCurrentStep(6);
     } else {
       setCurrentStep(1); // All sections completed, start from beginning
@@ -141,20 +141,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     console.log('Frontend completion calculation:', {
       percentage,
-      currentStoredPercentage: profileData.completion_percentage,
-      currentProfileCompleted: profileData.profile_completed
+      currentStoredPercentage: profileData?.completion_percentage,
+      currentProfileCompleted: profileData?.profile_completed
     });
     
     // Update completion percentage and profile_completed flag if needed
     if (user && !isUpdating) {
-      const needsUpdate = percentage !== profileData.completion_percentage || 
-                         (percentage >= 100 && !profileData.profile_completed);
+      const needsUpdate = percentage !== profileData?.completion_percentage || 
+                         (percentage >= 100 && !profileData?.profile_completed);
       
       if (needsUpdate) {
         console.log('Updating completion data:', {
-          oldPercentage: profileData.completion_percentage,
+          oldPercentage: profileData?.completion_percentage,
           newPercentage: percentage,
-          oldCompleted: profileData.profile_completed,
+          oldCompleted: profileData?.profile_completed,
           newCompleted: percentage >= 100
         });
         
@@ -239,24 +239,35 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         socialPresence: socialResult.data
       });
 
+      // Set data with null safety
       if (profileResult.data) {
         setProfileData(profileResult.data);
+      } else if (profileResult.error) {
+        console.warn('Profile not found, this should not happen after migration:', profileResult.error);
       }
 
       if (devicesResult.data) {
         setDeviceData(devicesResult.data);
+      } else {
+        setDeviceData({});
       }
 
       if (techResult.data) {
         setTechFluencyData(techResult.data);
+      } else {
+        setTechFluencyData({});
       }
 
       if (skillsResult.data) {
         setSkillsData(skillsResult.data);
+      } else {
+        setSkillsData({});
       }
 
       if (socialResult.data) {
         setSocialPresenceData(socialResult.data);
+      } else {
+        setSocialPresenceData({});
       }
 
       monitoring.endTiming('profile_load');
