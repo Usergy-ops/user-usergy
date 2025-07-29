@@ -1,4 +1,3 @@
-
 /**
  * Unified validation system - resolves conflicts between different validation layers
  */
@@ -36,49 +35,103 @@ const validateProfileUnified = (data: any, context: ValidationContext): Validati
   const errors: string[] = [];
   const sanitizedData: Record<string, any> = { ...data };
 
+  // Handle data type conversion for age field
+  if (data.age !== undefined && data.age !== null && data.age !== '') {
+    // Convert string to number if needed
+    if (typeof data.age === 'string') {
+      const ageNum = parseInt(data.age.trim(), 10);
+      if (isNaN(ageNum)) {
+        errors.push('Age must be a valid number');
+      } else {
+        sanitizedData.age = ageNum;
+      }
+    } else if (typeof data.age === 'number') {
+      sanitizedData.age = data.age;
+    } else {
+      errors.push('Age must be a number');
+    }
+
+    // Validate age range after conversion
+    if (sanitizedData.age !== undefined && (sanitizedData.age < 13 || sanitizedData.age > 120)) {
+      errors.push('Age must be between 13 and 120');
+    }
+  }
+
   // For auto-save and real-time, only validate format - no required field validation
   if (context.isAutoSave || context.isRealTime) {
     if (data.full_name && typeof data.full_name === 'string' && data.full_name.trim() !== '') {
       if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
         errors.push('Full name must be between 2 and 100 characters');
       }
+      sanitizedData.full_name = data.full_name.trim();
     }
     
     if (data.email && typeof data.email === 'string' && data.email.trim() !== '') {
       if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
         errors.push('Invalid email format');
       }
+      sanitizedData.email = data.email.trim();
     }
 
-    if (data.age && (typeof data.age !== 'number' || data.age < 13 || data.age > 120)) {
-      errors.push('Age must be between 13 and 120');
-    }
+    // Sanitize other string fields
+    ['country', 'city', 'timezone', 'gender', 'bio'].forEach(field => {
+      if (data[field] && typeof data[field] === 'string') {
+        sanitizedData[field] = data[field].trim();
+      }
+    });
   }
 
   // For submission, validate required fields
   if (context.isSubmission) {
     if (!data.full_name || typeof data.full_name !== 'string' || data.full_name.trim() === '') {
       errors.push('Full name is required');
+    } else {
+      if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
+        errors.push('Full name must be between 2 and 100 characters');
+      }
+      sanitizedData.full_name = data.full_name.trim();
     }
     
-    if (!data.age || typeof data.age !== 'number' || data.age <= 0) {
+    // Age is required for submission and should be validated after type conversion
+    if (data.age === undefined || data.age === null || data.age === '') {
       errors.push('Age is required');
     }
 
     if (!data.gender || typeof data.gender !== 'string' || data.gender.trim() === '') {
       errors.push('Gender is required');
+    } else {
+      sanitizedData.gender = data.gender.trim();
     }
 
     if (!data.country || typeof data.country !== 'string' || data.country.trim() === '') {
       errors.push('Country is required');
+    } else {
+      sanitizedData.country = data.country.trim();
     }
 
     if (!data.city || typeof data.city !== 'string' || data.city.trim() === '') {
       errors.push('City is required');
+    } else {
+      sanitizedData.city = data.city.trim();
     }
 
     if (!data.timezone || typeof data.timezone !== 'string' || data.timezone.trim() === '') {
       errors.push('Timezone is required');
+    } else {
+      sanitizedData.timezone = data.timezone.trim();
+    }
+
+    // Validate email for submission
+    if (data.email && typeof data.email === 'string' && data.email.trim() !== '') {
+      if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
+        errors.push('Invalid email format');
+      }
+      sanitizedData.email = data.email.trim();
+    }
+
+    // Sanitize bio if provided
+    if (data.bio && typeof data.bio === 'string') {
+      sanitizedData.bio = data.bio.trim();
     }
   }
 
@@ -123,10 +176,23 @@ const validateTechFluencyUnified = (data: any, context: ValidationContext): Vali
   const errors: string[] = [];
   const sanitizedData: Record<string, any> = { ...data };
 
-  // Coding experience validation
+  // Coding experience validation with type conversion
   if (data.coding_experience_years !== undefined && data.coding_experience_years !== null) {
-    if (typeof data.coding_experience_years === 'number') {
-      if (data.coding_experience_years < 0 || data.coding_experience_years > 50) {
+    let experienceYears = data.coding_experience_years;
+    
+    // Convert string to number if needed
+    if (typeof experienceYears === 'string') {
+      const num = parseInt(experienceYears.trim(), 10);
+      if (isNaN(num)) {
+        errors.push('Coding experience must be a valid number');
+      } else {
+        experienceYears = num;
+        sanitizedData.coding_experience_years = num;
+      }
+    }
+    
+    if (typeof experienceYears === 'number') {
+      if (experienceYears < 0 || experienceYears > 50) {
         errors.push('Coding experience must be between 0 and 50 years');
       }
     }
@@ -229,6 +295,7 @@ const validateSocialPresenceUnified = (data: any, context: ValidationContext): V
     if (data[field] && typeof data[field] === 'string' && data[field].trim() !== '') {
       try {
         new URL(data[field]);
+        sanitizedData[field] = data[field].trim();
       } catch {
         errors.push(`${field.replace('_', ' ')} must be a valid URL`);
       }

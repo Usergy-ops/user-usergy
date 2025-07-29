@@ -15,11 +15,11 @@ const BasicProfileSection = () => {
   const { profileData, updateProfileData, setCurrentStep, uploadProfilePicture } = useProfile();
   const { toast } = useToast();
 
-  // Form state - initialize with existing data
+  // Form state - initialize with existing data, ensuring age is a string for input handling
   const [formData, setFormData] = useState({
     full_name: profileData?.full_name || '',
     email: profileData?.email || '',
-    age: profileData?.age || '',
+    age: profileData?.age ? profileData.age.toString() : '',
     gender: profileData?.gender || '',
     country: profileData?.country || '',
     city: profileData?.city || '',
@@ -59,16 +59,12 @@ const BasicProfileSection = () => {
 
         console.log('Auto-save validation result:', validationResult);
 
-        // For auto-save, we save even with validation errors (partial data is OK)
+        // For auto-save, we save the sanitized data even with validation errors (partial data is OK)
         // Only save the fields that have values
         const dataToSave: any = {};
-        Object.entries(formData).forEach(([key, value]) => {
+        Object.entries(validationResult.sanitizedData).forEach(([key, value]) => {
           if (value !== null && value !== undefined && value !== '') {
-            if (key === 'age') {
-              dataToSave[key] = parseInt(value as string) || null;
-            } else {
-              dataToSave[key] = value;
-            }
+            dataToSave[key] = value;
           }
         });
 
@@ -150,10 +146,9 @@ const BasicProfileSection = () => {
         return;
       }
 
-      // Prepare data for submission
+      // Prepare data for submission using sanitized data from validation
       const submissionData: any = {
-        ...formData,
-        age: parseInt(formData.age as string) || null,
+        ...validationResult.sanitizedData,
         section_1_completed: true
       };
 
@@ -180,6 +175,7 @@ const BasicProfileSection = () => {
     }
   };
 
+  // Check form validity using the validation function with current form data
   const isFormValid = isReadyForSubmission(formData, 'profile');
 
   return (
