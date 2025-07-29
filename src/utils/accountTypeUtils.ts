@@ -75,7 +75,32 @@ export const fixExistingUsersWithoutAccountTypes = async (): Promise<{
       };
     }
 
-    return data;
+    // Type guard to ensure data matches our expected structure
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const result = data as {
+        success?: boolean;
+        users_processed?: number;
+        users_fixed?: number;
+        message?: string;
+        error?: string;
+      };
+
+      return {
+        success: result.success ?? false,
+        users_processed: result.users_processed ?? 0,
+        users_fixed: result.users_fixed ?? 0,
+        message: result.message,
+        error: result.error
+      };
+    }
+
+    // Fallback if data doesn't match expected structure
+    return {
+      success: false,
+      users_processed: 0,
+      users_fixed: 0,
+      error: 'Invalid response format from database function'
+    };
   } catch (error) {
     console.error('Error in fixExistingUsersWithoutAccountTypes:', error);
     return {
