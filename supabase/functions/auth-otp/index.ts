@@ -36,7 +36,7 @@ serve(async (req) => {
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Store OTP in user_otp_verification table (not client_workflow.otp_verifications)
+      // Store OTP in user_otp_verification table
       const { error: otpError } = await supabaseClient
         .from('user_otp_verification')
         .insert({
@@ -198,22 +198,26 @@ serve(async (req) => {
         .update({ verified_at: new Date().toISOString() })
         .eq('id', otpRecord.id);
 
-      // Now confirm the user's email
-      const { error: confirmError } = await supabaseClient.auth.admin.updateUserById(
-        // Find user by email
-        (await supabaseClient.auth.admin.listUsers()).data.users.find(u => u.email === email)?.id || '',
-        { email_confirm: true }
-      );
-
-      if (confirmError) {
-        console.error('Error confirming user email:', confirmError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to confirm email' }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+      // Find and confirm user email
+      const { data: users } = await supabaseClient.auth.admin.listUsers();
+      const user = users.users.find(u => u.email === email);
+      
+      if (user) {
+        const { error: confirmError } = await supabaseClient.auth.admin.updateUserById(
+          user.id,
+          { email_confirm: true }
         );
+
+        if (confirmError) {
+          console.error('Error confirming user email:', confirmError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to confirm email' }),
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
       }
 
       console.log(`OTP verified successfully for ${email}`);

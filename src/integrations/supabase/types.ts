@@ -353,6 +353,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_otp_verification: {
+        Row: {
+          attempts: number
+          blocked_until: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          max_attempts: number
+          metadata: Json | null
+          otp_code: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          max_attempts?: number
+          metadata?: Json | null
+          otp_code: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          metadata?: Json | null
+          otp_code?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       user_skills: {
         Row: {
           created_at: string | null

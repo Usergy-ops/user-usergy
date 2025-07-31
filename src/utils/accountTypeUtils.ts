@@ -1,10 +1,16 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export const getUserAccountType = async (userId?: string): Promise<string | null> => {
   try {
+    const userIdToUse = userId || (await supabase.auth.getUser()).data.user?.id;
+    
+    if (!userIdToUse) {
+      console.warn('No user ID provided for account type lookup');
+      return null;
+    }
+
     const { data, error } = await supabase.rpc('get_user_account_type', {
-      user_id_param: userId || undefined
+      user_id_param: userIdToUse
     });
 
     if (error) {
@@ -21,8 +27,14 @@ export const getUserAccountType = async (userId?: string): Promise<string | null
 
 export const checkIsUserAccount = async (userId?: string): Promise<boolean> => {
   try {
+    const userIdToUse = userId || (await supabase.auth.getUser()).data.user?.id;
+    
+    if (!userIdToUse) {
+      return false;
+    }
+
     const { data, error } = await supabase.rpc('is_user_account', {
-      user_id_param: userId || undefined
+      user_id_param: userIdToUse
     });
 
     if (error) {
@@ -39,8 +51,14 @@ export const checkIsUserAccount = async (userId?: string): Promise<boolean> => {
 
 export const checkIsClientAccount = async (userId?: string): Promise<boolean> => {
   try {
+    const userIdToUse = userId || (await supabase.auth.getUser()).data.user?.id;
+    
+    if (!userIdToUse) {
+      return false;
+    }
+
     const { data, error } = await supabase.rpc('is_client_account', {
-      user_id_param: userId || undefined
+      user_id_param: userIdToUse
     });
 
     if (error) {
@@ -57,8 +75,15 @@ export const checkIsClientAccount = async (userId?: string): Promise<boolean> =>
 
 export const ensureUserHasAccountType = async (userId?: string): Promise<boolean> => {
   try {
+    const userIdToUse = userId || (await supabase.auth.getUser()).data.user?.id;
+    
+    if (!userIdToUse) {
+      console.warn('No user ID provided for account type assignment');
+      return false;
+    }
+
     const { data, error } = await supabase.rpc('ensure_user_has_account_type', {
-      user_id_param: userId || undefined
+      user_id_param: userIdToUse
     });
 
     if (error) {

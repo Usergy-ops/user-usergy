@@ -8,7 +8,7 @@ import { ValidationError, AuthError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createAuthenticationError, createRateLimitError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
-import { ensureUserHasAccountType } from '@/utils/accountTypeUtils';
+import { ensureUserHasAccountType, getUserAccountType } from '@/utils/accountTypeUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -49,21 +49,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      console.log('Refreshing account type for user:', user.id);
+      
       // First, ensure user has an account type (auto-assign if missing)
-      await ensureUserHasAccountType(user.id);
+      const ensureResult = await ensureUserHasAccountType(user.id);
+      console.log('Ensure account type result:', ensureResult);
 
       // Then get the account type
-      const { data, error } = await supabase.rpc('get_user_account_type', {
-        user_id_param: user.id
-      });
-
-      if (error) {
-        console.error('Error getting account type:', error);
-        setAccountType(null);
-      } else {
-        console.log('Account type retrieved:', data);
-        setAccountType(data || null);
-      }
+      const accountTypeResult = await getUserAccountType(user.id);
+      console.log('Account type retrieved:', accountTypeResult);
+      
+      setAccountType(accountTypeResult);
     } catch (error) {
       console.error('Error in refreshAccountType:', error);
       setAccountType(null);
@@ -71,24 +67,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let isMounted = true;
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session);
+        console.log('Auth state change:', event, session?.user?.id);
+        
+        if (!isMounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         // Get account type when user signs in
-        if (session?.user) {
-          // Defer account type fetch to avoid blocking auth state change
+        if (session?.user && isMounted) {
+          // Use setTimeout to avoid blocking the auth state change
           setTimeout(async () => {
-            await refreshAccountType();
-          }, 0);
-        } else {
+            if (isMounted) {
+              await refreshAccountType();
+            }
+          }, 100);
+        } else if (isMounted) {
           setAccountType(null);
         }
         
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
         
         // Track auth events
         if (event === 'SIGNED_IN' && session?.user) {
@@ -102,23 +107,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('Initial session:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Defer account type fetch to avoid blocking initial load
-        setTimeout(async () => {
-          await refreshAccountType();
-        }, 0);
+    // Check for existing session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        
+        console.log('Initial session:', session?.user?.id);
+        
+        if (!isMounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user && isMounted) {
+          // Use setTimeout to avoid blocking initial load
+          setTimeout(async () => {
+            if (isMounted) {
+              await refreshAccountType();
+            }
+          }, 100);
+        }
+        
+        if (isMounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      
-      setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Update account type when user changes
