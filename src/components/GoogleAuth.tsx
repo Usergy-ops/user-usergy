@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Chrome, Loader2, Shield } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
+import { assignAccountTypeByDomain } from '@/utils/accountTypeUtils';
 
 interface GoogleAuthProps {
   mode: 'signin' | 'signup';
@@ -30,6 +31,38 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     try {
       monitoring.startTiming(`google_auth_${mode}`);
       
+      // Capture referrer information
+      const currentUrl = window.location.href;
+      const currentHost = window.location.host;
+      const referrerUrl = document.referrer || currentUrl;
+      
+      // Determine account type based on current domain/portal
+      let accountType = 'client'; // Default fallback
+      let signupSource = 'google_oauth';
+      
+      if (currentHost.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'user_signup';
+      } else if (currentHost.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'client_signup';
+      } else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'user_signup';
+      } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'client_signup';
+      }
+      
+      console.log('Google Auth - Detected context:', {
+        currentUrl,
+        currentHost,
+        referrerUrl,
+        detectedAccountType: accountType,
+        signupSource,
+        mode
+      });
+      
       // Enhanced redirect URL construction
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
@@ -42,7 +75,17 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
             access_type: 'offline',
             prompt: 'consent',
           },
-          skipBrowserRedirect: false
+          skipBrowserRedirect: false,
+          // Pass referrer and context information through OAuth metadata
+          // This will be available in the auth user metadata after signup
+          data: {
+            referrer_url: referrerUrl,
+            signup_source: signupSource,
+            account_type: accountType,
+            current_host: currentHost,
+            auth_mode: mode,
+            timestamp: new Date().toISOString()
+          }
         }
       });
 
@@ -50,7 +93,9 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         console.error('Google auth error:', error);
         monitoring.logError(error, `google_auth_${mode}_error`, {
           error_code: error.message,
-          redirect_to: redirectTo
+          redirect_to: redirectTo,
+          referrer_url: referrerUrl,
+          account_type: accountType
         });
         
         // Enhanced error messaging
@@ -80,7 +125,10 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       trackUserAction(`google_auth_${mode}_initiated`, {
         provider: 'google',
         redirect_to: redirectTo,
-        mode
+        mode,
+        account_type: accountType,
+        signup_source: signupSource,
+        referrer_url: referrerUrl
       });
       
       // Show success message for signup

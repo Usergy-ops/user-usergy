@@ -30,6 +30,51 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
     try {
       monitoring.startTiming(`enhanced_google_auth_${mode}`);
       
+      // Enhanced referrer capture and context detection
+      const currentUrl = window.location.href;
+      const currentHost = window.location.host;
+      const referrerUrl = document.referrer || currentUrl;
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Determine account type with enhanced detection logic
+      let accountType = 'client'; // Default fallback
+      let signupSource = 'enhanced_google_oauth';
+      
+      // Check URL parameters first
+      if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check domain/host
+      else if (currentHost.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (currentHost.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check URL paths
+      else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      
+      console.log('Enhanced Google Auth - Context detection:', {
+        currentUrl,
+        currentHost,
+        referrerUrl,
+        urlParams: Object.fromEntries(urlParams),
+        detectedAccountType: accountType,
+        signupSource,
+        mode
+      });
+      
       // Enhanced redirect URL construction with security considerations
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
@@ -43,7 +88,20 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
             prompt: 'consent',
             hd: undefined, // Allow any domain
           },
-          skipBrowserRedirect: false
+          skipBrowserRedirect: false,
+          // Enhanced metadata capture
+          data: {
+            referrer_url: referrerUrl,
+            signup_source: signupSource,
+            account_type: accountType,
+            current_host: currentHost,
+            current_path: window.location.pathname,
+            auth_mode: mode,
+            url_params: Object.fromEntries(urlParams),
+            user_agent: navigator.userAgent,
+            timestamp: new Date().toISOString(),
+            enhanced_auth: true
+          }
         }
       });
 
@@ -51,7 +109,10 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         console.error('Enhanced Google auth error:', error);
         monitoring.logError(error, `enhanced_google_auth_${mode}_error`, {
           error_code: error.message,
-          redirect_to: redirectTo
+          redirect_to: redirectTo,
+          referrer_url: referrerUrl,
+          account_type: accountType,
+          signup_source: signupSource
         });
         
         // Enhanced error messaging
@@ -81,7 +142,11 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       trackUserAction(`enhanced_google_auth_${mode}_initiated`, {
         provider: 'google',
         redirect_to: redirectTo,
-        mode
+        mode,
+        account_type: accountType,
+        signup_source: signupSource,
+        referrer_url: referrerUrl,
+        enhanced: true
       });
       
       // Show success message for signup
