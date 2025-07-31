@@ -1,12 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Link, Github, Linkedin, Twitter, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 // Define form data type
 interface SocialFormData {
@@ -31,49 +29,15 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
   const { profileData, setCurrentStep, currentStep, updateProfileData } = useProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Initialize form data directly from profile context (like the original component)
   const [formData, setFormData] = useState<SocialFormData>({
-    linkedin_url: '',
-    github_url: '',
-    twitter_url: '',
-    portfolio_url: ''
+    linkedin_url: profileData.linkedin_url || '',
+    github_url: profileData.github_url || '',
+    twitter_url: profileData.twitter_url || '',
+    portfolio_url: profileData.portfolio_url || ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Load existing social presence data from consolidated table
-  useEffect(() => {
-    const loadExistingData = async () => {
-      if (!profileData.user_id) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('consolidated_social_presence')
-          .select('*')
-          .eq('user_id', profileData.user_id)
-          .maybeSingle();
-        
-        if (error) {
-          console.error('Error loading social presence:', error);
-          return;
-        }
-        
-        if (data) {
-          setFormData({
-            linkedin_url: data.linkedin_url || '',
-            github_url: data.github_url || '',
-            twitter_url: data.twitter_url || '',
-            portfolio_url: data.portfolio_url || ''
-          });
-        }
-      } catch (error) {
-        console.error('Error loading social presence:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadExistingData();
-  }, [profileData.user_id]);
 
   const handleInputChange = (field: keyof SocialFormData, value: string) => {
     setFormData(prev => ({
@@ -102,20 +66,9 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profileData.user_id) {
-      toast({
-        title: "Error",
-        description: "User not found. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     setIsSubmitting(true);
     
     try {
-      monitoring.startTiming('social_presence_save');
-      
       // Validate all URLs
       const validationErrors: Record<string, string> = {};
       Object.entries(formData).forEach(([key, value]) => {
@@ -130,24 +83,13 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
         return;
       }
       
-      // Update using ProfileContext
-      await updateProfileData('social_presence', {
+      // Update profile data with social links and mark section as completed
+      await updateProfileData('profile', {
         linkedin_url: formData.linkedin_url || null,
         github_url: formData.github_url || null,
         twitter_url: formData.twitter_url || null,
-        portfolio_url: formData.portfolio_url || null
-      });
-
-      // Mark section as completed
-      await updateProfileData('profile', {
+        portfolio_url: formData.portfolio_url || null,
         section_5_completed: true
-      });
-      
-      monitoring.endTiming('social_presence_save');
-      
-      trackUserAction('social_presence_completed', {
-        filled_profiles: Object.values(formData).filter(Boolean).length,
-        section: 'social_presence'
       });
       
       toast({
@@ -157,11 +99,6 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
 
       setCurrentStep(currentStep + 1);
     } catch (error) {
-      monitoring.logError(error as Error, 'social_presence_save_error', {
-        section: 'social_presence',
-        user_id: profileData.user_id
-      });
-      
       toast({
         title: "Error saving profiles",
         description: error instanceof Error ? error.message : "Please try again.",
@@ -206,15 +143,6 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
       description: 'Your personal website or portfolio'
     }
   ];
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin" />
-        <span className="ml-2">Loading social presence data...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">

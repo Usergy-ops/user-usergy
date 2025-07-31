@@ -1,11 +1,13 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Resend } from 'npm:resend@2.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
 interface OTPRequest {
   email: string;
@@ -13,6 +15,43 @@ interface OTPRequest {
   password?: string;
   action: 'generate' | 'verify' | 'resend';
 }
+
+const sendOTPEmail = async (email: string, otpCode: string) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Usergy <onboarding@resend.dev>',
+      to: [email],
+      subject: 'Your Usergy Verification Code',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; text-align: center;">Welcome to Usergy!</h2>
+          <p style="color: #666; font-size: 16px;">Thank you for signing up. Please use the verification code below to complete your account setup:</p>
+          
+          <div style="background-color: #f8f9fa; border: 2px dashed #e9ecef; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 4px;">${otpCode}</span>
+          </div>
+          
+          <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes for security purposes.</p>
+          <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
+          
+          <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">© 2025 Usergy. All rights reserved.</p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Error sending OTP email:', error);
+      return false;
+    }
+
+    console.log('OTP email sent successfully:', data);
+    return true;
+  } catch (error) {
+    console.error('Failed to send OTP email:', error);
+    return false;
+  }
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -92,7 +131,16 @@ serve(async (req) => {
         );
       }
 
-      console.log(`OTP ${otpCode} generated for ${email} (expires: ${expiresAt})`);
+      // Send OTP email
+      const emailSent = await sendOTPEmail(email, otpCode);
+      
+      if (!emailSent) {
+        console.error('Failed to send OTP email, but OTP was generated');
+        // We still return success because the OTP was generated and stored
+        // The user can still use resend if needed
+      }
+
+      console.log(`OTP ${otpCode} generated for ${email} (expires: ${expiresAt}), email sent: ${emailSent}`);
 
       return new Response(
         JSON.stringify({ 
@@ -260,7 +308,14 @@ serve(async (req) => {
         );
       }
 
-      console.log(`New OTP ${otpCode} generated for ${email} (expires: ${expiresAt})`);
+      // Send OTP email
+      const emailSent = await sendOTPEmail(email, otpCode);
+      
+      if (!emailSent) {
+        console.error('Failed to send resend OTP email, but OTP was generated');
+      }
+
+      console.log(`New OTP ${otpCode} generated for ${email} (expires: ${expiresAt}), email sent: ${emailSent}`);
 
       return new Response(
         JSON.stringify({ 
