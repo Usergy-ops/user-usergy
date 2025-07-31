@@ -35,72 +35,6 @@ export type Database = {
         }
         Relationships: []
       }
-      client_email_confirmations: {
-        Row: {
-          confirmed_at: string | null
-          created_at: string
-          expires_at: string
-          id: string
-          ip_address: unknown | null
-          token: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          confirmed_at?: string | null
-          created_at?: string
-          expires_at: string
-          id?: string
-          ip_address?: unknown | null
-          token: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          confirmed_at?: string | null
-          created_at?: string
-          expires_at?: string
-          id?: string
-          ip_address?: unknown | null
-          token?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      client_password_resets: {
-        Row: {
-          created_at: string
-          expires_at: string
-          id: string
-          ip_address: unknown | null
-          token: string
-          used_at: string | null
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at: string
-          id?: string
-          ip_address?: unknown | null
-          token: string
-          used_at?: string | null
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          ip_address?: unknown | null
-          token?: string
-          used_at?: string | null
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       consolidated_social_presence: {
         Row: {
           additional_links: string[] | null
@@ -419,45 +353,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_otp_verification: {
-        Row: {
-          attempts: number | null
-          blocked_until: string | null
-          created_at: string | null
-          email: string
-          expires_at: string
-          id: string
-          ip_address: unknown | null
-          otp_code: string
-          user_agent: string | null
-          verified_at: string | null
-        }
-        Insert: {
-          attempts?: number | null
-          blocked_until?: string | null
-          created_at?: string | null
-          email: string
-          expires_at: string
-          id?: string
-          ip_address?: unknown | null
-          otp_code: string
-          user_agent?: string | null
-          verified_at?: string | null
-        }
-        Update: {
-          attempts?: number | null
-          blocked_until?: string | null
-          created_at?: string | null
-          email?: string
-          expires_at?: string
-          id?: string
-          ip_address?: unknown | null
-          otp_code?: string
-          user_agent?: string | null
-          verified_at?: string | null
-        }
-        Relationships: []
-      }
       user_skills: {
         Row: {
           created_at: string | null
@@ -573,13 +468,6 @@ export type Database = {
         Args: { email_param: string; account_type_param: string }
         Returns: boolean
       }
-      check_user_is_client: {
-        Args: { user_id_param: string }
-        Returns: {
-          is_client: boolean
-          account_exists: boolean
-        }[]
-      }
       cleanup_expired_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -599,28 +487,6 @@ export type Database = {
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
-      }
-      create_client_account_for_user: {
-        Args: {
-          user_id_param: string
-          company_name_param?: string
-          first_name_param?: string
-          last_name_param?: string
-        }
-        Returns: boolean
-      }
-      create_client_account_safe: {
-        Args: {
-          user_id_param: string
-          company_name_param?: string
-          first_name_param?: string
-          last_name_param?: string
-        }
-        Returns: Json
-      }
-      diagnose_user_account: {
-        Args: { user_id_param: string }
-        Returns: Json
       }
       ensure_client_account: {
         Args: {
@@ -652,26 +518,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
-      force_create_client_account: {
-        Args: { user_id_param: string }
-        Returns: boolean
-      }
-      generate_client_email_confirmation_token: {
-        Args: { user_id_param: string }
-        Returns: {
-          token: string
-          expires_at: string
-        }[]
-      }
-      generate_client_password_reset_token: {
-        Args: { user_email: string }
-        Returns: {
-          token: string
-          expires_at: string
-        }[]
-      }
-      get_client_account_status: {
-        Args: { user_id_param: string }
+      fix_incorrect_account_types: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       get_user_account_type: {
@@ -679,6 +527,10 @@ export type Database = {
         Returns: string
       }
       is_client_account: {
+        Args: { user_id_param?: string }
+        Returns: boolean
+      }
+      is_profile_complete: {
         Args: { user_id_param: string }
         Returns: boolean
       }
@@ -688,6 +540,23 @@ export type Database = {
       }
       monitor_account_type_coverage: {
         Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      save_complete_client_profile: {
+        Args: {
+          user_id_param: string
+          company_name_param: string
+          full_name_param: string
+          company_website_param?: string
+          industry_param?: string
+          company_size_param?: string
+          contact_role_param?: string
+          contact_phone_param?: string
+          company_country_param?: string
+          company_city_param?: string
+          company_timezone_param?: string
+          company_logo_url_param?: string
+        }
         Returns: Json
       }
       validate_password_requirements: {
