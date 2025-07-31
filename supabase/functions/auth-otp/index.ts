@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { Resend } from 'npm:resend@2.0.0';
@@ -19,7 +20,7 @@ interface OTPRequest {
 const sendOTPEmail = async (email: string, otpCode: string) => {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Usergy <onboarding@resend.dev>',
+      from: 'Usergy <noreply@user.usergy.ai>',
       to: [email],
       subject: 'Your Usergy Verification Code',
       html: `
@@ -135,9 +136,14 @@ serve(async (req) => {
       const emailSent = await sendOTPEmail(email, otpCode);
       
       if (!emailSent) {
-        console.error('Failed to send OTP email, but OTP was generated');
-        // We still return success because the OTP was generated and stored
-        // The user can still use resend if needed
+        console.error('Failed to send OTP email');
+        return new Response(
+          JSON.stringify({ error: 'Failed to send verification email. Please try again.' }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
       console.log(`OTP ${otpCode} generated for ${email} (expires: ${expiresAt}), email sent: ${emailSent}`);
@@ -312,7 +318,14 @@ serve(async (req) => {
       const emailSent = await sendOTPEmail(email, otpCode);
       
       if (!emailSent) {
-        console.error('Failed to send resend OTP email, but OTP was generated');
+        console.error('Failed to send resend OTP email');
+        return new Response(
+          JSON.stringify({ error: 'Failed to send verification email. Please try again.' }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
       console.log(`New OTP ${otpCode} generated for ${email} (expires: ${expiresAt}), email sent: ${emailSent}`);
