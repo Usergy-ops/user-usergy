@@ -75,17 +75,7 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
             access_type: 'offline',
             prompt: 'consent',
           },
-          skipBrowserRedirect: false,
-          // Pass referrer and context information through OAuth metadata
-          // This will be available in the auth user metadata after signup
-          data: {
-            referrer_url: referrerUrl,
-            signup_source: signupSource,
-            account_type: accountType,
-            current_host: currentHost,
-            auth_mode: mode,
-            timestamp: new Date().toISOString()
-          }
+          skipBrowserRedirect: false
         }
       });
 

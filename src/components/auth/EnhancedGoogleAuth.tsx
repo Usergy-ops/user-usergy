@@ -88,20 +88,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
             prompt: 'consent',
             hd: undefined, // Allow any domain
           },
-          skipBrowserRedirect: false,
-          // Enhanced metadata capture
-          data: {
-            referrer_url: referrerUrl,
-            signup_source: signupSource,
-            account_type: accountType,
-            current_host: currentHost,
-            current_path: window.location.pathname,
-            auth_mode: mode,
-            url_params: Object.fromEntries(urlParams),
-            user_agent: navigator.userAgent,
-            timestamp: new Date().toISOString(),
-            enhanced_auth: true
-          }
+          skipBrowserRedirect: false
         }
       });
 
