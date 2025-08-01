@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -217,10 +216,17 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const { _isSubmission, ...cleanData } = data;
       
       if (section === 'profile') {
+        // Ensure email is always included for profile updates since it's required
+        const profileUpdateData = {
+          user_id: user.id,
+          email: user.email || profileData?.email || '',
+          ...cleanData
+        };
+        
         // Update profiles table
         const updateResult = await supabase
           .from('profiles')
-          .upsert({ user_id: user.id, ...cleanData as ProfileUpdate }, { onConflict: 'user_id' });
+          .upsert(profileUpdateData, { onConflict: 'user_id' });
         
         if (updateResult.error) {
           throw updateResult.error;
