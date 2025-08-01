@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from 'npm:resend@4.0.0'
@@ -237,6 +238,34 @@ async function handleVerifyOTP(email: string, otp: string, password: string) {
     }
 
     console.log(`User created successfully:`, userData.user?.id)
+
+    // CRITICAL FIX: Insert account type into account_types table
+    if (userData.user?.id) {
+      const { error: accountTypeError } = await supabase
+        .from('account_types')
+        .insert({
+          auth_user_id: userData.user.id,
+          account_type: otpData.account_type
+        })
+
+      if (accountTypeError) {
+        console.error('Error inserting account type:', accountTypeError)
+        // Log the error but don't fail the entire process since user is created
+        await supabase.from('error_logs').insert({
+          user_id: userData.user.id,
+          error_type: 'account_type_insertion_error',
+          error_message: accountTypeError.message,
+          context: 'unified_auth_otp_verification',
+          metadata: {
+            email: email,
+            account_type: otpData.account_type,
+            error_detail: accountTypeError
+          }
+        })
+      } else {
+        console.log(`Account type ${otpData.account_type} successfully stored for user ${userData.user.id}`)
+      }
+    }
 
     // Mark OTP as verified
     const { error: updateError } = await supabase

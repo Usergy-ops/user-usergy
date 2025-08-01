@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { monitoring } from '@/utils/monitoring';
 
@@ -67,38 +66,56 @@ export const ensureUserHasAccountType = async (userId?: string): Promise<boolean
       return true;
     }
 
-    // Get user email to determine account type
+    // Get user data to determine account type
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user?.email) {
-      console.error('Error getting user email:', userError);
+      console.error('Error getting user data:', userError);
       return false;
     }
 
-    // Use the database function to assign account type by domain
-    const { data, error } = await supabase.rpc('assign_account_type_by_domain', {
-      user_id_param: userIdToUse,
-      email_param: userData.user.email
-    });
+    // Enhanced account type detection logic
+    let accountType = 'client'; // Default fallback
+    
+    // Priority 1: Check user metadata first (most reliable for OTP users)
+    const metadataAccountType = userData.user.user_metadata?.account_type;
+    if (metadataAccountType && ['user', 'client'].includes(metadataAccountType)) {
+      accountType = metadataAccountType;
+      console.log('Account type determined from user metadata:', accountType);
+    }
+    // Priority 2: Domain-based detection as fallback
+    else if (userData.user.email.includes('@user.usergy.ai') || userData.user.email.includes('user.usergy.ai')) {
+      accountType = 'user';
+      console.log('Account type determined from user domain:', accountType);
+    } else if (userData.user.email.includes('@client.usergy.ai') || userData.user.email.includes('client.usergy.ai')) {
+      accountType = 'client';
+      console.log('Account type determined from client domain:', accountType);
+    }
+    // Priority 3: Check signup source from metadata
+    else if (userData.user.user_metadata?.signup_source?.includes('user')) {
+      accountType = 'user';
+      console.log('Account type determined from signup source:', accountType);
+    }
 
-    if (error) {
-      console.error('Error assigning account type:', error);
-      monitoring.logError(error, 'ensure_user_has_account_type_error', { 
+    // Insert the determined account type
+    const { error: insertError } = await supabase
+      .from('account_types')
+      .insert({
+        auth_user_id: userIdToUse,
+        account_type: accountType
+      });
+
+    if (insertError) {
+      console.error('Error inserting account type:', insertError);
+      monitoring.logError(insertError, 'ensure_user_has_account_type_error', { 
         userId: userIdToUse, 
-        email: userData.user.email 
+        email: userData.user.email,
+        determinedAccountType: accountType
       });
       return false;
     }
 
-    // Type guard for the RPC response
-    const result = data as { success?: boolean; account_type?: string; error?: string } | null;
-
-    if (result?.success) {
-      console.log('Account type assigned successfully:', result.account_type);
-      return true;
-    } else {
-      console.error('Failed to assign account type:', result?.error);
-      return false;
-    }
+    console.log(`Account type ${accountType} successfully assigned to user ${userIdToUse}`);
+    return true;
   } catch (error) {
     console.error('Error in ensureUserHasAccountType:', error);
     monitoring.logError(error as Error, 'ensure_user_has_account_type_error', { userId });
