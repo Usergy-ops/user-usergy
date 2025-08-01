@@ -146,7 +146,7 @@ export interface UseFormOptions<T = Record<string, any>> {
   onSubmit?: (values: T) => void | Promise<void>;
 }
 
-// Validation Types for Forms
+// Validation Types for Forms - Fixed the mapped type syntax
 export interface ValidationRule<T = any> {
   required?: boolean;
   minLength?: number;
@@ -158,9 +158,9 @@ export interface ValidationRule<T = any> {
   dependencies?: string[];
 }
 
-export interface ValidationSchema<T = Record<string, any>> {
+export type ValidationSchema<T = Record<string, any>> = {
   [K in keyof T]?: ValidationRule<T[K]>;
-}
+};
 
 // API Hook Types
 export interface UseApiState<T = any> {

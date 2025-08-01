@@ -76,18 +76,14 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     
     setCurrentError(errorObj);
     
-    // Store retry action for later use
     if (retryAction) {
       retryActionRef.current = retryAction;
     }
     
-    // Log error
     logError(errorObj, context, metadata);
     
-    // Process error message
     const userMessage = processError(errorObj, context);
     
-    // Show toast if enabled
     if (showToast) {
       toast({
         title: "Error",
@@ -96,13 +92,12 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
       });
     }
     
-    // Call custom error handler
     if (onError) {
       onError(errorObj, context);
     }
   }, [processError, logError, showToast, toast, onError]);
 
-  const retry = useCallback(async () => {
+  const retry = useCallback(async (): Promise<void> => {
     const action = retryActionRef.current;
     if (!action || retryCount >= maxRetries || isRetrying) {
       return;
@@ -111,14 +106,12 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     setIsRetrying(true);
     
     try {
-      // Wait before retry
       if (retryDelay > 0) {
         await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
       
       await action();
       
-      // Success - reset error state
       setCurrentError(null);
       setRetryCount(0);
       retryActionRef.current = null;
@@ -130,9 +123,9 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
         });
       }
     } catch (retryError) {
-      setRetryCount(prev => prev + 1);
-      
       const newRetryCount = retryCount + 1;
+      setRetryCount(newRetryCount);
+      
       if (newRetryCount >= maxRetries) {
         await handleError(
           retryError as Error, 
@@ -157,16 +150,7 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     } finally {
       setIsRetrying(false);
     }
-  }, [
-    retryCount, 
-    maxRetries, 
-    isRetrying, 
-    retryDelay, 
-    handleError, 
-    currentError, 
-    showToast, 
-    toast
-  ]);
+  }, [retryCount, maxRetries, isRetrying, retryDelay, handleError, currentError, showToast, toast]);
 
   const clearError = useCallback(() => {
     setCurrentError(null);
@@ -181,7 +165,7 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
   ): Promise<T | null> => {
     try {
       const result = await operation();
-      clearError(); // Clear any previous errors on success
+      clearError();
       return result;
     } catch (error) {
       await handleError(error as Error, context, metadata, operation);
