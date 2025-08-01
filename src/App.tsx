@@ -1,83 +1,48 @@
-
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProfileProvider } from "@/contexts/ProfileContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { scheduleCleanup } from "@/utils/cleanup";
-import Index from "./pages/Index";
-import ProfileCompletion from "./pages/ProfileCompletion";
-import Dashboard from "./pages/Dashboard";
-import ProjectWorkspace from "./pages/ProjectWorkspace";
-import Payments from "./pages/Payments";
-import NotFound from "./pages/NotFound";
+import React from 'react';
+import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard';
+import ProfileCompletion from '@/pages/ProfileCompletion';
+import Payments from '@/pages/Payments';
+import ProjectWorkspace from '@/pages/ProjectWorkspace';
+import NotFound from '@/pages/NotFound';
+import SystemMonitoring from '@/pages/SystemMonitoring';
+import Testing from '@/pages/Testing';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProfileProvider } from '@/contexts/ProfileContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Toaster } from '@/components/ui/toaster';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
 
-// Initialize cleanup scheduling
-scheduleCleanup();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <ProfileProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute>
-                    <ProfileCompletion />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/profile-completion" 
-                element={
-                  <ProtectedRoute>
-                    <ProfileCompletion />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute requireCompleteProfile={true}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard/project/:id" 
-                element={
-                  <ProtectedRoute requireCompleteProfile={true}>
-                    <ProjectWorkspace />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/payments" 
-                element={
-                  <ProtectedRoute requireCompleteProfile={true}>
-                    <Payments />
-                  </ProtectedRoute>
-                } 
-              />
-              {/* Catch-all route for 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ProfileProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ProfileProvider>
+            <Router>
+              <div className="min-h-screen bg-background font-sans antialiased">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/profile-completion" element={<ProfileCompletion />} />
+                  <Route path="/payments" element={<Payments />} />
+                  <Route path="/project/:projectId" element={<ProjectWorkspace />} />
+                  <Route path="/system-monitoring" element={<SystemMonitoring />} />
+                  <Route path="/testing" element={<Testing />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Toaster />
+              </div>
+            </Router>
+          </ProfileProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+}
 
 export default App;
