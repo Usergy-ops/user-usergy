@@ -100,6 +100,9 @@ enabled = true
 [functions.unified-auth]
 verify_jwt = false
 
+[functions.auth-otp]
+verify_jwt = false
+
 [analytics]
 enabled = false
 
@@ -137,4 +140,3 @@ content_path = "./supabase/templates/email_change.html"
 [auth.email.template.confirmation]
 subject = "Confirm your signup"
 content_path = "./supabase/templates/confirmation.html"
-
