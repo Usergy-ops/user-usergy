@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AuthToggle } from '@/components/AuthToggle';
 import { AuthForm } from '@/components/AuthForm';
@@ -25,7 +26,7 @@ const Index = () => {
   const { accountType, isUser, isClient, loading: accountTypeLoading } = useAccountType();
   const navigate = useNavigate();
 
-  // Enhanced redirect logic for authenticated users
+  // Enhanced redirect logic for authenticated users with retry mechanism
   useEffect(() => {
     if (user && !accountTypeLoading) {
       console.log('User authenticated, checking account type for redirect:', {
@@ -33,28 +34,52 @@ const Index = () => {
         accountType,
         isUser,
         isClient,
-        currentDomain: window.location.hostname
+        currentDomain: window.location.hostname,
+        userMetadata: user.user_metadata
       });
 
-      // Add small delay to ensure account type is properly loaded
-      const redirectTimer = setTimeout(() => {
-        if (isUser) {
-          // User accounts should go to user.usergy.ai
-          const userDomain = 'https://user.usergy.ai/profile-completion';
-          console.log('Redirecting user account to:', userDomain);
-          window.location.href = userDomain;
-        } else if (isClient) {
-          // Client accounts go to profile completion on current domain
-          console.log('Redirecting client account to profile completion');
-          navigate('/profile-completion');
-        } else {
-          // Fallback - redirect to profile completion and let it handle account type detection
-          console.log('Account type unknown, redirecting to profile completion for detection');
-          navigate('/profile-completion');
-        }
-      }, 1000);
+      // Implement retry mechanism for account type detection
+      const attemptRedirect = (attempt = 1) => {
+        const maxAttempts = 3;
+        const retryDelay = attempt * 1000; // Increasing delay
 
-      return () => clearTimeout(redirectTimer);
+        setTimeout(async () => {
+          // Refresh account type if it's still unknown
+          if (!accountType && attempt < maxAttempts) {
+            console.log(`Attempt ${attempt}: Account type still unknown, retrying...`);
+            return attemptRedirect(attempt + 1);
+          }
+
+          // Use metadata as fallback if account type is still not available
+          const finalAccountType = accountType || user.user_metadata?.account_type;
+          const finalIsUser = finalAccountType === 'user';
+          const finalIsClient = finalAccountType === 'client';
+
+          console.log(`Attempt ${attempt}: Final redirect decision:`, {
+            finalAccountType,
+            finalIsUser,
+            finalIsClient
+          });
+
+          if (finalIsUser) {
+            // User accounts should go to user.usergy.ai
+            const userDomain = 'https://user.usergy.ai/profile-completion';
+            console.log('Redirecting user account to:', userDomain);
+            window.location.href = userDomain;
+          } else if (finalIsClient) {
+            // Client accounts go to profile completion on current domain
+            console.log('Redirecting client account to profile completion');
+            navigate('/profile-completion');
+          } else {
+            // Final fallback - redirect to profile completion and let it handle detection
+            console.log('Account type still unknown after retries, redirecting to profile completion for detection');
+            navigate('/profile-completion');
+          }
+        }, retryDelay);
+      };
+
+      // Start the redirect attempt process
+      attemptRedirect();
     }
   }, [user, accountType, isUser, isClient, accountTypeLoading, navigate]);
 
@@ -190,7 +215,7 @@ const Index = () => {
         description: "Your account has been created successfully."
       });
 
-      // Add delay to allow auth state to propagate
+      // Enhanced redirect logic with account type-specific handling
       setTimeout(() => {
         if (userAccountType === 'user') {
           // Redirect user accounts to user.usergy.ai

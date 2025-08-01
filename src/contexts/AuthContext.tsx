@@ -15,7 +15,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error?: string; attemptsLeft?: number }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
-  verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string }>;
+  verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string; isNewUser?: boolean; accountType?: string }>;
   resendOTP: (email: string) => Promise<{ error?: string; attemptsLeft?: number }>;
 }
 
@@ -276,8 +276,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error: data.error };
       }
 
-      // If verification successful, the auth state change will be handled by the listener
-      trackUserAction('otp_verification_success', { email });
+      // Enhanced success handling with user info
+      if (data?.success && data?.user) {
+        const isNewUser = data.isNewUser || false;
+        const userAccountType = data.accountType || data.user.user_metadata?.account_type;
+        
+        console.log('OTP verification successful:', {
+          email,
+          isNewUser,
+          accountType: userAccountType,
+          userId: data.user.id
+        });
+
+        trackUserAction('otp_verification_success', { 
+          email, 
+          isNewUser,
+          accountType: userAccountType
+        });
+
+        // For existing users, force a session refresh to update auth state
+        if (!isNewUser) {
+          console.log('Refreshing session for existing user...');
+          setTimeout(async () => {
+            try {
+              await supabase.auth.refreshSession();
+              console.log('Session refreshed successfully');
+            } catch (refreshError) {
+              console.error('Error refreshing session:', refreshError);
+            }
+          }, 1000);
+        }
+
+        return { 
+          isNewUser, 
+          accountType: userAccountType 
+        };
+      }
 
       return {};
     } catch (error) {
@@ -402,4 +436,3 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-

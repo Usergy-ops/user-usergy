@@ -216,54 +216,109 @@ async function handleVerifyOTP(email: string, otp: string, password: string) {
       throw new Error('Verification code has expired')
     }
 
-    console.log(`Valid OTP found for ${email}, creating user...`)
+    console.log(`Valid OTP found for ${email}, checking if user exists...`)
 
-    // Create user with proper metadata
-    const { data: userData, error: createError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        account_type: otpData.account_type,
-        source_url: otpData.source_url,
-        signup_source: `unified_otp_${otpData.account_type}`,
-        verified_via: 'otp',
-        otp_verified_at: new Date().toISOString()
-      }
-    })
-
-    if (createError) {
-      console.error('Error creating user:', createError)
-      throw new Error(createError.message || 'Failed to create user account')
+    // CRITICAL FIX: Check if user already exists before creating
+    const { data: users, error: listUsersError } = await supabase.auth.admin.listUsers()
+    
+    if (listUsersError) {
+      console.error('Error listing users:', listUsersError)
+      throw new Error('Failed to verify user status')
     }
+    
+    const existingUser = users?.users?.find(u => u.email === email)
+    
+    let userData;
+    let isNewUser = false;
 
-    console.log(`User created successfully:`, userData.user?.id)
+    if (existingUser) {
+      console.log(`User already exists, signing them in: ${email}`)
+      
+      // User exists, sign them in
+      const { data: signInData, error: signInError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: email,
+        options: {
+          redirectTo: otpData.account_type === 'user' ? 'https://user.usergy.ai/profile-completion' : `${otpData.source_url}/profile-completion`
+        }
+      })
 
-    // CRITICAL FIX: Insert account type into account_types table
-    if (userData.user?.id) {
-      const { error: accountTypeError } = await supabase
-        .from('account_types')
-        .insert({
-          auth_user_id: userData.user.id,
-          account_type: otpData.account_type
-        })
+      if (signInError) {
+        console.error('Error generating magic link for existing user:', signInError)
+        throw new Error('Failed to sign in existing user')
+      }
 
-      if (accountTypeError) {
-        console.error('Error inserting account type:', accountTypeError)
-        // Log the error but don't fail the entire process since user is created
-        await supabase.from('error_logs').insert({
-          user_id: userData.user.id,
-          error_type: 'account_type_insertion_error',
-          error_message: accountTypeError.message,
-          context: 'unified_auth_otp_verification',
-          metadata: {
-            email: email,
-            account_type: otpData.account_type,
-            error_detail: accountTypeError
-          }
-        })
-      } else {
-        console.log(`Account type ${otpData.account_type} successfully stored for user ${userData.user.id}`)
+      userData = { user: existingUser }
+      
+      // Ensure account type is set for existing user
+      if (existingUser.id) {
+        const { error: accountTypeError } = await supabase
+          .from('account_types')
+          .upsert({
+            auth_user_id: existingUser.id,
+            account_type: otpData.account_type
+          }, { onConflict: 'auth_user_id' })
+
+        if (accountTypeError) {
+          console.error('Error upserting account type for existing user:', accountTypeError)
+        } else {
+          console.log(`Account type ${otpData.account_type} ensured for existing user ${existingUser.id}`)
+        }
+      }
+
+    } else {
+      console.log(`Creating new user: ${email}`)
+      isNewUser = true;
+
+      // Create new user
+      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          account_type: otpData.account_type,
+          source_url: otpData.source_url,
+          signup_source: `unified_otp_${otpData.account_type}`,
+          verified_via: 'otp',
+          otp_verified_at: new Date().toISOString()
+        }
+      })
+
+      if (createError) {
+        console.error('Error creating user:', createError)
+        throw new Error(createError.message || 'Failed to create user account')
+      }
+
+      userData = createData
+      
+      console.log(`User created successfully:`, userData.user?.id)
+
+      // Insert account type for new user
+      if (userData.user?.id) {
+        const { error: accountTypeError } = await supabase
+          .from('account_types')
+          .insert({
+            auth_user_id: userData.user.id,
+            account_type: otpData.account_type
+          })
+
+        if (accountTypeError) {
+          console.error('Error inserting account type:', accountTypeError)
+          // Log the error but don't fail the entire process since user is created
+          await supabase.from('error_logs').insert({
+            user_id: userData.user.id,
+            error_type: 'account_type_insertion_error',
+            error_message: accountTypeError.message,
+            context: 'unified_auth_otp_verification',
+            metadata: {
+              email: email,
+              account_type: otpData.account_type,
+              error_detail: accountTypeError
+            }
+          })
+        } else {
+          console.log(`Account type ${otpData.account_type} successfully stored for user ${userData.user.id}`)
+        }
       }
     }
 
@@ -275,14 +330,16 @@ async function handleVerifyOTP(email: string, otp: string, password: string) {
 
     if (updateError) {
       console.error('Error updating OTP verification status:', updateError)
-      // Don't throw here as user is already created
+      // Don't throw here as user is already created/signed in
     }
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Account created successfully',
-        user: userData.user 
+        message: isNewUser ? 'Account created successfully' : 'Successfully signed in',
+        user: userData.user,
+        isNewUser,
+        accountType: otpData.account_type
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
