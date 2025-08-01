@@ -236,12 +236,8 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
       <EnhancedOTPVerification
         email={email}
         password={password}
+        onBack={() => setShowOTP(false)}
         onSuccess={handleOTPSuccess}
-        attemptsLeft={attemptsLeft}
-        options={{
-          signup_source: context.signup_source,
-          account_type: context.account_type
-        }}
       />
     );
   }
