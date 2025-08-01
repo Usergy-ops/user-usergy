@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +16,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error?: string }>;
   verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string; isNewUser?: boolean; accountType?: string }>;
   resendOTP: (email: string) => Promise<{ error?: string; attemptsLeft?: number }>;
+  refreshAccountType: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +39,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [accountType, setAccountType] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const fetchAccountType = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('account_types')
+        .select('account_type')
+        .eq('auth_user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching account type:', error);
+        monitoring.logError(error, 'fetch_account_type_error', { userId });
+      }
+
+      const type = data?.account_type || null;
+      setAccountType(type);
+      
+      console.log('Account type fetched:', type);
+      return type;
+    } catch (error) {
+      console.error('Error in fetchAccountType:', error);
+      monitoring.logError(error as Error, 'fetch_account_type_error', { userId });
+      setAccountType(null);
+      return null;
+    }
+  };
+
+  const refreshAccountType = async () => {
+    if (user) {
+      await fetchAccountType(user.id);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
@@ -94,30 +126,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchAccountType = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('account_types')
-        .select('account_type')
-        .eq('auth_user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching account type:', error);
-        monitoring.logError(error, 'fetch_account_type_error', { userId });
-      }
-
-      const type = data?.account_type || null;
-      setAccountType(type);
-      
-      console.log('Account type fetched:', type);
-    } catch (error) {
-      console.error('Error in fetchAccountType:', error);
-      monitoring.logError(error as Error, 'fetch_account_type_error', { userId });
-      setAccountType(null);
-    }
-  };
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -428,6 +436,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     resetPassword,
     verifyOTP,
     resendOTP,
+    refreshAccountType,
   };
 
   return (
