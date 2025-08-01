@@ -32,6 +32,32 @@ interface AssignAccountTypeResult {
   error?: string;
 }
 
+// Type guards for safe casting
+const isCoverageStats = (data: any): data is CoverageStats => {
+  return data && 
+    typeof data === 'object' &&
+    typeof data.total_users === 'number' &&
+    typeof data.users_with_account_types === 'number' &&
+    typeof data.users_without_account_types === 'number' &&
+    typeof data.coverage_percentage === 'number' &&
+    typeof data.is_healthy === 'boolean' &&
+    typeof data.timestamp === 'string';
+};
+
+const isFixResult = (data: any): data is FixResult => {
+  return data && 
+    typeof data === 'object' &&
+    typeof data.success === 'boolean' &&
+    typeof data.users_analyzed === 'number' &&
+    typeof data.users_fixed === 'number';
+};
+
+const isAssignAccountTypeResult = (data: any): data is AssignAccountTypeResult => {
+  return data && 
+    typeof data === 'object' &&
+    typeof data.success === 'boolean';
+};
+
 export const ensureUserHasAccountType = async (userId: string): Promise<void> => {
   try {
     console.log('Ensuring user has account type:', userId);
@@ -73,13 +99,16 @@ export const ensureUserHasAccountType = async (userId: string): Promise<void> =>
       return;
     }
 
-    const assignResult = result as AssignAccountTypeResult;
-    console.log('Account type assignment result:', assignResult);
-    
-    monitoring.recordMetric('account_type_assigned', 1, {
-      account_type: assignResult?.account_type || 'unknown',
-      user_id: userId
-    });
+    if (isAssignAccountTypeResult(result)) {
+      console.log('Account type assignment result:', result);
+      
+      monitoring.recordMetric('account_type_assigned', 1, {
+        account_type: result?.account_type || 'unknown',
+        user_id: userId
+      });
+    } else {
+      console.error('Invalid response format from account type assignment:', result);
+    }
 
   } catch (error) {
     console.error('Unexpected error in ensureUserHasAccountType:', error);
@@ -95,7 +124,11 @@ export const monitorAccountTypeCoverage = async (): Promise<CoverageStats> => {
       throw error;
     }
     
-    return data as CoverageStats;
+    if (!isCoverageStats(data)) {
+      throw new Error('Invalid response format from monitor_account_type_coverage');
+    }
+    
+    return data;
   } catch (error) {
     console.error('Error monitoring account type coverage:', error);
     monitoring.logError(error as Error, 'monitor_account_type_coverage');
@@ -111,7 +144,11 @@ export const fixExistingUsersWithoutAccountTypes = async (): Promise<FixResult> 
       throw error;
     }
     
-    return data as FixResult;
+    if (!isFixResult(data)) {
+      throw new Error('Invalid response format from fix_account_type_mismatches');
+    }
+    
+    return data;
   } catch (error) {
     console.error('Error fixing account type mismatches:', error);
     monitoring.logError(error as Error, 'fix_account_type_mismatches');
@@ -136,7 +173,11 @@ export const manuallyAssignAccountType = async (
       throw error;
     }
     
-    return data as AssignAccountTypeResult;
+    if (!isAssignAccountTypeResult(data)) {
+      throw new Error('Invalid response format from manually_assign_account_type');
+    }
+    
+    return data;
   } catch (error) {
     console.error('Error manually assigning account type:', error);
     monitoring.logError(error as Error, 'manual_account_type_assignment', { userId, accountType });
