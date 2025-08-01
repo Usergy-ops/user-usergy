@@ -19,6 +19,15 @@ interface CoverageStats {
   timestamp: string;
 }
 
+interface FixResult {
+  success: boolean;
+  users_analyzed: number;
+  users_fixed: number;
+  corrections?: any[];
+  error?: string;
+  message?: string;
+}
+
 export const AccountTypeDetectionTest: React.FC = () => {
   const { user, accountType } = useAuth();
   const [currentUrl, setCurrentUrl] = useState('');
@@ -26,7 +35,7 @@ export const AccountTypeDetectionTest: React.FC = () => {
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [isFixingUsers, setIsFixingUsers] = useState(false);
-  const [fixResult, setFixResult] = useState<any>(null);
+  const [fixResult, setFixResult] = useState<FixResult | null>(null);
 
   useEffect(() => {
     const url = window.location.href;
@@ -67,6 +76,8 @@ export const AccountTypeDetectionTest: React.FC = () => {
       console.error('Error fixing users:', error);
       setFixResult({
         success: false,
+        users_analyzed: 0,
+        users_fixed: 0,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     } finally {
@@ -231,7 +242,7 @@ export const AccountTypeDetectionTest: React.FC = () => {
                 <Alert variant={fixResult.success ? 'default' : 'destructive'}>
                   <AlertDescription>
                     {fixResult.success ? (
-                      <>✅ Successfully processed {fixResult.users_processed} users and fixed {fixResult.users_fixed} account types.</>
+                      <>✅ Successfully analyzed {fixResult.users_analyzed} users and fixed {fixResult.users_fixed} account types.</>
                     ) : (
                       <>❌ Error: {fixResult.error}</>
                     )}

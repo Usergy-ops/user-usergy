@@ -6,6 +6,32 @@ import { monitoring } from './monitoring';
  * Enhanced account type utilities - streamlined for cleaned database
  */
 
+// Type definitions for RPC responses
+interface CoverageStats {
+  total_users: number;
+  users_with_account_types: number;
+  users_without_account_types: number;
+  coverage_percentage: number;
+  is_healthy: boolean;
+  timestamp: string;
+}
+
+interface FixResult {
+  success: boolean;
+  users_analyzed: number;
+  users_fixed: number;
+  corrections?: any[];
+  error?: string;
+  message?: string;
+}
+
+interface AssignAccountTypeResult {
+  success: boolean;
+  account_type?: string;
+  message?: string;
+  error?: string;
+}
+
 export const ensureUserHasAccountType = async (userId: string): Promise<void> => {
   try {
     console.log('Ensuring user has account type:', userId);
@@ -35,11 +61,11 @@ export const ensureUserHasAccountType = async (userId: string): Promise<void> =>
       return;
     }
 
-    // Use the simplified domain assignment function
+    // Use the manually assign function since assign_account_type_by_domain doesn't exist
     const { data: result, error: assignError } = await supabase
-      .rpc('assign_account_type_by_domain', {
+      .rpc('manually_assign_account_type', {
         user_id_param: userId,
-        email_param: user.user.email
+        account_type_param: user.user.email?.includes('user.usergy.ai') ? 'user' : 'client'
       });
 
     if (assignError) {
@@ -47,10 +73,11 @@ export const ensureUserHasAccountType = async (userId: string): Promise<void> =>
       return;
     }
 
-    console.log('Account type assignment result:', result);
+    const assignResult = result as AssignAccountTypeResult;
+    console.log('Account type assignment result:', assignResult);
     
     monitoring.recordMetric('account_type_assigned', 1, {
-      account_type: result?.account_type || 'unknown',
+      account_type: assignResult?.account_type || 'unknown',
       user_id: userId
     });
 
@@ -60,7 +87,7 @@ export const ensureUserHasAccountType = async (userId: string): Promise<void> =>
   }
 };
 
-export const monitorAccountTypeCoverage = async () => {
+export const monitorAccountTypeCoverage = async (): Promise<CoverageStats> => {
   try {
     const { data, error } = await supabase.rpc('monitor_account_type_coverage');
     
@@ -68,7 +95,7 @@ export const monitorAccountTypeCoverage = async () => {
       throw error;
     }
     
-    return data;
+    return data as CoverageStats;
   } catch (error) {
     console.error('Error monitoring account type coverage:', error);
     monitoring.logError(error as Error, 'monitor_account_type_coverage');
@@ -76,7 +103,7 @@ export const monitorAccountTypeCoverage = async () => {
   }
 };
 
-export const fixExistingUsersWithoutAccountTypes = async () => {
+export const fixExistingUsersWithoutAccountTypes = async (): Promise<FixResult> => {
   try {
     const { data, error } = await supabase.rpc('fix_account_type_mismatches');
     
@@ -84,7 +111,7 @@ export const fixExistingUsersWithoutAccountTypes = async () => {
       throw error;
     }
     
-    return data;
+    return data as FixResult;
   } catch (error) {
     console.error('Error fixing account type mismatches:', error);
     monitoring.logError(error as Error, 'fix_account_type_mismatches');
@@ -98,7 +125,7 @@ export const fixExistingUsersWithoutAccountTypes = async () => {
 export const manuallyAssignAccountType = async (
   userId: string, 
   accountType: 'user' | 'client'
-) => {
+): Promise<AssignAccountTypeResult> => {
   try {
     const { data, error } = await supabase.rpc('manually_assign_account_type', {
       user_id_param: userId,
@@ -109,10 +136,16 @@ export const manuallyAssignAccountType = async (
       throw error;
     }
     
-    return data;
+    return data as AssignAccountTypeResult;
   } catch (error) {
     console.error('Error manually assigning account type:', error);
     monitoring.logError(error as Error, 'manual_account_type_assignment', { userId, accountType });
     throw error;
   }
+};
+
+// Export the function that was missing (alias for manuallyAssignAccountType)
+export const assignAccountTypeByDomain = async (userId: string, email?: string): Promise<AssignAccountTypeResult> => {
+  const accountType = email?.includes('user.usergy.ai') ? 'user' : 'client';
+  return manuallyAssignAccountType(userId, accountType);
 };

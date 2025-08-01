@@ -25,12 +25,21 @@ interface ReadinessCheckItem {
   icon: React.ReactNode;
 }
 
+interface CoverageData {
+  total_users: number;
+  users_with_account_types: number;
+  users_without_account_types: number;
+  coverage_percentage: number;
+  is_healthy: boolean;
+  timestamp: string;
+}
+
 export const AuthenticationReadinessCheck: React.FC = () => {
   const { user, session, accountType, loading } = useAuth();
   const { isUser, isClient, isUnknown } = useAccountType();
   const [checks, setChecks] = useState<ReadinessCheckItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [coverageData, setCoverageData] = useState<any>(null);
+  const [coverageData, setCoverageData] = useState<CoverageData | null>(null);
 
   const runReadinessChecks = async () => {
     setIsRunning(true);

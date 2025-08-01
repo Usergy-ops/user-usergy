@@ -9,14 +9,32 @@ import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes, ensure
 import { RefreshCw, Users, CheckCircle, AlertTriangle, Shield, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface CoverageStats {
+  total_users: number;
+  users_with_account_types: number;
+  users_without_account_types: number;
+  coverage_percentage: number;
+  is_healthy: boolean;
+  timestamp: string;
+}
+
+interface FixResult {
+  success: boolean;
+  users_analyzed: number;
+  users_fixed: number;
+  corrections?: any[];
+  error?: string;
+  message?: string;
+}
+
 export const AuthTestingUtility: React.FC = () => {
   const { user, session, accountType: contextAccountType, loading: authLoading } = useAuth();
   const { accountType, isUser, isClient, isUnknown, loading: hookLoading } = useAccountType();
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
   const [isEnsuring, setIsEnsuring] = useState(false);
-  const [monitoringData, setMonitoringData] = useState<any>(null);
-  const [fixingData, setFixingData] = useState<any>(null);
+  const [monitoringData, setMonitoringData] = useState<CoverageStats | null>(null);
+  const [fixingData, setFixingData] = useState<FixResult | null>(null);
   const { toast } = useToast();
 
   const handleMonitorCoverage = async () => {

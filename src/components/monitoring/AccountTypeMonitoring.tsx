@@ -16,6 +16,15 @@ interface AccountTypeStatus {
   timestamp: string;
 }
 
+interface FixResult {
+  success: boolean;
+  users_processed?: number;
+  users_analyzed: number;
+  users_fixed: number;
+  error?: string;
+  message?: string;
+}
+
 export const AccountTypeMonitoring: React.FC = () => {
   const [status, setStatus] = useState<AccountTypeStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +56,7 @@ export const AccountTypeMonitoring: React.FC = () => {
       if (result.success) {
         toast({
           title: "Fix Applied Successfully",
-          description: `Processed ${result.users_processed} users, fixed ${result.users_fixed} accounts`
+          description: `Processed ${result.users_analyzed} users, fixed ${result.users_fixed} accounts`
         });
         
         // Refresh status after fix
