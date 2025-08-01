@@ -1,3 +1,6 @@
+
+import { supabase } from '@/integrations/supabase/client';
+
 // src/components/GoogleAuth.tsx (Both Projects)
 
 const handleGoogleAuth = async () => {
