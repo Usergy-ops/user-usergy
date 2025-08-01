@@ -31,9 +31,9 @@ export function AuthCallback() {
       
       // Redirect based on account type
       if (accountType === 'user') {
-        navigate('/dashboard')
+        navigate('/profile-completion')
       } else {
-        navigate('/client/dashboard')
+        navigate('/')
       }
     }
 
