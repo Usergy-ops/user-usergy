@@ -89,11 +89,14 @@ export const ensureUserHasAccountType = async (userId?: string): Promise<boolean
       return false;
     }
 
-    if (data?.success) {
-      console.log('Account type assigned successfully:', data.account_type);
+    // Type guard for the RPC response
+    const result = data as { success?: boolean; account_type?: string; error?: string } | null;
+
+    if (result?.success) {
+      console.log('Account type assigned successfully:', result.account_type);
       return true;
     } else {
-      console.error('Failed to assign account type:', data?.error);
+      console.error('Failed to assign account type:', result?.error);
       return false;
     }
   } catch (error) {
@@ -193,11 +196,19 @@ export const fixExistingUsersWithoutAccountTypes = async (): Promise<{
       };
     }
 
+    // Type guard for the RPC response
+    const result = data as { 
+      success?: boolean; 
+      users_analyzed?: number; 
+      users_fixed?: number; 
+      message?: string 
+    } | null;
+
     return {
-      success: data?.success || false,
-      users_processed: data?.users_analyzed || 0,
-      users_fixed: data?.users_fixed || 0,
-      message: data?.message || 'Account type fix completed'
+      success: result?.success || false,
+      users_processed: result?.users_analyzed || 0,
+      users_fixed: result?.users_fixed || 0,
+      message: result?.message || 'Account type fix completed'
     };
   } catch (error) {
     console.error('Error in fixExistingUsersWithoutAccountTypes:', error);
@@ -232,10 +243,17 @@ export const assignAccountTypeByDomain = async (userId: string, email: string): 
       };
     }
 
+    // Type guard for the RPC response
+    const result = data as { 
+      success?: boolean; 
+      account_type?: string; 
+      message?: string 
+    } | null;
+
     return {
-      success: data?.success || false,
-      account_type: data?.account_type,
-      message: data?.message || 'Account type assigned successfully'
+      success: result?.success || false,
+      account_type: result?.account_type,
+      message: result?.message || 'Account type assigned successfully'
     };
   } catch (error) {
     console.error('Error in assignAccountTypeByDomain:', error);
@@ -246,4 +264,3 @@ export const assignAccountTypeByDomain = async (userId: string, email: string): 
     };
   }
 };
-
