@@ -1,5 +1,4 @@
 
-
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthErrorMessage } from '@/utils/validation/authValidation';
@@ -222,4 +221,3 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     logError
   };
 };
-
