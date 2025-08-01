@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccountType } from '@/hooks/useAccountType';
-import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes } from '@/utils/accountTypeUtils';
-import { RefreshCw, Users, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
+import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes, ensureUserHasAccountType } from '@/utils/accountTypeUtils';
+import { RefreshCw, Users, CheckCircle, AlertTriangle, Shield, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export const AuthTestingUtility: React.FC = () => {
@@ -14,6 +14,7 @@ export const AuthTestingUtility: React.FC = () => {
   const { accountType, isUser, isClient, isUnknown, loading: hookLoading } = useAccountType();
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
+  const [isEnsuring, setIsEnsuring] = useState(false);
   const [monitoringData, setMonitoringData] = useState<any>(null);
   const [fixingData, setFixingData] = useState<any>(null);
   const { toast } = useToast();
@@ -56,7 +57,7 @@ export const AuthTestingUtility: React.FC = () => {
       if (data.success) {
         toast({
           title: "Account Types Fixed",
-          description: `Fixed ${data.users_fixed} out of ${data.users_processed} users`,
+          description: `Fixed ${data.users_fixed} out of ${data.users_analyzed} users`,
         });
       } else {
         toast({
@@ -73,6 +74,36 @@ export const AuthTestingUtility: React.FC = () => {
       });
     } finally {
       setIsFixing(false);
+    }
+  };
+
+  const handleEnsureCurrentUser = async () => {
+    if (!user) {
+      toast({
+        title: "No User",
+        description: "Please sign in first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsEnsuring(true);
+    try {
+      await ensureUserHasAccountType(user.id);
+      toast({
+        title: "Account Type Ensured",
+        description: "Account type has been verified for current user",
+      });
+      // Refresh the page to update account type display
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: "Ensure Error",
+        description: "Failed to ensure account type",
+        variant: "destructive"
+      });
+    } finally {
+      setIsEnsuring(false);
     }
   };
 
@@ -175,9 +206,22 @@ export const AuthTestingUtility: React.FC = () => {
                 )}
                 Fix Account Types
               </Button>
+
+              <Button
+                onClick={handleEnsureCurrentUser}
+                disabled={isEnsuring || !user}
+                variant="outline"
+              >
+                {isEnsuring ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4 mr-2" />
+                )}
+                Ensure Current User
+              </Button>
             </div>
 
-            {/* Monitoring Results */}
+            {/* Results Display */}
             {monitoringData && (
               <div className="p-4 bg-muted rounded-lg">
                 <h5 className="font-medium mb-2 flex items-center space-x-2">
@@ -197,7 +241,6 @@ export const AuthTestingUtility: React.FC = () => {
               </div>
             )}
 
-            {/* Fixing Results */}
             {fixingData && (
               <div className="p-4 bg-muted rounded-lg">
                 <h5 className="font-medium mb-2 flex items-center space-x-2">
@@ -209,7 +252,7 @@ export const AuthTestingUtility: React.FC = () => {
                   <span>Fix Report</span>
                 </h5>
                 <div className="space-y-2 text-sm">
-                  <div>Processed: <Badge>{fixingData.users_processed}</Badge></div>
+                  <div>Analyzed: <Badge>{fixingData.users_analyzed}</Badge></div>
                   <div>Fixed: <Badge variant="default">{fixingData.users_fixed}</Badge></div>
                   <div className="text-xs text-muted-foreground">{fixingData.message}</div>
                 </div>
