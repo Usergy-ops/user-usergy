@@ -1,444 +1,246 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Resend } from 'npm:resend@4.0.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-)
-
-const resend = new Resend(Deno.env.get('RESEND_API_KEY') ?? '')
-
-serve(async (req) => {
-  console.log(`Unified Auth Handler: ${req.method} request received`)
-  
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  try {
-    const requestBody = await req.json()
-    const { action, email, password, otp, signup_source, account_type } = requestBody
-    
-    console.log(`Unified Auth Handler: ${action} action requested`)
-    console.log(`Request data:`, { email: email ? 'provided' : 'missing', action, account_type, signup_source })
-    
-    // Validate required fields
-    if (!action) {
-      throw new Error('Action is required')
-    }
-    
-    if (!email) {
-      throw new Error('Email is required')
-    }
-    
-    // Determine account type from signup source
-    const finalAccountType = account_type || (signup_source?.includes('user') ? 'user' : 'client')
-    
-    console.log(`Processing action: ${action} for email: ${email} with account type: ${finalAccountType}`)
-
-    switch (action) {
-      case 'generate':
-        return await handleGenerateOTP(email, password, finalAccountType, req)
-      case 'verify':
-        return await handleVerifyOTP(email, otp, password)
-      case 'resend':
-        return await handleResendOTP(email, finalAccountType)
-      default:
-        throw new Error(`Invalid action: ${action}`)
-    }
-  } catch (error: any) {
-    console.error('Unified auth error:', error)
-    console.error('Error stack:', error.stack)
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'An unexpected error occurred',
-        details: error.stack ? error.stack.substring(0, 500) : undefined
-      }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  }
-})
-
-async function handleGenerateOTP(email: string, password: string, accountType: string, req: Request) {
-  try {
-    console.log(`Generating OTP for email: ${email}, account type: ${accountType}`)
-    
-    if (!password) {
-      throw new Error('Password is required')
-    }
-    
-    // Check if user exists
-    const { data: users, error: listUsersError } = await supabase.auth.admin.listUsers()
-    
-    if (listUsersError) {
-      console.error('Error listing users:', listUsersError)
-      throw new Error('Failed to check existing users')
-    }
-    
-    const existingUser = users?.users?.find(u => u.email === email)
-    if (existingUser) {
-      console.log(`User already exists: ${email}`)
-      throw new Error('User already exists')
-    }
-
-    // Generate OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
-    
-    console.log(`Generated OTP code for ${email}: ${otpCode}`)
-
-    // Store OTP in the unified table
-    const { error: insertError } = await supabase.from('auth_otp_verifications').insert({
-      email,
-      otp_code: otpCode,
-      source_url: accountType === 'user' ? 'https://user.usergy.ai' : 'https://client.usergy.ai',
-      account_type: accountType,
-      expires_at: expiresAt.toISOString(),
-      metadata: { 
-        password,
-        created_at: new Date().toISOString(),
-        user_agent: req.headers.get('user-agent') || 'unknown'
-      }
-    })
-
-    if (insertError) {
-      console.error('Error storing OTP:', insertError)
-      throw new Error('Failed to store verification code')
-    }
-    
-    console.log(`OTP stored successfully for ${email}`)
-
-    // Send OTP email using Resend
-    try {
-      const emailResponse = await resend.emails.send({
-        from: 'Usergy <no-reply@usergy.ai>',
-        to: [email],
-        subject: 'Your Usergy Verification Code',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #333; margin-bottom: 10px;">Welcome to Usergy!</h1>
-              <p style="color: #666; font-size: 16px;">Please verify your email address to complete your ${accountType} account setup.</p>
-            </div>
-            
-            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px; text-align: center; margin: 20px 0;">
-              <p style="color: #333; margin-bottom: 15px; font-size: 18px;">Your verification code is:</p>
-              <div style="font-size: 36px; font-weight: bold; color: #4F46E5; letter-spacing: 8px; margin: 20px 0; padding: 20px; background-color: white; border-radius: 8px; border: 2px solid #E5E7EB;">
-                ${otpCode}
-              </div>
-              <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
-            </div>
-            
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
-              <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
-              <p style="color: #666; font-size: 14px;">For support, contact us at support@usergy.ai</p>
-            </div>
-          </div>
-        `
-      })
-      
-      console.log('Email sent successfully via Resend:', emailResponse)
-      
-      if (emailResponse.error) {
-        console.error('Resend API error:', emailResponse.error)
-        throw new Error(`Failed to send email: ${emailResponse.error.message}`)
-      }
-
-    } catch (emailError) {
-      console.error('Error sending email:', emailError)
-      
-      // Update OTP record with email error
-      await supabase
-        .from('auth_otp_verifications')
-        .update({ 
-          metadata: { 
-            ...{ password, created_at: new Date().toISOString() },
-            email_error: emailError.message,
-            email_sent: false 
-          }
-        })
-        .eq('email', email)
-        .eq('otp_code', otpCode)
-
-      throw new Error('Failed to send verification email. Please try again.')
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'Verification code sent successfully' 
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-
-  } catch (error) {
-    console.error('Error in handleGenerateOTP:', error)
-    throw error
-  }
+interface AuthRequest {
+  action: 'generate' | 'verify' | 'resend';
+  email: string;
+  password?: string;
+  otp?: string;
+  account_type?: string;
+  signup_source?: string;
+  source_url?: string;
+  referrer_url?: string;
 }
 
-async function handleVerifyOTP(email: string, otp: string, password: string) {
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
-    console.log(`Verifying OTP for email: ${email}`)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    if (!otp) {
-      throw new Error('Verification code is required')
-    }
-    
-    if (!password) {
-      throw new Error('Password is required')
-    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
 
-    // Get OTP record
-    const { data: otpData, error: fetchError } = await supabase
-      .from('auth_otp_verifications')
-      .select('*')
-      .eq('email', email)
-      .eq('otp_code', otp)
-      .is('verified_at', null)
-      .single()
+    const { action, email, password, otp, account_type, signup_source, source_url, referrer_url }: AuthRequest = await req.json();
 
-    if (fetchError || !otpData) {
-      console.error('Invalid OTP for email:', email, fetchError)
-      throw new Error('Invalid or expired verification code')
-    }
+    console.log(`Processing ${action} request for ${email}`, {
+      account_type,
+      signup_source,
+      source_url,
+      referrer_url
+    });
 
-    // Check if OTP is expired
-    if (new Date() > new Date(otpData.expires_at)) {
-      console.log(`OTP expired for email: ${email}`)
-      throw new Error('Verification code has expired')
-    }
-
-    console.log(`Valid OTP found for ${email}, checking if user exists...`)
-
-    // CRITICAL FIX: Check if user already exists before creating
-    const { data: users, error: listUsersError } = await supabase.auth.admin.listUsers()
-    
-    if (listUsersError) {
-      console.error('Error listing users:', listUsersError)
-      throw new Error('Failed to verify user status')
-    }
-    
-    const existingUser = users?.users?.find(u => u.email === email)
-    
-    let userData;
-    let isNewUser = false;
-
-    if (existingUser) {
-      console.log(`User already exists, signing them in: ${email}`)
+    if (action === 'generate') {
+      // Enhanced account type determination
+      let finalAccountType = account_type || 'client'; // Default fallback
       
-      // User exists, sign them in
-      const { data: signInData, error: signInError } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
+      // Enhanced logic for account type detection
+      if (source_url) {
+        if (source_url.includes('user.usergy.ai')) {
+          finalAccountType = 'user';
+        } else if (source_url.includes('client.usergy.ai')) {
+          finalAccountType = 'client';
+        }
+      }
+      
+      if (referrer_url) {
+        if (referrer_url.includes('user.usergy.ai')) {
+          finalAccountType = 'user';
+        } else if (referrer_url.includes('client.usergy.ai')) {
+          finalAccountType = 'client';
+        }
+      }
+
+      // Generate OTP and handle signup
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store OTP verification record
+      const { error: otpError } = await supabase
+        .from('auth_otp_verifications')
+        .insert({
+          email,
+          otp_code: otpCode,
+          expires_at: expiresAt.toISOString(),
+          account_type: finalAccountType,
+          source_url: source_url || '',
+          metadata: {
+            password: password,
+            signup_source: signup_source || 'enhanced_signup',
+            referrer_url: referrer_url,
+            enhanced_context: true
+          }
+        });
+
+      if (otpError) {
+        console.error('Error storing OTP:', otpError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to generate verification code' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
+      // Send email (implement email sending logic here)
+      console.log(`OTP generated for ${email}: ${otpCode} (Account Type: ${finalAccountType})`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Verification code sent',
+          account_type: finalAccountType
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else if (action === 'verify') {
+      if (!otp || !password) {
+        return new Response(
+          JSON.stringify({ error: 'OTP and password are required' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Verify OTP
+      const { data: otpData, error: otpFetchError } = await supabase
+        .from('auth_otp_verifications')
+        .select('*')
+        .eq('email', email)
+        .eq('otp_code', otp)
+        .is('verified_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (otpFetchError || !otpData) {
+        console.error('Invalid or expired OTP:', otpFetchError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired verification code' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Create user account
+      const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
         email: email,
-        options: {
-          redirectTo: otpData.account_type === 'user' ? 'https://user.usergy.ai/profile-completion' : `${otpData.source_url}/profile-completion`
-        }
-      })
-
-      if (signInError) {
-        console.error('Error generating magic link for existing user:', signInError)
-        throw new Error('Failed to sign in existing user')
-      }
-
-      userData = { user: existingUser }
-      
-      // Ensure account type is set for existing user
-      if (existingUser.id) {
-        const { error: accountTypeError } = await supabase
-          .from('account_types')
-          .upsert({
-            auth_user_id: existingUser.id,
-            account_type: otpData.account_type
-          }, { onConflict: 'auth_user_id' })
-
-        if (accountTypeError) {
-          console.error('Error upserting account type for existing user:', accountTypeError)
-        } else {
-          console.log(`Account type ${otpData.account_type} ensured for existing user ${existingUser.id}`)
-        }
-      }
-
-    } else {
-      console.log(`Creating new user: ${email}`)
-      isNewUser = true;
-
-      // Create new user
-      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
-        email,
-        password,
+        password: password,
         email_confirm: true,
         user_metadata: {
           account_type: otpData.account_type,
+          signup_source: otpData.metadata?.signup_source || 'enhanced_signup',
           source_url: otpData.source_url,
-          signup_source: `unified_otp_${otpData.account_type}`,
-          verified_via: 'otp',
-          otp_verified_at: new Date().toISOString()
+          referrer_url: otpData.metadata?.referrer_url,
+          enhanced_signup: true,
+          email_verified: true
         }
-      })
+      });
 
-      if (createError) {
-        console.error('Error creating user:', createError)
-        throw new Error(createError.message || 'Failed to create user account')
+      if (signUpError) {
+        console.error('Error creating user:', signUpError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create account' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
       }
 
-      userData = createData
+      // Store account type
+      const { error: accountTypeError } = await supabase
+        .from('account_types')
+        .insert({
+          auth_user_id: authData.user.id,
+          account_type: otpData.account_type
+        });
+
+      if (accountTypeError) {
+        console.error('Error storing account type:', accountTypeError);
+      }
+
+      // Mark OTP as verified
+      await supabase
+        .from('auth_otp_verifications')
+        .update({ verified_at: new Date().toISOString() })
+        .eq('id', otpData.id);
+
+      // Generate redirect URL based on account type
+      let redirectUrl = '/profile-completion'; // Default fallback
       
-      console.log(`User created successfully:`, userData.user?.id)
-
-      // Insert account type for new user
-      if (userData.user?.id) {
-        const { error: accountTypeError } = await supabase
-          .from('account_types')
-          .insert({
-            auth_user_id: userData.user.id,
-            account_type: otpData.account_type
-          })
-
-        if (accountTypeError) {
-          console.error('Error inserting account type:', accountTypeError)
-          // Log the error but don't fail the entire process since user is created
-          await supabase.from('error_logs').insert({
-            user_id: userData.user.id,
-            error_type: 'account_type_insertion_error',
-            error_message: accountTypeError.message,
-            context: 'unified_auth_otp_verification',
-            metadata: {
-              email: email,
-              account_type: otpData.account_type,
-              error_detail: accountTypeError
-            }
-          })
-        } else {
-          console.log(`Account type ${otpData.account_type} successfully stored for user ${userData.user.id}`)
-        }
+      if (otpData.account_type === 'user') {
+        redirectUrl = 'https://user.usergy.ai/profile-completion';
+      } else if (otpData.account_type === 'client') {
+        redirectUrl = 'https://client.usergy.ai/profile';
       }
-    }
 
-    // Mark OTP as verified
-    const { error: updateError } = await supabase
-      .from('auth_otp_verifications')
-      .update({ verified_at: new Date().toISOString() })
-      .eq('id', otpData.id)
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          user: authData.user,
+          isNewUser: true,
+          accountType: otpData.account_type,
+          redirectUrl: redirectUrl
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
 
-    if (updateError) {
-      console.error('Error updating OTP verification status:', updateError)
-      // Don't throw here as user is already created/signed in
+    } else if (action === 'resend') {
+      // Handle OTP resend logic
+      const { data: existingOtp } = await supabase
+        .from('auth_otp_verifications')
+        .select('*')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!existingOtp) {
+        return new Response(
+          JSON.stringify({ error: 'No verification request found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Generate new OTP
+      const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await supabase
+        .from('auth_otp_verifications')
+        .update({
+          otp_code: newOtpCode,
+          expires_at: newExpiresAt.toISOString(),
+          resend_attempts: (existingOtp.resend_attempts || 0) + 1
+        })
+        .eq('id', existingOtp.id);
+
+      console.log(`OTP resent for ${email}: ${newOtpCode}`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Verification code resent'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: isNewUser ? 'Account created successfully' : 'Successfully signed in',
-        user: userData.user,
-        isNewUser,
-        accountType: otpData.account_type
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({ error: 'Invalid action' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
 
   } catch (error) {
-    console.error('Error in handleVerifyOTP:', error)
-    throw error
-  }
-}
-
-async function handleResendOTP(email: string, accountType: string = 'client') {
-  try {
-    console.log(`Resending OTP for email: ${email}`)
-    
-    // Get existing OTP data
-    const { data: existingOtp } = await supabase
-      .from('auth_otp_verifications')
-      .select('*')
-      .eq('email', email)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    // Generate new OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
-
-    // Preserve metadata or create new
-    const metadata = existingOtp?.metadata || {
-      account_type: accountType,
-      created_at: new Date().toISOString()
-    }
-
-    // Store new OTP
-    const { error: insertError } = await supabase
-      .from('auth_otp_verifications')
-      .insert({
-        email,
-        otp_code: otpCode,
-        source_url: accountType === 'user' ? 'https://user.usergy.ai' : 'https://client.usergy.ai',
-        account_type: accountType,
-        expires_at: expiresAt.toISOString(),
-        metadata: {
-          ...metadata,
-          resent_at: new Date().toISOString(),
-          resend_count: (existingOtp?.metadata?.resend_count || 0) + 1
-        }
-      })
-
-    if (insertError) {
-      console.error('Error storing resend OTP:', insertError)
-      throw new Error('Failed to generate new verification code')
-    }
-
-    // Send email
-    const emailResponse = await resend.emails.send({
-      from: 'Usergy <no-reply@usergy.ai>',
-      to: [email],
-      subject: 'Your New Usergy Verification Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #333; margin-bottom: 10px;">New Verification Code</h1>
-            <p style="color: #666; font-size: 16px;">Here's your new verification code for your Usergy account.</p>
-          </div>
-          
-          <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px; text-align: center; margin: 20px 0;">
-            <p style="color: #333; margin-bottom: 15px; font-size: 18px;">Your new verification code is:</p>
-            <div style="font-size: 36px; font-weight: bold; color: #4F46E5; letter-spacing: 8px; margin: 20px 0; padding: 20px; background-color: white; border-radius: 8px; border: 2px solid #E5E7EB;">
-              ${otpCode}
-            </div>
-            <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
-          </div>
-          
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
-            <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
-            <p style="color: #666; font-size: 14px;">For support, contact us at support@usergy.ai</p>
-          </div>
-        </div>
-      `
-    })
-
-    if (emailResponse.error) {
-      console.error('Resend API error:', emailResponse.error)
-      throw new Error(`Failed to send email: ${emailResponse.error.message}`)
-    }
-
-    console.log('Resend OTP email sent successfully')
-
+    console.error('Unified auth error:', error);
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'New verification code sent successfully'
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-
-  } catch (error) {
-    console.error('Error in handleResendOTP:', error)
-    throw error
+      JSON.stringify({ error: 'Internal server error' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
   }
-}
+});

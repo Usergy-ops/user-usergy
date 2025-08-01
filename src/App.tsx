@@ -1,9 +1,11 @@
+
 import React from 'react';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Index from '@/pages/Index';
 import Dashboard from '@/pages/Dashboard';
 import ProfileCompletion from '@/pages/ProfileCompletion';
+import Profile from '@/pages/Profile';
 import Payments from '@/pages/Payments';
 import ProjectWorkspace from '@/pages/ProjectWorkspace';
 import NotFound from '@/pages/NotFound';
@@ -29,6 +31,7 @@ function App() {
                   <Route path="/" element={<Index />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/profile-completion" element={<ProfileCompletion />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="/payments" element={<Payments />} />
                   <Route path="/project/:projectId" element={<ProjectWorkspace />} />
                   <Route path="/system-monitoring" element={<SystemMonitoring />} />

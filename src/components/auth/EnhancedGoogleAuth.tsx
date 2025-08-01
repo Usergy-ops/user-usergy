@@ -75,9 +75,22 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         mode
       });
       
-      // Enhanced redirect URL construction
+      // Enhanced redirect URL construction with domain-specific logic
       const baseUrl = window.location.origin;
-      const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
+      let redirectTo;
+      
+      if (mode === 'signup') {
+        if (accountType === 'user') {
+          redirectTo = 'https://user.usergy.ai/profile-completion';
+        } else if (accountType === 'client') {
+          redirectTo = 'https://client.usergy.ai/profile';
+        } else {
+          redirectTo = `${baseUrl}/profile-completion`;
+        }
+      } else {
+        // For signin, redirect to dashboard on current domain first, then let the app handle redirects
+        redirectTo = `${baseUrl}/dashboard`;
+      }
       
       // Create comprehensive state object
       const oauthState = {
@@ -157,7 +170,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       if (mode === 'signup') {
         toast({
           title: "Account Created!",
-          description: "Welcome to Usergy! Redirecting to complete your profile...",
+          description: "Welcome to Usergy! Redirecting to your profile...",
         });
       } else {
         toast({

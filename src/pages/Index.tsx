@@ -67,9 +67,10 @@ const Index = () => {
             console.log('Redirecting user account to:', userDomain);
             window.location.href = userDomain;
           } else if (finalIsClient) {
-            // Client accounts go to profile completion on current domain
-            console.log('Redirecting client account to profile completion');
-            navigate('/profile-completion');
+            // Client accounts go to client.usergy.ai/profile
+            const clientDomain = 'https://client.usergy.ai/profile';
+            console.log('Redirecting client account to:', clientDomain);
+            window.location.href = clientDomain;
           } else {
             // Final fallback - redirect to profile completion and let it handle detection
             console.log('Account type still unknown after retries, redirecting to profile completion for detection');
@@ -223,9 +224,10 @@ const Index = () => {
           console.log('OTP Success: Redirecting user account to:', userDomain);
           window.location.href = userDomain;
         } else if (userAccountType === 'client') {
-          // Redirect client accounts to profile completion
-          console.log('OTP Success: Redirecting client account to profile completion');
-          navigate('/profile-completion');
+          // Redirect client accounts to client.usergy.ai/profile
+          const clientDomain = 'https://client.usergy.ai/profile';
+          console.log('OTP Success: Redirecting client account to:', clientDomain);
+          window.location.href = clientDomain;
         } else {
           // Fallback - redirect to profile completion
           console.log('OTP Success: Account type unknown, redirecting to profile completion');
