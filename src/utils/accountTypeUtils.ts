@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { monitoring } from '@/utils/monitoring';
 
 export const getUserAccountType = async (userId?: string): Promise<string | null> => {
   try {
@@ -18,12 +19,14 @@ export const getUserAccountType = async (userId?: string): Promise<string | null
 
     if (error) {
       console.error('Error getting account type:', error);
+      monitoring.logError(error, 'get_user_account_type_error', { userId: userIdToUse });
       return null;
     }
 
     return data?.account_type || null;
   } catch (error) {
     console.error('Error in getUserAccountType:', error);
+    monitoring.logError(error as Error, 'get_user_account_type_error', { userId });
     return null;
   }
 };
@@ -60,6 +63,7 @@ export const ensureUserHasAccountType = async (userId?: string): Promise<boolean
     // Check if user already has an account type
     const existingAccountType = await getUserAccountType(userIdToUse);
     if (existingAccountType) {
+      console.log('User already has account type:', existingAccountType);
       return true;
     }
 
@@ -70,28 +74,31 @@ export const ensureUserHasAccountType = async (userId?: string): Promise<boolean
       return false;
     }
 
-    // Determine account type based on email domain
-    let accountType = 'client'; // default
-    if (userData.user.email.includes('@user.usergy.ai')) {
-      accountType = 'user';
-    }
+    // Use the database function to assign account type by domain
+    const { data, error } = await supabase.rpc('assign_account_type_by_domain', {
+      user_id_param: userIdToUse,
+      email_param: userData.user.email
+    });
 
-    // Insert account type
-    const { error: insertError } = await supabase
-      .from('account_types')
-      .insert({
-        auth_user_id: userIdToUse,
-        account_type: accountType
+    if (error) {
+      console.error('Error assigning account type:', error);
+      monitoring.logError(error, 'ensure_user_has_account_type_error', { 
+        userId: userIdToUse, 
+        email: userData.user.email 
       });
-
-    if (insertError) {
-      console.error('Error inserting account type:', insertError);
       return false;
     }
 
-    return true;
+    if (data?.success) {
+      console.log('Account type assigned successfully:', data.account_type);
+      return true;
+    } else {
+      console.error('Failed to assign account type:', data?.error);
+      return false;
+    }
   } catch (error) {
     console.error('Error in ensureUserHasAccountType:', error);
+    monitoring.logError(error as Error, 'ensure_user_has_account_type_error', { userId });
     return false;
   }
 };
@@ -109,6 +116,7 @@ export const monitorAccountTypeCoverage = async (): Promise<{
 
     if (error) {
       console.error('Error monitoring account type coverage:', error);
+      monitoring.logError(error, 'monitor_account_type_coverage_error');
       return {
         total_users: 0,
         users_with_account_types: 0,
@@ -151,6 +159,7 @@ export const monitorAccountTypeCoverage = async (): Promise<{
     };
   } catch (error) {
     console.error('Error in monitorAccountTypeCoverage:', error);
+    monitoring.logError(error as Error, 'monitor_account_type_coverage_error');
     return {
       total_users: 0,
       users_with_account_types: 0,
@@ -170,17 +179,29 @@ export const fixExistingUsersWithoutAccountTypes = async (): Promise<{
   error?: string;
 }> => {
   try {
-    // This function would need to be implemented if the database function exists
-    // For now, return a placeholder response
-    console.warn('fixExistingUsersWithoutAccountTypes not implemented - database function missing');
+    // Call the database function to fix account type mismatches
+    const { data, error } = await supabase.rpc('fix_account_type_mismatches');
+
+    if (error) {
+      console.error('Error fixing account type mismatches:', error);
+      monitoring.logError(error, 'fix_account_type_mismatches_error');
+      return {
+        success: false,
+        users_processed: 0,
+        users_fixed: 0,
+        error: error.message
+      };
+    }
+
     return {
-      success: false,
-      users_processed: 0,
-      users_fixed: 0,
-      error: 'Function not available - database function missing'
+      success: data?.success || false,
+      users_processed: data?.users_analyzed || 0,
+      users_fixed: data?.users_fixed || 0,
+      message: data?.message || 'Account type fix completed'
     };
   } catch (error) {
     console.error('Error in fixExistingUsersWithoutAccountTypes:', error);
+    monitoring.logError(error as Error, 'fix_account_type_mismatches_error');
     return {
       success: false,
       users_processed: 0,
@@ -197,22 +218,14 @@ export const assignAccountTypeByDomain = async (userId: string, email: string): 
   error?: string;
 }> => {
   try {
-    // Determine account type based on email domain
-    let accountType = 'client'; // default
-    if (email.includes('@user.usergy.ai')) {
-      accountType = 'user';
-    }
-
-    // Insert or update account type
-    const { error } = await supabase
-      .from('account_types')
-      .upsert({
-        auth_user_id: userId,
-        account_type: accountType
-      });
+    const { data, error } = await supabase.rpc('assign_account_type_by_domain', {
+      user_id_param: userId,
+      email_param: email
+    });
 
     if (error) {
       console.error('Error assigning account type by domain:', error);
+      monitoring.logError(error, 'assign_account_type_by_domain_error', { userId, email });
       return {
         success: false,
         error: error.message
@@ -220,15 +233,17 @@ export const assignAccountTypeByDomain = async (userId: string, email: string): 
     }
 
     return {
-      success: true,
-      account_type: accountType,
-      message: `Account type '${accountType}' assigned successfully`
+      success: data?.success || false,
+      account_type: data?.account_type,
+      message: data?.message || 'Account type assigned successfully'
     };
   } catch (error) {
     console.error('Error in assignAccountTypeByDomain:', error);
+    monitoring.logError(error as Error, 'assign_account_type_by_domain_error', { userId, email });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 };
+

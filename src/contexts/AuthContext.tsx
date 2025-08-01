@@ -4,6 +4,7 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
+import { ensureUserHasAccountType } from '@/utils/accountTypeUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -56,6 +57,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(initialSession);
           setUser(initialSession.user);
           await fetchAccountType(initialSession.user.id);
+          // Ensure account type is properly set after successful session
+          await ensureUserHasAccountType(initialSession.user.id);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
@@ -77,6 +80,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (currentSession?.user) {
           await fetchAccountType(currentSession.user.id);
+          // Ensure account type is properly set for any auth state change
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            await ensureUserHasAccountType(currentSession.user.id);
+          }
         } else {
           setAccountType(null);
         }
@@ -101,14 +108,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         monitoring.logError(error, 'fetch_account_type_error', { userId });
       }
 
-      const type = data?.account_type || 'unknown';
+      const type = data?.account_type || null;
       setAccountType(type);
       
       console.log('Account type fetched:', type);
     } catch (error) {
       console.error('Error in fetchAccountType:', error);
       monitoring.logError(error as Error, 'fetch_account_type_error', { userId });
-      setAccountType('unknown');
+      setAccountType(null);
     }
   };
 
@@ -130,6 +137,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error: error.message };
       }
 
+      // Ensure account type is set after successful sign in
+      if (data.user) {
+        await ensureUserHasAccountType(data.user.id);
+      }
+
       trackUserAction('signin_success', { email, method: 'password' });
       
       toast({
@@ -147,28 +159,93 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, metadata?: any) => {
     try {
+      setLoading(true);
+      monitoring.startTiming('auth_signup');
+
+      // Enhanced context detection for signup
       const sourceUrl = window.location.href;
-      const accountType = sourceUrl.includes('user.usergy.ai') ? 'user' : 'client';
+      const referrerUrl = document.referrer || sourceUrl;
+      const urlParams = new URLSearchParams(window.location.search);
       
+      // Determine account type with enhanced detection
+      let accountType = 'client'; // Default fallback
+      let signupSource = 'enhanced_signup';
+      
+      // Check URL parameters first (highest priority)
+      if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check domain/host (second priority)
+      else if (sourceUrl.includes('user.usergy.ai') || referrerUrl.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (sourceUrl.includes('client.usergy.ai') || referrerUrl.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check URL paths (third priority)
+      else if (sourceUrl.includes('/user')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (sourceUrl.includes('/client')) {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      
+      console.log('Signup context detection:', {
+        sourceUrl,
+        referrerUrl,
+        urlParams: Object.fromEntries(urlParams),
+        detectedAccountType: accountType,
+        signupSource,
+        providedMetadata: metadata
+      });
+
       const { data, error } = await supabase.functions.invoke('unified-auth', {
         body: {
           action: 'generate',
           email,
           password,
           account_type: accountType,
-          signup_source: `${accountType}_signup`
+          signup_source: signupSource,
+          source_url: sourceUrl,
+          referrer_url: referrerUrl,
+          ...metadata
         }
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      monitoring.endTiming('auth_signup');
+
+      if (error) {
+        console.error('Signup error:', error);
+        monitoring.logError(error, 'signup_error', { email, accountType });
+        return { error: error.message || 'Signup failed' };
+      }
+
+      if (data?.error) {
+        console.error('Signup response error:', data.error);
+        return { error: data.error };
+      }
       
-      return { error: null };
-    } catch (error: any) {
-      console.error('Signup error:', error);
-      return { error: error.message || 'Signup failed' };
+      trackUserAction('signup_otp_sent', { 
+        email, 
+        account_type: accountType,
+        signup_source: signupSource
+      });
+      
+      return { attemptsLeft: data?.attemptsLeft };
+    } catch (error) {
+      console.error('Unexpected signup error:', error);
+      monitoring.logError(error as Error, 'signup_unexpected_error', { email });
+      return { error: 'An unexpected error occurred during signup' };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -325,3 +402,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+

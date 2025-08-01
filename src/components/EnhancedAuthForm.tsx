@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { EnhancedGoogleAuth } from '@/components/auth/EnhancedGoogleAuth';
 import { EnhancedOTPVerification } from '@/components/auth/EnhancedOTPVerification';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Info } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface EnhancedAuthFormProps {
@@ -36,7 +37,7 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
     const referrerUrl = document.referrer || currentUrl;
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Determine account type and signup source with enhanced detection logic
+    // Determine account type with enhanced detection logic
     let accountType = 'client'; // Default fallback
     let signupSource = 'enhanced_auth_form';
     
@@ -231,7 +232,6 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
   };
 
   if (showOTP) {
-    const context = detectAccountTypeContext();
     return (
       <EnhancedOTPVerification
         email={email}
@@ -241,6 +241,9 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
       />
     );
   }
+
+  // Show account type detection info for debugging
+  const context = detectAccountTypeContext();
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -257,6 +260,18 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* Account Type Detection Info (for debugging) */}
+        {mode === 'signup' && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Account type detected: <strong>{context.account_type}</strong>
+              {context.account_type === 'user' && ' (Usergy Team Member)'}
+              {context.account_type === 'client' && ' (Client Account)'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Enhanced Google Auth */}
         <EnhancedGoogleAuth 
           mode={mode}
@@ -407,3 +422,4 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
     </Card>
   );
 };
+
