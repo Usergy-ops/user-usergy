@@ -17,7 +17,51 @@ interface OTPRequest {
   action: 'generate' | 'verify' | 'resend';
 }
 
-const sendOTPEmail = async (email: string, otpCode: string) => {
+const logEmailAttempt = async (
+  supabaseClient: any,
+  email: string,
+  emailType: string,
+  status: 'success' | 'failed' | 'retrying',
+  errorMessage?: string,
+  resendResponse?: any,
+  metadata?: any
+) => {
+  try {
+    await supabaseClient
+      .from('email_send_logs')
+      .insert({
+        email,
+        email_type: emailType,
+        status,
+        error_message: errorMessage,
+        resend_response: resendResponse,
+        metadata: metadata || {}
+      });
+  } catch (error) {
+    console.error('Failed to log email attempt:', error);
+  }
+};
+
+const updateOTPEmailStatus = async (
+  supabaseClient: any,
+  otpId: string,
+  emailSent: boolean,
+  emailError?: string
+) => {
+  try {
+    await supabaseClient
+      .from('user_otp_verification')
+      .update({
+        email_sent: emailSent,
+        email_error: emailError
+      })
+      .eq('id', otpId);
+  } catch (error) {
+    console.error('Failed to update OTP email status:', error);
+  }
+};
+
+const sendOTPEmail = async (email: string, otpCode: string, supabaseClient: any, otpId?: string) => {
   try {
     const { data, error } = await resend.emails.send({
       from: 'Usergy <noreply@user.usergy.ai>',
@@ -42,14 +86,65 @@ const sendOTPEmail = async (email: string, otpCode: string) => {
     });
 
     if (error) {
-      console.error('Error sending OTP email:', error);
+      console.error('Resend API error:', error);
+      
+      // Log the failed email attempt
+      await logEmailAttempt(
+        supabaseClient,
+        email,
+        'otp_verification',
+        'failed',
+        error.message || 'Resend API error',
+        { error },
+        { otp_id: otpId }
+      );
+
+      // Update OTP record with email failure
+      if (otpId) {
+        await updateOTPEmailStatus(supabaseClient, otpId, false, error.message);
+      }
+
       return false;
     }
 
-    console.log('OTP email sent successfully:', data);
+    console.log('Email sent successfully via Resend:', data);
+    
+    // Log the successful email attempt
+    await logEmailAttempt(
+      supabaseClient,
+      email,
+      'otp_verification',
+      'success',
+      undefined,
+      data,
+      { otp_id: otpId }
+    );
+
+    // Update OTP record with email success
+    if (otpId) {
+      await updateOTPEmailStatus(supabaseClient, otpId, true);
+    }
+
     return true;
   } catch (error) {
     console.error('Failed to send OTP email:', error);
+    
+    // Log the failed email attempt
+    await logEmailAttempt(
+      supabaseClient,
+      email,
+      'otp_verification',
+      'failed',
+      error.message || 'Unknown error',
+      undefined,
+      { otp_id: otpId, error_type: 'exception' }
+    );
+
+    // Update OTP record with email failure
+    if (otpId) {
+      await updateOTPEmailStatus(supabaseClient, otpId, false, error.message);
+    }
+
     return false;
   }
 };
@@ -77,15 +172,19 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Store OTP in user_otp_verification table
-      const { error: otpError } = await supabaseClient
+      const { data: otpData, error: otpError } = await supabaseClient
         .from('user_otp_verification')
         .insert({
           email: email,
           otp_code: otpCode,
           expires_at: expiresAt.toISOString(),
           attempts: 0,
-          max_attempts: 3
-        });
+          max_attempts: 3,
+          email_sent: false,
+          resend_attempts: 0
+        })
+        .select('id')
+        .single();
 
       if (otpError) {
         console.error('Error storing OTP:', otpError);
@@ -132,13 +231,16 @@ serve(async (req) => {
         );
       }
 
-      // Send OTP email
-      const emailSent = await sendOTPEmail(email, otpCode);
+      // Send OTP email with comprehensive logging
+      const emailSent = await sendOTPEmail(email, otpCode, supabaseClient, otpData.id);
       
       if (!emailSent) {
         console.error('Failed to send OTP email');
         return new Response(
-          JSON.stringify({ error: 'Failed to send verification email. Please try again.' }),
+          JSON.stringify({ 
+            error: 'Failed to send verification email. Please try again or contact support.',
+            debug_info: 'Email delivery failed - check email configuration'
+          }),
           { 
             status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -288,20 +390,33 @@ serve(async (req) => {
       );
 
     } else if (action === 'resend') {
+      // Get the latest OTP record to update resend attempts
+      const { data: existingOTP, error: fetchError } = await supabaseClient
+        .from('user_otp_verification')
+        .select('*')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       // Generate new OTP
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Store new OTP
-      const { error: otpError } = await supabaseClient
+      // Store new OTP with updated resend attempts
+      const { data: newOTPData, error: otpError } = await supabaseClient
         .from('user_otp_verification')
         .insert({
           email: email,
           otp_code: otpCode,
           expires_at: expiresAt.toISOString(),
           attempts: 0,
-          max_attempts: 3
-        });
+          max_attempts: 3,
+          email_sent: false,
+          resend_attempts: (existingOTP?.resend_attempts || 0) + 1
+        })
+        .select('id')
+        .single();
 
       if (otpError) {
         console.error('Error storing resent OTP:', otpError);
@@ -314,13 +429,16 @@ serve(async (req) => {
         );
       }
 
-      // Send OTP email
-      const emailSent = await sendOTPEmail(email, otpCode);
+      // Send OTP email with comprehensive logging
+      const emailSent = await sendOTPEmail(email, otpCode, supabaseClient, newOTPData.id);
       
       if (!emailSent) {
         console.error('Failed to send resend OTP email');
         return new Response(
-          JSON.stringify({ error: 'Failed to send verification email. Please try again.' }),
+          JSON.stringify({ 
+            error: 'Failed to send verification email. Please try again or contact support.',
+            debug_info: 'Email delivery failed - check email configuration'
+          }),
           { 
             status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

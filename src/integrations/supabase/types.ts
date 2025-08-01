@@ -77,6 +77,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_send_logs: {
+        Row: {
+          created_at: string | null
+          email: string
+          email_type: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          resend_response: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          email_type: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          resend_response?: Json | null
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          resend_response?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       enhanced_rate_limits: {
         Row: {
           action: string
@@ -359,11 +392,14 @@ export type Database = {
           blocked_until: string | null
           created_at: string
           email: string
+          email_error: string | null
+          email_sent: boolean | null
           expires_at: string
           id: string
           max_attempts: number
           metadata: Json | null
           otp_code: string
+          resend_attempts: number | null
           verified_at: string | null
         }
         Insert: {
@@ -371,11 +407,14 @@ export type Database = {
           blocked_until?: string | null
           created_at?: string
           email: string
+          email_error?: string | null
+          email_sent?: boolean | null
           expires_at: string
           id?: string
           max_attempts?: number
           metadata?: Json | null
           otp_code: string
+          resend_attempts?: number | null
           verified_at?: string | null
         }
         Update: {
@@ -383,11 +422,14 @@ export type Database = {
           blocked_until?: string | null
           created_at?: string
           email?: string
+          email_error?: string | null
+          email_sent?: boolean | null
           expires_at?: string
           id?: string
           max_attempts?: number
           metadata?: Json | null
           otp_code?: string
+          resend_attempts?: number | null
           verified_at?: string | null
         }
         Relationships: []
@@ -565,6 +607,10 @@ export type Database = {
         Args: { user_id_param?: string }
         Returns: string
       }
+      get_user_debug_info: {
+        Args: { user_id_param: string }
+        Returns: Json
+      }
       is_client_account: {
         Args: { user_id_param?: string }
         Returns: boolean
@@ -576,6 +622,10 @@ export type Database = {
       is_user_account: {
         Args: { user_id_param?: string }
         Returns: boolean
+      }
+      manually_assign_account_type: {
+        Args: { user_id_param: string; account_type_param: string }
+        Returns: Json
       }
       monitor_account_type_coverage: {
         Args: Record<PropertyKey, never>
@@ -596,6 +646,10 @@ export type Database = {
           company_timezone_param?: string
           company_logo_url_param?: string
         }
+        Returns: Json
+      }
+      test_email_configuration: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       validate_password_requirements: {
