@@ -1,4 +1,5 @@
 
+
 /**
  * Hook types for enhanced type safety and consistency
  */
@@ -249,3 +250,4 @@ export interface UseErrorHandlerReturn {
   currentError: Error | null;
   errorContext: string | null;
 }
+

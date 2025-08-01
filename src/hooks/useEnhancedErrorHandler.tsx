@@ -1,4 +1,5 @@
 
+
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthErrorMessage } from '@/utils/validation/authValidation';
@@ -100,7 +101,7 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     if (onError) {
       onError(errorObj, context);
     }
-  }, [processError, logError, showToast, toast, onError, retryCount, maxRetries]);
+  }, [processError, logError, showToast, toast, onError]);
 
   const retry = useCallback(async () => {
     const action = retryActionRef.current;
@@ -221,3 +222,4 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     logError
   };
 };
+
