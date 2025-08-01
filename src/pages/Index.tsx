@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { AuthToggle } from '@/components/AuthToggle';
 import { AuthForm } from '@/components/AuthForm';
 import { GoogleAuthButton } from '@/components/UsergyCTA';
 import { OTPVerification } from '@/components/OTPVerification';
 import { NetworkNodes } from '@/components/NetworkNodes';
-import heroIllustration from '@/assets/usergy-hero-illustration.png';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -158,15 +156,6 @@ const Index = () => {
                 <span className="text-sm text-muted-foreground">500+ Companies</span>
               </div>
             </div>
-          </div>
-          
-          {/* Hero Illustration */}
-          <div className="mt-8 opacity-80">
-            <img 
-              src={heroIllustration} 
-              alt="Usergy Platform Illustration"
-              className="w-full max-w-md h-auto"
-            />
           </div>
         </div>
 
