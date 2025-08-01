@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export const getUserAccountType = async (userId?: string): Promise<string | null> => {

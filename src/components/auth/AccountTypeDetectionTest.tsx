@@ -1,399 +1,288 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { CheckCircle, XCircle, RefreshCw, TestTube, Globe, User, Building } from 'lucide-react';
 
-interface TestResult {
-  scenario: string;
-  expectedAccountType: 'user' | 'client';
-  expectedSignupSource: string;
-  actualAccountType: 'user' | 'client';
-  actualSignupSource: string;
-  passed: boolean;
-  context: any;
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, CheckCircle, ExternalLink, Users, Monitor, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes } from '@/utils/accountTypeUtils';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface CoverageStats {
+  total_users: number;
+  users_with_account_types: number;
+  users_without_account_types: number;
+  coverage_percentage: number;
+  is_healthy: boolean;
+  timestamp: string;
 }
 
 export const AccountTypeDetectionTest: React.FC = () => {
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [customUrl, setCustomUrl] = useState('');
-  const [customReferrer, setCustomReferrer] = useState('');
+  const { user, accountType } = useAuth();
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [expectedType, setExpectedType] = useState<'user' | 'client' | 'unknown'>('unknown');
+  const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
+  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
+  const [isFixingUsers, setIsFixingUsers] = useState(false);
+  const [fixResult, setFixResult] = useState<any>(null);
 
-  // Test scenarios
-  const testScenarios = [
-    {
-      scenario: 'URL Parameter: ?type=user',
-      url: 'https://client.usergy.ai/?type=user',
-      referrer: '',
-      expectedAccountType: 'user' as const,
-      expectedSignupSource: 'enhanced_user_signup'
-    },
-    {
-      scenario: 'URL Parameter: ?accountType=client',
-      url: 'https://client.usergy.ai/?accountType=client',
-      referrer: '',
-      expectedAccountType: 'client' as const,
-      expectedSignupSource: 'enhanced_client_signup'
-    },
-    {
-      scenario: 'Domain: user.usergy.ai',
-      url: 'https://user.usergy.ai/signup',
-      referrer: '',
-      expectedAccountType: 'user' as const,
-      expectedSignupSource: 'enhanced_user_signup'
-    },
-    {
-      scenario: 'Domain: client.usergy.ai',
-      url: 'https://client.usergy.ai/signup',
-      referrer: '',
-      expectedAccountType: 'client' as const,
-      expectedSignupSource: 'enhanced_client_signup'
-    },
-    {
-      scenario: 'Path: /user/signup',
-      url: 'https://usergy.ai/user/signup',
-      referrer: '',
-      expectedAccountType: 'user' as const,
-      expectedSignupSource: 'enhanced_user_signup'
-    },
-    {
-      scenario: 'Path: /client/signup',
-      url: 'https://usergy.ai/client/signup',
-      referrer: '',
-      expectedAccountType: 'client' as const,
-      expectedSignupSource: 'enhanced_client_signup'
-    },
-    {
-      scenario: 'Referrer: user.usergy.ai',
-      url: 'https://usergy.ai/signup',
-      referrer: 'https://user.usergy.ai/landing',
-      expectedAccountType: 'user' as const,
-      expectedSignupSource: 'enhanced_user_signup'
-    },
-    {
-      scenario: 'Referrer: client.usergy.ai',
-      url: 'https://usergy.ai/signup',
-      referrer: 'https://client.usergy.ai/landing',
-      expectedAccountType: 'client' as const,
-      expectedSignupSource: 'enhanced_client_signup'
-    },
-    {
-      scenario: 'Default fallback',
-      url: 'https://example.com/signup',
-      referrer: '',
-      expectedAccountType: 'client' as const,
-      expectedSignupSource: 'enhanced_client_signup'
+  useEffect(() => {
+    const url = window.location.href;
+    setCurrentUrl(url);
+    
+    // Determine expected account type based on URL
+    if (url.includes('user.usergy.ai')) {
+      setExpectedType('user');
+    } else if (url.includes('client.usergy.ai')) {
+      setExpectedType('client');
+    } else {
+      setExpectedType('unknown');
     }
-  ];
+  }, []);
 
-  // Detection logic (same as in components)
-  const detectAccountTypeContext = (testUrl: string, testReferrer: string) => {
-    const url = new URL(testUrl);
-    const currentHost = url.host;
-    const currentUrl = testUrl;
-    const referrerUrl = testReferrer || testUrl;
-    const urlParams = url.searchParams;
-    
-    let accountType = 'client'; // Default fallback
-    let signupSource = 'enhanced_auth_form';
-    
-    // Check URL parameters first (highest priority)
-    if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
-      accountType = 'user';
-      signupSource = 'enhanced_user_signup';
-    } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
-      accountType = 'client';
-      signupSource = 'enhanced_client_signup';
-    }
-    // Check domain/host (second priority)
-    else if (currentHost.includes('user.usergy.ai')) {
-      accountType = 'user';
-      signupSource = 'enhanced_user_signup';
-    } else if (currentHost.includes('client.usergy.ai')) {
-      accountType = 'client';
-      signupSource = 'enhanced_client_signup';
-    }
-    // Check URL paths (third priority)
-    else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
-      accountType = 'user';
-      signupSource = 'enhanced_user_signup';
-    } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
-      accountType = 'client';
-      signupSource = 'enhanced_client_signup';
-    }
-    
-    return {
-      account_type: accountType as 'user' | 'client',
-      signup_source: signupSource,
-      context: {
-        currentUrl,
-        currentHost,
-        referrerUrl,
-        urlParams: Object.fromEntries(urlParams)
-      }
-    };
-  };
-
-  const runTests = async () => {
-    setIsRunning(true);
-    const results: TestResult[] = [];
-    
-    for (const scenario of testScenarios) {
-      try {
-        const detection = detectAccountTypeContext(scenario.url, scenario.referrer);
-        
-        const result: TestResult = {
-          scenario: scenario.scenario,
-          expectedAccountType: scenario.expectedAccountType,
-          expectedSignupSource: scenario.expectedSignupSource,
-          actualAccountType: detection.account_type,
-          actualSignupSource: detection.signup_source,
-          passed: detection.account_type === scenario.expectedAccountType && 
-                  detection.signup_source === scenario.expectedSignupSource,
-          context: detection.context
-        };
-        
-        results.push(result);
-      } catch (error) {
-        results.push({
-          scenario: scenario.scenario,
-          expectedAccountType: scenario.expectedAccountType,
-          expectedSignupSource: scenario.expectedSignupSource,
-          actualAccountType: 'client',
-          actualSignupSource: 'error',
-          passed: false,
-          context: { error: error.message }
-        });
-      }
-    }
-    
-    setTestResults(results);
-    setIsRunning(false);
-  };
-
-  const testCustomUrl = () => {
-    if (!customUrl) return;
-    
+  const loadCoverageStats = async () => {
+    setIsLoadingCoverage(true);
     try {
-      const detection = detectAccountTypeContext(customUrl, customReferrer);
-      
-      const customResult: TestResult = {
-        scenario: `Custom Test: ${customUrl}`,
-        expectedAccountType: 'client', // Default assumption
-        expectedSignupSource: 'enhanced_client_signup',
-        actualAccountType: detection.account_type,
-        actualSignupSource: detection.signup_source,
-        passed: true, // Always pass for custom tests
-        context: detection.context
-      };
-      
-      setTestResults([...testResults, customResult]);
+      const stats = await monitorAccountTypeCoverage();
+      setCoverageStats(stats);
     } catch (error) {
-      const errorResult: TestResult = {
-        scenario: `Custom Test: ${customUrl}`,
-        expectedAccountType: 'client',
-        expectedSignupSource: 'enhanced_client_signup',
-        actualAccountType: 'client',
-        actualSignupSource: 'error',
-        passed: false,
-        context: { error: error.message }
-      };
-      
-      setTestResults([...testResults, errorResult]);
+      console.error('Error loading coverage stats:', error);
+    } finally {
+      setIsLoadingCoverage(false);
     }
   };
 
-  const passedTests = testResults.filter(r => r.passed).length;
-  const totalTests = testResults.length;
-  const successRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
+  const fixExistingUsers = async () => {
+    setIsFixingUsers(true);
+    setFixResult(null);
+    try {
+      const result = await fixExistingUsersWithoutAccountTypes();
+      setFixResult(result);
+      // Reload coverage stats after fixing
+      if (result.success) {
+        await loadCoverageStats();
+      }
+    } catch (error) {
+      console.error('Error fixing users:', error);
+      setFixResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsFixingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCoverageStats();
+  }, []);
+
+  const getStatusColor = (actual: string | null, expected: string) => {
+    if (!actual) return 'destructive';
+    if (actual === expected) return 'default';
+    return 'destructive';
+  };
+
+  const getStatusIcon = (actual: string | null, expected: string) => {
+    if (!actual) return <AlertCircle className="h-4 w-4" />;
+    if (actual === expected) return <CheckCircle className="h-4 w-4" />;
+    return <AlertCircle className="h-4 w-4" />;
+  };
+
+  const isDetectionWorking = accountType === expectedType && expectedType !== 'unknown';
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Account Type Detection Test</h2>
+        <p className="text-muted-foreground">
+          Testing domain-based account type assignment for user.usergy.ai and client.usergy.ai
+        </p>
+      </div>
+
+      {/* Current Detection Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TestTube className="w-5 h-5" />
-            Account Type Detection Test Suite
+            <Monitor className="h-5 w-5" />
+            Current Detection Status
           </CardTitle>
+          <CardDescription>
+            Real-time account type detection based on current domain
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Button 
-              onClick={runTests} 
-              disabled={isRunning}
-              className="flex items-center gap-2"
-            >
-              {isRunning ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Running Tests...
-                </>
-              ) : (
-                <>
-                  <TestTube className="w-4 h-4" />
-                  Run All Tests
-                </>
-              )}
-            </Button>
-            
-            {totalTests > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Current URL</p>
               <div className="flex items-center gap-2">
-                <Badge variant={successRate === 100 ? "default" : "destructive"}>
-                  {passedTests}/{totalTests} Passed ({successRate.toFixed(1)}%)
-                </Badge>
-              </div>
-            )}
-          </div>
-          
-          {/* Custom URL Test */}
-          <Separator />
-          <div className="space-y-3">
-            <h3 className="font-semibold">Custom URL Test</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customUrl">Test URL</Label>
-                <Input
-                  id="customUrl"
-                  placeholder="https://example.com/signup?type=user"
-                  value={customUrl}
-                  onChange={(e) => setCustomUrl(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="customReferrer">Referrer URL (optional)</Label>
-                <Input
-                  id="customReferrer"
-                  placeholder="https://user.usergy.ai/landing"
-                  value={customReferrer}
-                  onChange={(e) => setCustomReferrer(e.target.value)}
-                />
+                <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-mono text-muted-foreground">{currentUrl}</span>
               </div>
             </div>
-            <Button 
-              onClick={testCustomUrl} 
-              disabled={!customUrl}
-              variant="outline"
-              size="sm"
-            >
-              Test Custom URL
-            </Button>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Expected Type</p>
+              <Badge variant={expectedType === 'unknown' ? 'secondary' : 'default'}>
+                {expectedType}
+              </Badge>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Detected Type</p>
+              <div className="flex items-center gap-2">
+                {getStatusIcon(accountType, expectedType)}
+                <Badge variant={getStatusColor(accountType, expectedType)}>
+                  {accountType || 'none'}
+                </Badge>
+              </div>
+            </div>
           </div>
+
+          {/* Status Alert */}
+          {expectedType !== 'unknown' && (
+            <Alert variant={isDetectionWorking ? 'default' : 'destructive'}>
+              <AlertDescription>
+                {isDetectionWorking ? (
+                  <>
+                    ✅ <strong>Detection Working:</strong> Account type correctly detected as "{accountType}" for {expectedType}.usergy.ai domain
+                  </>
+                ) : (
+                  <>
+                    ❌ <strong>Detection Failed:</strong> Expected "{expectedType}" but got "{accountType || 'none'}" for {expectedType}.usergy.ai domain
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {expectedType === 'unknown' && (
+            <Alert>
+              <AlertDescription>
+                ℹ️ <strong>Neutral Domain:</strong> This domain is not configured for specific account type detection. 
+                Visit user.usergy.ai or client.usergy.ai to test detection.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
-      {/* Test Results */}
-      {testResults.length > 0 && (
+      {/* System Coverage */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            System Coverage Analysis
+          </CardTitle>
+          <CardDescription>
+            Overall health of account type assignment across all users
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {coverageStats ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{coverageStats.total_users}</p>
+                  <p className="text-sm text-muted-foreground">Total Users</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">{coverageStats.users_with_account_types}</p>
+                  <p className="text-sm text-muted-foreground">With Account Types</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">{coverageStats.users_without_account_types}</p>
+                  <p className="text-sm text-muted-foreground">Missing Account Types</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{coverageStats.coverage_percentage}%</p>
+                  <p className="text-sm text-muted-foreground">Coverage</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {coverageStats.is_healthy ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                  )}
+                  <span className="text-sm font-medium">
+                    System Health: {coverageStats.is_healthy ? 'Healthy' : 'Needs Attention'}
+                  </span>
+                </div>
+                <Button
+                  onClick={loadCoverageStats}
+                  disabled={isLoadingCoverage}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingCoverage ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {coverageStats.users_without_account_types > 0 && (
+                <div className="space-y-2">
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {coverageStats.users_without_account_types} users are missing account type assignments. 
+                      This may affect their access to the correct features.
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    onClick={fixExistingUsers}
+                    disabled={isFixingUsers}
+                    variant="outline"
+                  >
+                    {isFixingUsers ? 'Fixing Users...' : 'Fix Missing Account Types'}
+                  </Button>
+                </div>
+              )}
+
+              {fixResult && (
+                <Alert variant={fixResult.success ? 'default' : 'destructive'}>
+                  <AlertDescription>
+                    {fixResult.success ? (
+                      <>✅ Successfully processed {fixResult.users_processed} users and fixed {fixResult.users_fixed} account types.</>
+                    ) : (
+                      <>❌ Error: {fixResult.error}</>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-muted-foreground">Loading coverage statistics...</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* User Info */}
+      {user && (
         <Card>
           <CardHeader>
-            <CardTitle>Test Results</CardTitle>
+            <CardTitle>Current User Info</CardTitle>
+            <CardDescription>Debug information for the current authenticated user</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {testResults.map((result, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {result.passed ? (
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-500" />
-                      )}
-                      <h4 className="font-semibold">{result.scenario}</h4>
-                    </div>
-                    <Badge variant={result.passed ? "default" : "destructive"}>
-                      {result.passed ? "PASS" : "FAIL"}
-                    </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <strong>Expected:</strong>
-                      <div className="flex items-center gap-2 mt-1">
-                        {result.expectedAccountType === 'user' ? (
-                          <User className="w-4 h-4" />
-                        ) : (
-                          <Building className="w-4 h-4" />
-                        )}
-                        <span>{result.expectedAccountType}</span>
-                        <Badge variant="outline">
-                          {result.expectedSignupSource}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <strong>Actual:</strong>
-                      <div className="flex items-center gap-2 mt-1">
-                        {result.actualAccountType === 'user' ? (
-                          <User className="w-4 h-4" />
-                        ) : (
-                          <Building className="w-4 h-4" />
-                        )}
-                        <span>{result.actualAccountType}</span>
-                        <Badge 
-                          variant="outline" 
-                          className={result.actualSignupSource === 'error' ? 'border-red-500 text-red-500' : ''}
-                        >
-                          {result.actualSignupSource}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {result.context && (
-                    <div className="mt-3 p-2 bg-muted rounded text-xs">
-                      <strong>Context:</strong>
-                      <pre className="mt-1 text-xs overflow-x-auto">
-                        {JSON.stringify(result.context, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="space-y-2 font-mono text-sm">
+              <div><strong>User ID:</strong> {user.id}</div>
+              <div><strong>Email:</strong> {user.email}</div>
+              <div><strong>Account Type:</strong> {accountType || 'Not assigned'}</div>
+              <div><strong>Email Confirmed:</strong> {user.email_confirmed_at ? 'Yes' : 'No'}</div>
+              <div><strong>Last Sign In:</strong> {user.last_sign_in_at || 'Never'}</div>
             </div>
           </CardContent>
         </Card>
       )}
-
-      {/* Testing Instructions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            Testing Instructions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertDescription>
-              <div className="space-y-2">
-                <p><strong>Test URLs for validation:</strong></p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li><code>https://client.usergy.ai/?type=user</code> → Should detect <strong>user</strong></li>
-                  <li><code>https://client.usergy.ai/?accountType=client</code> → Should detect <strong>client</strong></li>
-                  <li><code>https://user.usergy.ai/signup</code> → Should detect <strong>user</strong></li>
-                  <li><code>https://client.usergy.ai/signup</code> → Should detect <strong>client</strong></li>
-                  <li><code>https://example.com/user/signup</code> → Should detect <strong>user</strong></li>
-                  <li><code>https://example.com/client/signup</code> → Should detect <strong>client</strong></li>
-                </ul>
-                <p className="mt-3"><strong>Priority Order:</strong></p>
-                <ol className="list-decimal list-inside space-y-1 text-sm">
-                  <li>URL Parameters (?type=user, ?accountType=client)</li>
-                  <li>Domain (user.usergy.ai vs client.usergy.ai)</li>
-                  <li>URL Path (/user vs /client)</li>
-                  <li>Referrer URL</li>
-                  <li>Default fallback (client)</li>
-                </ol>
-              </div>
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
     </div>
   );
 };
