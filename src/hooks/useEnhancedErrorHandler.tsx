@@ -92,11 +92,7 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
       toast({
         title: "Error",
         description: userMessage,
-        variant: "destructive",
-        action: retryAction && retryCount < maxRetries ? {
-          altText: "Retry",
-          onClick: () => retry()
-        } : undefined
+        variant: "destructive"
       });
     }
     
@@ -130,7 +126,7 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
       if (showToast) {
         toast({
           title: "Success",
-          description: "Operation completed successfully.",
+          description: "Operation completed successfully."
         });
       }
     } catch (retryError) {
