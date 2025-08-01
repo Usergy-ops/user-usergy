@@ -1,7 +1,10 @@
 
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { UsergyButton } from '@/components/UsergyCTA';
+import { useToast } from '@/hooks/use-toast';
+import { Chrome, Loader2, Shield } from 'lucide-react';
+import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface EnhancedGoogleAuthProps {
   mode: 'signin' | 'signup';
@@ -10,80 +13,217 @@ interface EnhancedGoogleAuthProps {
   disabled?: boolean;
 }
 
-export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
-  mode,
-  onSuccess,
+export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({ 
+  mode, 
+  onSuccess, 
   onError,
-  disabled = false
+  disabled = false 
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleGoogleAuth = async () => {
-    if (disabled) return;
+    if (disabled || isLoading) return;
     
     setIsLoading(true);
     
     try {
-      const sourceUrl = window.location.href;
-      const accountType = sourceUrl.includes('user.usergy.ai') ? 'user' : 'client';
+      monitoring.startTiming(`enhanced_google_auth_${mode}`);
       
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          },
-          scopes: 'email profile'
-        }
-      });
+      // Enhanced context detection with improved logic
+      const currentUrl = window.location.href;
+      const currentHost = window.location.host;
+      const referrerUrl = document.referrer || currentUrl;
+      const urlParams = new URLSearchParams(window.location.search);
       
-      if (error) {
-        onError?.(error.message);
-        return;
+      // Determine account type with enhanced detection logic (matching AuthContext)
+      let accountType = 'client'; // Default fallback
+      let signupSource = 'enhanced_google_oauth';
+      
+      // Check URL parameters first (highest priority)
+      if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check domain/host (second priority)
+      else if (currentHost.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (currentHost.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check URL paths (third priority)
+      else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
+      } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
       }
       
-      // Store account type for post-OAuth processing
-      localStorage.setItem('pending_account_type', accountType);
-      localStorage.setItem('pending_source_url', sourceUrl);
+      console.log('Enhanced Google Auth - Context detection:', {
+        currentUrl,
+        currentHost,
+        referrerUrl,
+        urlParams: Object.fromEntries(urlParams),
+        detectedAccountType: accountType,
+        signupSource,
+        mode
+      });
       
-      onSuccess?.();
+      // Enhanced redirect URL construction with domain-specific logic
+      const baseUrl = window.location.origin;
+      let redirectTo;
+      
+      if (mode === 'signup') {
+        if (accountType === 'user') {
+          redirectTo = 'https://user.usergy.ai/profile-completion';
+        } else if (accountType === 'client') {
+          redirectTo = 'https://client.usergy.ai/profile';
+        } else {
+          redirectTo = `${baseUrl}/profile-completion`;
+        }
+      } else {
+        // For signin, redirect to dashboard on current domain first, then let the app handle redirects
+        redirectTo = `${baseUrl}/dashboard`;
+      }
+      
+      // Create comprehensive state object
+      const oauthState = {
+        account_type: accountType,
+        signup_source: signupSource,
+        mode: mode,
+        referrer_url: referrerUrl,
+        timestamp: Date.now()
+      };
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+            hd: undefined, // Allow any domain
+            // Pass account type context through OAuth state
+            state: btoa(JSON.stringify(oauthState))
+          },
+          skipBrowserRedirect: false
+        }
+      });
+
+      if (error) {
+        console.error('Enhanced Google auth error:', error);
+        monitoring.logError(error, `enhanced_google_auth_${mode}_error`, {
+          error_code: error.message,
+          redirect_to: redirectTo,
+          referrer_url: referrerUrl,
+          account_type: accountType,
+          signup_source: signupSource
+        });
+        
+        // Enhanced error messaging
+        let userMessage = `Failed to ${mode} with Google`;
+        if (error.message.includes('popup')) {
+          userMessage = 'Popup was blocked. Please allow popups and try again.';
+        } else if (error.message.includes('network')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('cancelled')) {
+          userMessage = 'Authentication was cancelled. Please try again.';
+        }
+        
+        toast({
+          title: "Authentication Error",
+          description: userMessage,
+          variant: "destructive"
+        });
+        
+        if (onError) {
+          onError(userMessage);
+        }
+        return;
+      }
+
+      monitoring.endTiming(`enhanced_google_auth_${mode}`);
+      
+      trackUserAction(`enhanced_google_auth_${mode}_initiated`, {
+        provider: 'google',
+        redirect_to: redirectTo,
+        mode,
+        account_type: accountType,
+        signup_source: signupSource,
+        referrer_url: referrerUrl,
+        enhanced: true,
+        oauth_state: oauthState
+      });
+      
+      // Success callback
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      // Show success message for signup
+      if (mode === 'signup') {
+        toast({
+          title: "Account Created!",
+          description: "Welcome to Usergy! Redirecting to your profile...",
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
+        });
+      }
+      
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Google authentication failed';
-      onError?.(errorMessage);
+      monitoring.logError(error as Error, `enhanced_google_auth_${mode}_error`, {
+        mode,
+        disabled
+      });
+      
+      const errorMessage = error instanceof Error ? error.message : `An unexpected error occurred during ${mode}`;
+      console.error('Enhanced Google auth error:', error);
+      
+      toast({
+        title: "Authentication Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      
+      if (onError) {
+        onError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <UsergyButton
-      variant="google"
+    <Button
+      type="button"
+      variant="outline"
       onClick={handleGoogleAuth}
-      isLoading={isLoading}
-      disabled={disabled}
-      className="w-full py-4 text-base"
+      disabled={isLoading || disabled}
+      className="w-full flex items-center justify-center space-x-2 border-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-        <path
-          fill="#4285F4"
-          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        />
-        <path
-          fill="#34A853"
-          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        />
-        <path
-          fill="#FBBC05"
-          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-        />
-        <path
-          fill="#EA4335"
-          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-        />
-      </svg>
-      Continue with Google
-    </UsergyButton>
+      {isLoading ? (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Connecting...</span>
+        </>
+      ) : (
+        <>
+          <Chrome className="w-5 h-5" />
+          <span>
+            {mode === 'signin' ? 'Sign in with Google' : 'Sign up with Google'}
+          </span>
+          <Shield className="w-4 h-4 ml-2 text-muted-foreground" />
+        </>
+      )}
+    </Button>
   );
 };

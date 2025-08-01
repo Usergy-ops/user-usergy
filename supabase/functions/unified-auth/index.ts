@@ -1,5 +1,5 @@
-// supabase/functions/unified-auth/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -7,129 +7,240 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-)
+interface AuthRequest {
+  action: 'generate' | 'verify' | 'resend';
+  email: string;
+  password?: string;
+  otp?: string;
+  account_type?: string;
+  signup_source?: string;
+  source_url?: string;
+  referrer_url?: string;
+}
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { action, email, password, otp, source_domain } = await req.json()
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
 
-    switch (action) {
-      case 'signup':
-        // Check existing user
-        const { data: users } = await supabase.auth.admin.listUsers()
-        if (users?.users.find(u => u.email === email)) {
-          throw new Error('User already exists')
+    const { action, email, password, otp, account_type, signup_source, source_url, referrer_url }: AuthRequest = await req.json();
+
+    console.log(`Processing ${action} request for ${email}`, {
+      account_type,
+      signup_source,
+      source_url,
+      referrer_url
+    });
+
+    if (action === 'generate') {
+      // Enhanced account type determination
+      let finalAccountType = account_type || 'client'; // Default fallback
+      
+      // Enhanced logic for account type detection
+      if (source_url) {
+        if (source_url.includes('user.usergy.ai')) {
+          finalAccountType = 'user';
+        } else if (source_url.includes('client.usergy.ai')) {
+          finalAccountType = 'client';
         }
+      }
+      
+      if (referrer_url) {
+        if (referrer_url.includes('user.usergy.ai')) {
+          finalAccountType = 'user';
+        } else if (referrer_url.includes('client.usergy.ai')) {
+          finalAccountType = 'client';
+        }
+      }
 
-        // Generate OTP
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-        
-        // Store OTP - FIX: Use correct table name
-        await supabase.from('auth_otp_verifications').insert({
+      // Generate OTP and handle signup
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store OTP verification record
+      const { error: otpError } = await supabase
+        .from('auth_otp_verifications')
+        .insert({
           email,
           otp_code: otpCode,
-          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-          source_url: source_domain,
-          account_type: source_domain?.includes('user.usergy.ai') ? 'user' : 'client',
-          metadata: { source_domain }
-        })
-
-        // TODO: Send email with your email service
-        console.log(`OTP for ${email}: ${otpCode}`)
-        
-        return new Response(
-          JSON.stringify({ success: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-
-      case 'verify':
-        // Verify OTP - FIX: Use correct table name
-        const { data: otpData, error: otpError } = await supabase
-          .from('auth_otp_verifications')
-          .select('*')
-          .eq('email', email)
-          .eq('otp_code', otp)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (otpError || !otpData) {
-          throw new Error('Invalid or expired OTP')
-        }
-
-        // Create user with metadata
-        const { data: userData, error: createError } = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: {
-            source_domain: otpData.source_url || source_domain,
-            account_type: otpData.account_type
+          expires_at: expiresAt.toISOString(),
+          account_type: finalAccountType,
+          source_url: source_url || '',
+          metadata: {
+            password: password,
+            signup_source: signup_source || 'enhanced_signup',
+            referrer_url: referrer_url,
+            enhanced_context: true
           }
-        })
+        });
 
-        if (createError) throw createError
-
-        // Mark OTP as used
-        await supabase
-          .from('auth_otp_verifications')
-          .update({ verified_at: new Date().toISOString() })
-          .eq('id', otpData.id)
-
+      if (otpError) {
+        console.error('Error storing OTP:', otpError);
         return new Response(
-          JSON.stringify({ success: true, userId: userData.user.id }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+          JSON.stringify({ error: 'Failed to generate verification code' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
 
-      case 'resend':
-        // Implement resend logic
-        const { data: lastOtp } = await supabase
-          .from('auth_otp_verifications')
-          .select('*')
-          .eq('email', email)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+      // Send email (implement email sending logic here)
+      console.log(`OTP generated for ${email}: ${otpCode} (Account Type: ${finalAccountType})`);
 
-        if (lastOtp && new Date(lastOtp.created_at) > new Date(Date.now() - 60000)) {
-          throw new Error('Please wait before requesting a new code')
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Verification code sent',
+          account_type: finalAccountType
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else if (action === 'verify') {
+      if (!otp || !password) {
+        return new Response(
+          JSON.stringify({ error: 'OTP and password are required' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Verify OTP
+      const { data: otpData, error: otpFetchError } = await supabase
+        .from('auth_otp_verifications')
+        .select('*')
+        .eq('email', email)
+        .eq('otp_code', otp)
+        .is('verified_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (otpFetchError || !otpData) {
+        console.error('Invalid or expired OTP:', otpFetchError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired verification code' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Create user account
+      const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
+        email: email,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          account_type: otpData.account_type,
+          signup_source: otpData.metadata?.signup_source || 'enhanced_signup',
+          source_url: otpData.source_url,
+          referrer_url: otpData.metadata?.referrer_url,
+          enhanced_signup: true,
+          email_verified: true
         }
+      });
 
-        // Generate new OTP
-        const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString()
-        
-        await supabase.from('auth_otp_verifications').insert({
-          email,
-          otp_code: newOtpCode,
-          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-          source_url: source_domain,
-          account_type: source_domain?.includes('user.usergy.ai') ? 'user' : 'client',
-          metadata: { source_domain }
-        })
-
-        // TODO: Send email
-        console.log(`New OTP for ${email}: ${newOtpCode}`)
-        
+      if (signUpError) {
+        console.error('Error creating user:', signUpError);
         return new Response(
-          JSON.stringify({ success: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+          JSON.stringify({ error: 'Failed to create account' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
 
-      default:
-        throw new Error('Invalid action')
+      // Store account type
+      const { error: accountTypeError } = await supabase
+        .from('account_types')
+        .insert({
+          auth_user_id: authData.user.id,
+          account_type: otpData.account_type
+        });
+
+      if (accountTypeError) {
+        console.error('Error storing account type:', accountTypeError);
+      }
+
+      // Mark OTP as verified
+      await supabase
+        .from('auth_otp_verifications')
+        .update({ verified_at: new Date().toISOString() })
+        .eq('id', otpData.id);
+
+      // Generate redirect URL based on account type
+      let redirectUrl = '/profile-completion'; // Default fallback
+      
+      if (otpData.account_type === 'user') {
+        redirectUrl = 'https://user.usergy.ai/profile-completion';
+      } else if (otpData.account_type === 'client') {
+        redirectUrl = 'https://client.usergy.ai/profile';
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          user: authData.user,
+          isNewUser: true,
+          accountType: otpData.account_type,
+          redirectUrl: redirectUrl
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else if (action === 'resend') {
+      // Handle OTP resend logic
+      const { data: existingOtp } = await supabase
+        .from('auth_otp_verifications')
+        .select('*')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!existingOtp) {
+        return new Response(
+          JSON.stringify({ error: 'No verification request found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      // Generate new OTP
+      const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await supabase
+        .from('auth_otp_verifications')
+        .update({
+          otp_code: newOtpCode,
+          expires_at: newExpiresAt.toISOString(),
+          resend_attempts: (existingOtp.resend_attempts || 0) + 1
+        })
+        .eq('id', existingOtp.id);
+
+      console.log(`OTP resent for ${email}: ${newOtpCode}`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Verification code resent'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-  } catch (error: any) {
+
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({ error: 'Invalid action' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+
+  } catch (error) {
+    console.error('Unified auth error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
   }
-})
+});

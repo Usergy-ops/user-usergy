@@ -10,7 +10,6 @@ import ProjectWorkspace from '@/pages/ProjectWorkspace';
 import NotFound from '@/pages/NotFound';
 import SystemMonitoring from '@/pages/SystemMonitoring';
 import Testing from '@/pages/Testing';
-import AuthCallback from '@/pages/AuthCallback';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -35,7 +34,6 @@ function App() {
                   <Route path="/project/:projectId" element={<ProjectWorkspace />} />
                   <Route path="/system-monitoring" element={<SystemMonitoring />} />
                   <Route path="/testing" element={<Testing />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />
