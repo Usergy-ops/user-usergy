@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,10 +14,10 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   accountType: string | null;
-  signUp: (email: string, password: string) => Promise<{ error?: string; attemptsLeft?: number }>;
+  signUp: (email: string, password: string, options?: { signup_source?: string; account_type?: string }) => Promise<{ error?: string; attemptsLeft?: number }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
-  verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string }>;
+  verifyOTP: (email: string, otp: string, password: string, options?: { signup_source?: string; account_type?: string }) => Promise<{ error?: string }>;
   resendOTP: (email: string) => Promise<{ error?: string; attemptsLeft?: number }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   refreshAccountType: () => Promise<void>;
@@ -40,6 +39,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accountType, setAccountType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { handleError } = useErrorHandler();
+
+  // Function to detect account type based on current context
+  const detectAccountTypeContext = () => {
+    const currentUrl = window.location.href;
+    const currentHost = window.location.host;
+    const referrerUrl = document.referrer || currentUrl;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check URL parameters first
+    if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
+      return { account_type: 'user', signup_source: 'user_signup' };
+    } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
+      return { account_type: 'client', signup_source: 'client_signup' };
+    }
+    // Check domain/host
+    else if (currentHost.includes('user.usergy.ai')) {
+      return { account_type: 'user', signup_source: 'user_signup' };
+    } else if (currentHost.includes('client.usergy.ai')) {
+      return { account_type: 'client', signup_source: 'client_signup' };
+    }
+    // Check URL paths
+    else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
+      return { account_type: 'user', signup_source: 'user_signup' };
+    } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
+      return { account_type: 'client', signup_source: 'client_signup' };
+    }
+    
+    // Default to client for client.usergy.ai deployment
+    return { account_type: 'client', signup_source: 'client_signup' };
+  };
 
   // Function to get user's account type with automatic assignment if missing
   const refreshAccountType = async () => {
@@ -158,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user?.id]);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, options?: { signup_source?: string; account_type?: string }) => {
     try {
       monitoring.startTiming('auth_signup');
       
@@ -192,12 +221,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Starting sign up process for:', email);
       
-      // Call our edge function to generate OTP
+      // Detect account type context if not provided
+      const context = detectAccountTypeContext();
+      const signup_source = options?.signup_source || context.signup_source;
+      const account_type = options?.account_type || context.account_type;
+
+      console.log('Signup context detected:', { signup_source, account_type });
+      
+      // Call our edge function to generate OTP with context
       const { data, error } = await supabase.functions.invoke('auth-otp', {
         body: {
           email,
           password,
-          action: 'generate'
+          action: 'generate',
+          signup_source,
+          account_type
         }
       });
 
@@ -252,6 +290,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       trackUserAction('signup_initiated', {
         email,
+        signup_source,
+        account_type,
         attempts_left: rateLimitResult.attemptsRemaining
       });
       
@@ -266,7 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verifyOTP = async (email: string, otp: string, password: string) => {
+  const verifyOTP = async (email: string, otp: string, password: string, options?: { signup_source?: string; account_type?: string }) => {
     try {
       monitoring.startTiming('auth_otp_verify');
       
@@ -296,12 +336,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Starting OTP verification for:', email);
       
+      // Detect account type context if not provided
+      const context = detectAccountTypeContext();
+      const signup_source = options?.signup_source || context.signup_source;
+      const account_type = options?.account_type || context.account_type;
+
+      console.log('OTP verification context:', { signup_source, account_type });
+      
       const { data, error } = await supabase.functions.invoke('auth-otp', {
         body: {
           email,
           otp,
           password,
-          action: 'verify'
+          action: 'verify',
+          signup_source,
+          account_type
         }
       });
 
@@ -352,6 +401,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       trackUserAction('otp_verified', {
         email,
+        signup_source,
+        account_type,
         attempts_remaining: rateLimitResult.attemptsRemaining
       });
       

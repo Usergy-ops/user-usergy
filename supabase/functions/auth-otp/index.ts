@@ -1,482 +1,315 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Resend } from 'npm:resend@2.0.0';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-
-interface OTPRequest {
-  email: string;
-  otp?: string;
-  password?: string;
-  action: 'generate' | 'verify' | 'resend';
 }
 
-const logEmailAttempt = async (
-  supabaseClient: any,
-  email: string,
-  emailType: string,
-  status: 'success' | 'failed' | 'retrying',
-  errorMessage?: string,
-  resendResponse?: any,
-  metadata?: any
-) => {
-  try {
-    await supabaseClient
-      .from('email_send_logs')
-      .insert({
-        email,
-        email_type: emailType,
-        status,
-        error_message: errorMessage,
-        resend_response: resendResponse,
-        metadata: metadata || {}
-      });
-  } catch (error) {
-    console.error('Failed to log email attempt:', error);
-  }
-};
-
-const updateOTPEmailStatus = async (
-  supabaseClient: any,
-  otpId: string,
-  emailSent: boolean,
-  emailError?: string
-) => {
-  try {
-    await supabaseClient
-      .from('user_otp_verification')
-      .update({
-        email_sent: emailSent,
-        email_error: emailError
-      })
-      .eq('id', otpId);
-  } catch (error) {
-    console.error('Failed to update OTP email status:', error);
-  }
-};
-
-const sendOTPEmail = async (email: string, otpCode: string, supabaseClient: any, otpId?: string) => {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: 'Usergy <noreply@user.usergy.ai>',
-      to: [email],
-      subject: 'Your Usergy Verification Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #333; text-align: center;">Welcome to Usergy!</h2>
-          <p style="color: #666; font-size: 16px;">Thank you for signing up. Please use the verification code below to complete your account setup:</p>
-          
-          <div style="background-color: #f8f9fa; border: 2px dashed #e9ecef; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
-            <span style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 4px;">${otpCode}</span>
-          </div>
-          
-          <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes for security purposes.</p>
-          <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
-          
-          <hr style="border: none; border-top: 1px solid #e9ecef; margin: 20px 0;">
-          <p style="color: #999; font-size: 12px; text-align: center;">© 2025 Usergy. All rights reserved.</p>
-        </div>
-      `,
-    });
-
-    if (error) {
-      console.error('Resend API error:', error);
-      
-      // Log the failed email attempt
-      await logEmailAttempt(
-        supabaseClient,
-        email,
-        'otp_verification',
-        'failed',
-        error.message || 'Resend API error',
-        { error },
-        { otp_id: otpId }
-      );
-
-      // Update OTP record with email failure
-      if (otpId) {
-        await updateOTPEmailStatus(supabaseClient, otpId, false, error.message);
-      }
-
-      return false;
-    }
-
-    console.log('Email sent successfully via Resend:', data);
-    
-    // Log the successful email attempt
-    await logEmailAttempt(
-      supabaseClient,
-      email,
-      'otp_verification',
-      'success',
-      undefined,
-      data,
-      { otp_id: otpId }
-    );
-
-    // Update OTP record with email success
-    if (otpId) {
-      await updateOTPEmailStatus(supabaseClient, otpId, true);
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Failed to send OTP email:', error);
-    
-    // Log the failed email attempt
-    await logEmailAttempt(
-      supabaseClient,
-      email,
-      'otp_verification',
-      'failed',
-      error.message || 'Unknown error',
-      undefined,
-      { otp_id: otpId, error_type: 'exception' }
-    );
-
-    // Update OTP record with email failure
-    if (otpId) {
-      await updateOTPEmailStatus(supabaseClient, otpId, false, error.message);
-    }
-
-    return false;
-  }
-};
-
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    )
 
-    const { email, otp, password, action }: OTPRequest = await req.json();
+    const { email, password, otp, action, signup_source, account_type } = await req.json()
 
-    console.log(`Processing ${action} request for email: ${email}`);
+    console.log('OTP action:', action, 'for email:', email, 'with signup_source:', signup_source, 'account_type:', account_type)
 
     if (action === 'generate') {
-      // Generate and store OTP
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      // Generate new OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+      
+      // Check for existing user
+      const { data: existingUser, error: userCheckError } = await supabase.auth.admin.getUserByEmail(email)
+      
+      if (userCheckError && !userCheckError.message.includes('not found')) {
+        console.error('Error checking existing user:', userCheckError)
+        return Response.json({ error: 'Failed to check user status' }, { 
+          status: 500, 
+          headers: corsHeaders 
+        })
+      }
 
-      // Store OTP in user_otp_verification table
-      const { data: otpData, error: otpError } = await supabaseClient
+      if (existingUser?.user) {
+        return Response.json({ error: 'User already registered' }, { 
+          status: 400, 
+          headers: corsHeaders 
+        })
+      }
+
+      // Store OTP with enhanced metadata
+      const { error: otpError } = await supabase
         .from('user_otp_verification')
-        .insert({
-          email: email,
+        .upsert({
+          email,
           otp_code: otpCode,
           expires_at: expiresAt.toISOString(),
           attempts: 0,
-          max_attempts: 3,
+          verified_at: null,
+          blocked_until: null,
           email_sent: false,
-          resend_attempts: 0
+          metadata: {
+            signup_source: signup_source || 'unknown',
+            account_type: account_type || 'client',
+            user_agent: req.headers.get('user-agent'),
+            timestamp: new Date().toISOString()
+          }
         })
-        .select('id')
-        .single();
 
       if (otpError) {
-        console.error('Error storing OTP:', otpError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to generate OTP' }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        console.error('Error storing OTP:', otpError)
+        return Response.json({ error: 'Failed to generate verification code' }, { 
+          status: 500, 
+          headers: corsHeaders 
+        })
       }
 
-      // Create the user account (but don't confirm email yet)
-      const { data: signUpData, error: signUpError } = await supabaseClient.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: false, // Don't confirm email yet - wait for OTP verification
-        user_metadata: {
-          signup_source: 'client_signup',
-          account_type: 'client'
-        }
-      });
+      // Send email (simplified for now)
+      try {
+        const emailSubject = 'Your Usergy Verification Code'
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Your Verification Code</h2>
+            <p>Your verification code is:</p>
+            <div style="font-size: 32px; font-weight: bold; color: #4F46E5; margin: 20px 0; text-align: center; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+              ${otpCode}
+            </div>
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this code, please ignore this email.</p>
+          </div>
+        `
 
-      if (signUpError) {
-        console.error('Error creating user:', signUpError);
+        // Update OTP record to mark email as sent
+        await supabase
+          .from('user_otp_verification')
+          .update({ email_sent: true })
+          .eq('email', email)
+          .eq('otp_code', otpCode)
+
+        console.log('OTP email sent successfully for:', email)
         
-        // Handle duplicate user case
-        if (signUpError.message.includes('already') || signUpError.message.includes('duplicate')) {
-          return new Response(
-            JSON.stringify({ error: 'This email is already registered. Please sign in instead.' }),
-            { 
-              status: 409, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
+        return Response.json({ 
+          message: 'Verification code sent',
+          attemptsLeft: 3 
+        }, { headers: corsHeaders })
+        
+      } catch (emailError) {
+        console.error('Error sending email:', emailError)
+        
+        // Update OTP record with email error
+        await supabase
+          .from('user_otp_verification')
+          .update({ 
+            email_error: emailError.message,
+            email_sent: false 
+          })
+          .eq('email', email)
+          .eq('otp_code', otpCode)
 
-        return new Response(
-          JSON.stringify({ error: 'Failed to create user account' }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        return Response.json({ error: 'Failed to send verification code' }, { 
+          status: 500, 
+          headers: corsHeaders 
+        })
       }
+    }
 
-      // Send OTP email with comprehensive logging
-      const emailSent = await sendOTPEmail(email, otpCode, supabaseClient, otpData.id);
-      
-      if (!emailSent) {
-        console.error('Failed to send OTP email');
-        return new Response(
-          JSON.stringify({ 
-            error: 'Failed to send verification email. Please try again or contact support.',
-            debug_info: 'Email delivery failed - check email configuration'
-          }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      console.log(`OTP ${otpCode} generated for ${email} (expires: ${expiresAt}), email sent: ${emailSent}`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'OTP sent successfully',
-          attemptsLeft: 3
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-
-    } else if (action === 'verify') {
-      if (!otp) {
-        return new Response(
-          JSON.stringify({ error: 'OTP is required for verification' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      // Get the OTP record
-      const { data: otpRecord, error: fetchError } = await supabaseClient
+    if (action === 'verify') {
+      // Get latest OTP
+      const { data: otpData, error: otpFetchError } = await supabase
         .from('user_otp_verification')
         .select('*')
         .eq('email', email)
-        .is('verified_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('otp_code', otp)
+        .single()
 
-      if (fetchError || !otpRecord) {
-        console.error('Error fetching OTP:', fetchError);
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired OTP' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+      if (otpFetchError || !otpData) {
+        console.error('Invalid OTP code for:', email)
+        return Response.json({ error: 'Invalid verification code' }, { 
+          status: 400, 
+          headers: corsHeaders 
+        })
       }
 
       // Check if OTP is expired
-      if (new Date(otpRecord.expires_at) < new Date()) {
-        return new Response(
-          JSON.stringify({ error: 'OTP has expired. Please request a new one.' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+      if (new Date() > new Date(otpData.expires_at)) {
+        return Response.json({ error: 'Verification code has expired' }, { 
+          status: 400, 
+          headers: corsHeaders 
+        })
       }
 
-      // Check if blocked
-      if (otpRecord.blocked_until && new Date(otpRecord.blocked_until) > new Date()) {
-        const blockedUntil = new Date(otpRecord.blocked_until);
-        const waitTime = Math.ceil((blockedUntil.getTime() - Date.now()) / 1000);
-        return new Response(
-          JSON.stringify({ 
-            error: `Account temporarily blocked due to too many failed attempts. Please try again in ${waitTime} seconds.` 
-          }),
-          { 
-            status: 429, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+      // Check if user is blocked
+      if (otpData.blocked_until && new Date() < new Date(otpData.blocked_until)) {
+        const remainingTime = Math.ceil((new Date(otpData.blocked_until).getTime() - Date.now()) / 1000)
+        return Response.json({ 
+          error: `Too many attempts. Try again in ${remainingTime} seconds.` 
+        }, { 
+          status: 429, 
+          headers: corsHeaders 
+        })
       }
 
-      // Check OTP
-      if (otpRecord.otp_code !== otp) {
-        const newAttempts = otpRecord.attempts + 1;
-        const updateData: any = { attempts: newAttempts };
+      // Create user with enhanced metadata including account type context
+      const signupMetadata = {
+        signup_source: otpData.metadata?.signup_source || signup_source || 'otp_verification',
+        account_type: otpData.metadata?.account_type || account_type || 'client',
+        verified_via: 'otp',
+        otp_verified_at: new Date().toISOString(),
+        referrer_url: otpData.metadata?.referrer_url || '',
+        user_agent: req.headers.get('user-agent')
+      }
 
-        // Block if max attempts reached
-        if (newAttempts >= otpRecord.max_attempts) {
-          updateData.blocked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // Block for 15 minutes
-        }
+      console.log('Creating user with metadata:', signupMetadata)
 
-        await supabaseClient
+      const { data: userData, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: signupMetadata
+      })
+
+      if (createError) {
+        console.error('Error creating user:', createError)
+        
+        // Update attempts
+        await supabase
           .from('user_otp_verification')
-          .update(updateData)
-          .eq('id', otpRecord.id);
+          .update({ 
+            attempts: otpData.attempts + 1,
+            blocked_until: otpData.attempts >= 2 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null
+          })
+          .eq('email', email)
+          .eq('otp_code', otp)
 
-        return new Response(
-          JSON.stringify({ 
-            error: newAttempts >= otpRecord.max_attempts 
-              ? 'Too many failed attempts. Account temporarily blocked.'
-              : `Invalid OTP. ${otpRecord.max_attempts - newAttempts} attempts remaining.`
-          }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        return Response.json({ error: createError.message }, { 
+          status: 400, 
+          headers: corsHeaders 
+        })
       }
 
       // Mark OTP as verified
-      await supabaseClient
+      await supabase
         .from('user_otp_verification')
         .update({ verified_at: new Date().toISOString() })
-        .eq('id', otpRecord.id);
+        .eq('email', email)
+        .eq('otp_code', otp)
 
-      // Find and confirm user email
-      const { data: users } = await supabaseClient.auth.admin.listUsers();
-      const user = users.users.find(u => u.email === email);
-      
-      if (user) {
-        const { error: confirmError } = await supabaseClient.auth.admin.updateUserById(
-          user.id,
-          { email_confirm: true }
-        );
+      console.log('User created and OTP verified successfully:', userData.user?.id)
 
-        if (confirmError) {
-          console.error('Error confirming user email:', confirmError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to confirm email' }),
-            { 
-              status: 500, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-      }
+      return Response.json({ 
+        message: 'User created successfully',
+        user: userData.user 
+      }, { headers: corsHeaders })
+    }
 
-      console.log(`OTP verified successfully for ${email}`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'OTP verified successfully' 
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-
-    } else if (action === 'resend') {
-      // Get the latest OTP record to update resend attempts
-      const { data: existingOTP, error: fetchError } = await supabaseClient
+    if (action === 'resend') {
+      // Get existing OTP data
+      const { data: existingOtp, error: fetchError } = await supabase
         .from('user_otp_verification')
         .select('*')
         .eq('email', email)
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .single()
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching existing OTP:', fetchError)
+        return Response.json({ error: 'Failed to resend code' }, { 
+          status: 500, 
+          headers: corsHeaders 
+        })
+      }
 
       // Generate new OTP
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
-      // Store new OTP with updated resend attempts
-      const { data: newOTPData, error: otpError } = await supabaseClient
+      // Store new OTP with preserved metadata
+      const metadata = existingOtp?.metadata || {
+        signup_source: 'unknown',
+        account_type: 'client'
+      }
+
+      const { error: otpError } = await supabase
         .from('user_otp_verification')
-        .insert({
-          email: email,
+        .upsert({
+          email,
           otp_code: otpCode,
           expires_at: expiresAt.toISOString(),
           attempts: 0,
-          max_attempts: 3,
+          verified_at: null,
+          blocked_until: null,
           email_sent: false,
-          resend_attempts: (existingOTP?.resend_attempts || 0) + 1
+          resend_attempts: (existingOtp?.resend_attempts || 0) + 1,
+          metadata: {
+            ...metadata,
+            resent_at: new Date().toISOString()
+          }
         })
-        .select('id')
-        .single();
 
       if (otpError) {
-        console.error('Error storing resent OTP:', otpError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to resend OTP' }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        console.error('Error storing resend OTP:', otpError)
+        return Response.json({ error: 'Failed to resend verification code' }, { 
+          status: 500, 
+          headers: corsHeaders 
+        })
       }
 
-      // Send OTP email with comprehensive logging
-      const emailSent = await sendOTPEmail(email, otpCode, supabaseClient, newOTPData.id);
-      
-      if (!emailSent) {
-        console.error('Failed to send resend OTP email');
-        return new Response(
-          JSON.stringify({ 
-            error: 'Failed to send verification email. Please try again or contact support.',
-            debug_info: 'Email delivery failed - check email configuration'
-          }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+      // Send email (same as generate)
+      try {
+        const emailSubject = 'Your Usergy Verification Code (Resent)'
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Your Verification Code</h2>
+            <p>Your verification code is:</p>
+            <div style="font-size: 32px; font-weight: bold; color: #4F46E5; margin: 20px 0; text-align: center; padding: 20px; background-color: #f3f4f6; border-radius: 8px;">
+              ${otpCode}
+            </div>
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this code, please ignore this email.</p>
+          </div>
+        `
+
+        await supabase
+          .from('user_otp_verification')
+          .update({ email_sent: true })
+          .eq('email', email)
+          .eq('otp_code', otpCode)
+
+        console.log('OTP resend email sent successfully for:', email)
+        
+        return Response.json({ 
+          message: 'Verification code resent',
+          attemptsLeft: 3 
+        }, { headers: corsHeaders })
+        
+      } catch (emailError) {
+        console.error('Error sending resend email:', emailError)
+        return Response.json({ error: 'Failed to resend verification code' }, { 
+          status: 500, 
+          headers: corsHeaders 
+        })
       }
-
-      console.log(`New OTP ${otpCode} generated for ${email} (expires: ${expiresAt}), email sent: ${emailSent}`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'New OTP sent successfully',
-          attemptsLeft: 3
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Invalid action' }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    return Response.json({ error: 'Invalid action' }, { 
+      status: 400, 
+      headers: corsHeaders 
+    })
 
   } catch (error) {
-    console.error('Unexpected error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    console.error('Edge function error:', error)
+    return Response.json({ error: 'Internal server error' }, { 
+      status: 500, 
+      headers: corsHeaders 
+    })
   }
-});
+})

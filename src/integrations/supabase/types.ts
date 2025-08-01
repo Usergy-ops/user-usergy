@@ -541,6 +541,15 @@ export type Database = {
         Args: { user_id_param: string; user_email: string }
         Returns: Json
       }
+      assign_account_type_by_source: {
+        Args: {
+          user_id_param: string
+          user_email: string
+          signup_source?: string
+          account_type_override?: string
+        }
+        Returns: Json
+      }
       calculate_profile_completion: {
         Args: { user_uuid: string }
         Returns: number

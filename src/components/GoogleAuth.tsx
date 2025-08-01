@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Chrome, Loader2, Shield } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
-import { assignAccountTypeByDomain } from '@/utils/accountTypeUtils';
 
 interface GoogleAuthProps {
   mode: 'signin' | 'signup';
@@ -31,39 +30,52 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     try {
       monitoring.startTiming(`google_auth_${mode}`);
       
-      // Capture referrer information
+      // Enhanced context detection for account type
       const currentUrl = window.location.href;
       const currentHost = window.location.host;
       const referrerUrl = document.referrer || currentUrl;
+      const urlParams = new URLSearchParams(window.location.search);
       
-      // Determine account type based on current domain/portal
+      // Determine account type and signup source with enhanced detection logic
       let accountType = 'client'; // Default fallback
       let signupSource = 'google_oauth';
       
-      if (currentHost.includes('user.usergy.ai')) {
+      // Check URL parameters first (highest priority)
+      if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
         accountType = 'user';
-        signupSource = 'user_signup';
+        signupSource = 'enhanced_user_signup';
+      } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
+        accountType = 'client';
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check domain/host (second priority)
+      else if (currentHost.includes('user.usergy.ai')) {
+        accountType = 'user';
+        signupSource = 'enhanced_user_signup';
       } else if (currentHost.includes('client.usergy.ai')) {
         accountType = 'client';
-        signupSource = 'client_signup';
-      } else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
+        signupSource = 'enhanced_client_signup';
+      }
+      // Check URL paths (third priority)
+      else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
         accountType = 'user';
-        signupSource = 'user_signup';
+        signupSource = 'enhanced_user_signup';
       } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
         accountType = 'client';
-        signupSource = 'client_signup';
+        signupSource = 'enhanced_client_signup';
       }
       
-      console.log('Google Auth - Detected context:', {
+      console.log('Google Auth - Enhanced context detection:', {
         currentUrl,
         currentHost,
         referrerUrl,
+        urlParams: Object.fromEntries(urlParams),
         detectedAccountType: accountType,
         signupSource,
         mode
       });
       
-      // Enhanced redirect URL construction
+      // Enhanced redirect URL construction with proper metadata
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
       
@@ -74,6 +86,13 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
+            // Pass account type context through OAuth state
+            state: btoa(JSON.stringify({
+              account_type: accountType,
+              signup_source: signupSource,
+              mode: mode,
+              referrer_url: referrerUrl
+            }))
           },
           skipBrowserRedirect: false
         }
@@ -118,7 +137,8 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         mode,
         account_type: accountType,
         signup_source: signupSource,
-        referrer_url: referrerUrl
+        referrer_url: referrerUrl,
+        enhanced: true
       });
       
       // Show success message for signup

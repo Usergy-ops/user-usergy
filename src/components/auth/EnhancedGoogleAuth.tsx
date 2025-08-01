@@ -40,7 +40,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       let accountType = 'client'; // Default fallback
       let signupSource = 'enhanced_google_oauth';
       
-      // Check URL parameters first
+      // Check URL parameters first (highest priority)
       if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
         accountType = 'user';
         signupSource = 'enhanced_user_signup';
@@ -48,7 +48,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         accountType = 'client';
         signupSource = 'enhanced_client_signup';
       }
-      // Check domain/host
+      // Check domain/host (second priority)
       else if (currentHost.includes('user.usergy.ai')) {
         accountType = 'user';
         signupSource = 'enhanced_user_signup';
@@ -56,7 +56,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         accountType = 'client';
         signupSource = 'enhanced_client_signup';
       }
-      // Check URL paths
+      // Check URL paths (third priority)
       else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
         accountType = 'user';
         signupSource = 'enhanced_user_signup';
@@ -79,6 +79,15 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
       
+      // Create state object with account type context
+      const oauthState = {
+        account_type: accountType,
+        signup_source: signupSource,
+        mode: mode,
+        referrer_url: referrerUrl,
+        timestamp: Date.now()
+      };
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -87,6 +96,8 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
             access_type: 'offline',
             prompt: 'consent',
             hd: undefined, // Allow any domain
+            // Pass account type context through OAuth state
+            state: btoa(JSON.stringify(oauthState))
           },
           skipBrowserRedirect: false
         }
@@ -133,7 +144,8 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         account_type: accountType,
         signup_source: signupSource,
         referrer_url: referrerUrl,
-        enhanced: true
+        enhanced: true,
+        oauth_state: oauthState
       });
       
       // Show success message for signup
