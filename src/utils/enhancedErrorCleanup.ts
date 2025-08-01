@@ -63,7 +63,7 @@ class EnhancedErrorCleanupService {
   }
 
   // Clean up old error logs with better filtering
-  private async cleanupErrorLogs(cutoff: Date): Promise<void> => {
+  private async cleanupErrorLogs(cutoff: Date): Promise<void> {
     try {
       const { error } = await supabase
         .from('error_logs')
@@ -82,7 +82,7 @@ class EnhancedErrorCleanupService {
   }
 
   // Enhanced OTP cleanup using the database function
-  private async cleanupOTPRecordsEnhanced(): Promise<void> => {
+  private async cleanupOTPRecordsEnhanced(): Promise<void> {
     try {
       const { error } = await supabase.rpc('cleanup_expired_unified_otp');
         
@@ -97,7 +97,7 @@ class EnhancedErrorCleanupService {
   }
 
   // Enhanced rate limit cleanup
-  private async cleanupRateLimitRecords(cutoff: Date): Promise<void> => {
+  private async cleanupRateLimitRecords(cutoff: Date): Promise<void> {
     try {
       await Promise.all([
         // Clean up standard rate limits
@@ -122,7 +122,7 @@ class EnhancedErrorCleanupService {
   }
 
   // Clean up email send logs
-  private async cleanupEmailSendLogs(cutoff: Date): Promise<void> => {
+  private async cleanupEmailSendLogs(cutoff: Date): Promise<void> {
     try {
       const { error } = await supabase
         .from('email_send_logs')
@@ -165,7 +165,7 @@ class EnhancedErrorCleanupService {
   }
 
   // Clean up specific user's failed attempts with enhanced scope
-  async cleanupUserFailedAttempts(userId: string, email: string): Promise<void> => {
+  async cleanupUserFailedAttempts(userId: string, email: string): Promise<void> {
     try {
       await Promise.all([
         // Clean up failed OTP attempts
