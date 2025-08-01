@@ -174,4 +174,6 @@ export class RateLimitStorage {
   }
 }
 
-export const rateLimitStorage = new RateLimitStorage();
+// Create both storage instances for different use cases
+export const rateLimitStorage = new RateLimitStorage(false); // Basic storage
+export const enhancedRateLimitStorage = new RateLimitStorage(true); // Enhanced storage

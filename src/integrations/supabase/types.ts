@@ -35,6 +35,57 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_otp_verifications: {
+        Row: {
+          account_type: string
+          attempts: number | null
+          blocked_until: string | null
+          created_at: string | null
+          email: string
+          email_error: string | null
+          email_sent: boolean | null
+          expires_at: string
+          id: string
+          metadata: Json | null
+          otp_code: string
+          resend_attempts: number | null
+          source_url: string
+          verified_at: string | null
+        }
+        Insert: {
+          account_type: string
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          email: string
+          email_error?: string | null
+          email_sent?: boolean | null
+          expires_at: string
+          id?: string
+          metadata?: Json | null
+          otp_code: string
+          resend_attempts?: number | null
+          source_url: string
+          verified_at?: string | null
+        }
+        Update: {
+          account_type?: string
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          email?: string
+          email_error?: string | null
+          email_sent?: boolean | null
+          expires_at?: string
+          id?: string
+          metadata?: Json | null
+          otp_code?: string
+          resend_attempts?: number | null
+          source_url?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       consolidated_social_presence: {
         Row: {
           additional_links: string[] | null
@@ -386,54 +437,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_otp_verification: {
-        Row: {
-          attempts: number
-          blocked_until: string | null
-          created_at: string
-          email: string
-          email_error: string | null
-          email_sent: boolean | null
-          expires_at: string
-          id: string
-          max_attempts: number
-          metadata: Json | null
-          otp_code: string
-          resend_attempts: number | null
-          verified_at: string | null
-        }
-        Insert: {
-          attempts?: number
-          blocked_until?: string | null
-          created_at?: string
-          email: string
-          email_error?: string | null
-          email_sent?: boolean | null
-          expires_at: string
-          id?: string
-          max_attempts?: number
-          metadata?: Json | null
-          otp_code: string
-          resend_attempts?: number | null
-          verified_at?: string | null
-        }
-        Update: {
-          attempts?: number
-          blocked_until?: string | null
-          created_at?: string
-          email?: string
-          email_error?: string | null
-          email_sent?: boolean | null
-          expires_at?: string
-          id?: string
-          max_attempts?: number
-          metadata?: Json | null
-          otp_code?: string
-          resend_attempts?: number | null
-          verified_at?: string | null
-        }
-        Relationships: []
-      }
       user_skills: {
         Row: {
           created_at: string | null
@@ -537,19 +540,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      assign_account_type_by_domain: {
-        Args: { user_id_param: string; user_email: string }
-        Returns: Json
-      }
-      assign_account_type_by_source: {
-        Args: {
-          user_id_param: string
-          user_email: string
-          signup_source?: string
-          account_type_override?: string
-        }
-        Returns: Json
-      }
       calculate_profile_completion: {
         Args: { user_uuid: string }
         Returns: number
@@ -559,6 +549,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_otp: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_unified_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -578,15 +572,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      ensure_client_account: {
-        Args: {
-          user_id_param: string
-          company_name_param?: string
-          first_name_param?: string
-          last_name_param?: string
-        }
-        Returns: Json
-      }
       ensure_client_account_robust: {
         Args: {
           user_id_param: string
@@ -600,36 +585,16 @@ export type Database = {
         Args: { user_uuid: string; user_email: string; user_full_name?: string }
         Returns: boolean
       }
-      ensure_user_has_account_type: {
-        Args: { user_id_param?: string }
-        Returns: boolean
-      }
-      fix_existing_users_without_account_types: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       fix_incorrect_account_types: {
         Args: Record<PropertyKey, never>
         Returns: Json
-      }
-      get_user_account_type: {
-        Args: { user_id_param?: string }
-        Returns: string
       }
       get_user_debug_info: {
         Args: { user_id_param: string }
         Returns: Json
       }
-      is_client_account: {
-        Args: { user_id_param?: string }
-        Returns: boolean
-      }
       is_profile_complete: {
         Args: { user_id_param: string }
-        Returns: boolean
-      }
-      is_user_account: {
-        Args: { user_id_param?: string }
         Returns: boolean
       }
       manually_assign_account_type: {

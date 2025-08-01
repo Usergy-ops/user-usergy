@@ -8,7 +8,10 @@ import { handleCentralizedError } from './centralizedErrorHandling';
 
 export const cleanupExpiredOTP = async (): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('cleanup_expired_otp');
+    const { error } = await supabase
+      .from('auth_otp_verifications')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
     
     if (error) {
       await handleCentralizedError(new Error(error.message), 'cleanup_expired_otp');
@@ -24,7 +27,12 @@ export const cleanupExpiredOTP = async (): Promise<void> => {
 
 export const cleanupOldRateLimits = async (): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('cleanup_old_rate_limits');
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    
+    const { error } = await supabase
+      .from('rate_limits')
+      .delete()
+      .lt('created_at', cutoff.toISOString());
     
     if (error) {
       await handleCentralizedError(new Error(error.message), 'cleanup_old_rate_limits');
@@ -40,7 +48,12 @@ export const cleanupOldRateLimits = async (): Promise<void> => {
 
 export const cleanupEnhancedRateLimits = async (): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('cleanup_old_enhanced_rate_limits');
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    
+    const { error } = await supabase
+      .from('enhanced_rate_limits')
+      .delete()
+      .lt('created_at', cutoff.toISOString());
     
     if (error) {
       await handleCentralizedError(new Error(error.message), 'cleanup_enhanced_rate_limits');
@@ -56,7 +69,12 @@ export const cleanupEnhancedRateLimits = async (): Promise<void> => {
 
 export const cleanupOldErrorLogs = async (): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('cleanup_old_error_logs');
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+    
+    const { error } = await supabase
+      .from('error_logs')
+      .delete()
+      .lt('created_at', cutoff.toISOString());
     
     if (error) {
       await handleCentralizedError(new Error(error.message), 'cleanup_old_error_logs');
