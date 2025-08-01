@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, ExternalLink, Users, Monitor, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle, Users, Monitor, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes } from '@/utils/accountTypeUtils';
 import { useAuth } from '@/contexts/AuthContext';
+import { URLDetectionDisplay } from './URLDetectionDisplay';
 
 interface CoverageStats {
   total_users: number;
@@ -59,7 +60,6 @@ export const AccountTypeDetectionTest: React.FC = () => {
     try {
       const result = await fixExistingUsersWithoutAccountTypes();
       setFixResult(result);
-      // Reload coverage stats after fixing
       if (result.success) {
         await loadCoverageStats();
       }
@@ -94,64 +94,46 @@ export const AccountTypeDetectionTest: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Account Type Detection Test</h2>
+        <h2 className="text-2xl font-bold tracking-tight">URL-Based Account Type Detection Test</h2>
         <p className="text-muted-foreground">
-          Testing domain-based account type assignment for user.usergy.ai and client.usergy.ai
+          Testing URL-based account type assignment for user.usergy.ai and client.usergy.ai portals
         </p>
       </div>
 
-      {/* Current Detection Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Monitor className="h-5 w-5" />
-            Current Detection Status
+            Current URL Detection Status
           </CardTitle>
           <CardDescription>
-            Real-time account type detection based on current domain
+            Real-time account type detection based on current URL
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Current URL</p>
-              <div className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-mono text-muted-foreground">{currentUrl}</span>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Expected Type</p>
-              <Badge variant={expectedType === 'unknown' ? 'secondary' : 'default'}>
-                {expectedType}
+          <URLDetectionDisplay currentUrl={currentUrl} expectedType={expectedType} />
+          
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Detected Account Type</p>
+            <div className="flex items-center gap-2">
+              {getStatusIcon(accountType, expectedType)}
+              <Badge variant={getStatusColor(accountType, expectedType)}>
+                {accountType || 'none'}
               </Badge>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Detected Type</p>
-              <div className="flex items-center gap-2">
-                {getStatusIcon(accountType, expectedType)}
-                <Badge variant={getStatusColor(accountType, expectedType)}>
-                  {accountType || 'none'}
-                </Badge>
-              </div>
             </div>
           </div>
 
-          {/* Status Alert */}
           {expectedType !== 'unknown' && (
             <Alert variant={isDetectionWorking ? 'default' : 'destructive'}>
               <AlertDescription>
                 {isDetectionWorking ? (
                   <>
-                    ✅ <strong>Detection Working:</strong> Account type correctly detected as "{accountType}" for {expectedType}.usergy.ai domain
+                    ✅ <strong>URL Detection Working:</strong> Account type correctly detected as "{accountType}" for {expectedType}.usergy.ai URL
                   </>
                 ) : (
                   <>
-                    ❌ <strong>Detection Failed:</strong> Expected "{expectedType}" but got "{accountType || 'none'}" for {expectedType}.usergy.ai domain
+                    ❌ <strong>URL Detection Failed:</strong> Expected "{expectedType}" but got "{accountType || 'none'}" for {expectedType}.usergy.ai URL
                   </>
                 )}
               </AlertDescription>
@@ -161,8 +143,8 @@ export const AccountTypeDetectionTest: React.FC = () => {
           {expectedType === 'unknown' && (
             <Alert>
               <AlertDescription>
-                ℹ️ <strong>Neutral Domain:</strong> This domain is not configured for specific account type detection. 
-                Visit user.usergy.ai or client.usergy.ai to test detection.
+                ℹ️ <strong>Neutral URL:</strong> This URL is not configured for specific account type detection. 
+                Visit https://user.usergy.ai/ or https://client.usergy.ai/ to test URL-based detection.
               </AlertDescription>
             </Alert>
           )}
@@ -265,7 +247,6 @@ export const AccountTypeDetectionTest: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* User Info */}
       {user && (
         <Card>
           <CardHeader>

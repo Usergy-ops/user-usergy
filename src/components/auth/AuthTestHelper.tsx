@@ -41,25 +41,28 @@ export const AuthTestHelper: React.FC = () => {
 
   const testScenarios = [
     {
-      id: 'user-domain',
-      email: 'test@user.usergy.ai',
+      id: 'user-url',
+      email: 'test@example.com',
       expected: 'user',
-      description: 'User domain signup',
-      icon: <UserCheck className="h-4 w-4" />
+      description: 'User portal signup (from user.usergy.ai)',
+      icon: <UserCheck className="h-4 w-4" />,
+      note: 'Simulates signup from https://user.usergy.ai/'
     },
     {
-      id: 'client-domain',
-      email: 'test@client.usergy.ai', 
+      id: 'client-url',
+      email: 'test@company.com', 
       expected: 'client',
-      description: 'Client domain signup',
-      icon: <Building2 className="h-4 w-4" />
+      description: 'Client portal signup (from client.usergy.ai)',
+      icon: <Building2 className="h-4 w-4" />,
+      note: 'Simulates signup from https://client.usergy.ai/'
     },
     {
-      id: 'external-email',
+      id: 'neutral-url',
       email: 'user@gmail.com',
       expected: 'client',
-      description: 'External email (defaults to client)',
-      icon: <Globe className="h-4 w-4" />
+      description: 'Neutral URL signup (defaults to client)',
+      icon: <Globe className="h-4 w-4" />,
+      note: 'Simulates signup from other URLs (defaults to client)'
     }
   ];
 
@@ -68,7 +71,7 @@ export const AuthTestHelper: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Authentication Test Helper</h2>
         <p className="text-muted-foreground">
-          Tools for testing and debugging account type assignment
+          Tools for testing and debugging URL-based account type assignment
         </p>
       </div>
 
@@ -83,7 +86,8 @@ export const AuthTestHelper: React.FC = () => {
             <CardHeader>
               <CardTitle>Manual Account Type Assignment Test</CardTitle>
               <CardDescription>
-                Test the assign_account_type_by_domain function with custom parameters
+                Test the assign_account_type_by_domain function with custom parameters. 
+                This function uses referrer URL analysis to determine account types.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -109,12 +113,19 @@ export const AuthTestHelper: React.FC = () => {
                 </div>
               </div>
 
+              <Alert>
+                <AlertDescription>
+                  <strong>Note:</strong> The account type assignment is primarily based on the referrer URL 
+                  captured during signup, not the email address. This test will use the current URL context.
+                </AlertDescription>
+              </Alert>
+
               <Button
                 onClick={testDomainAssignment}
                 disabled={isTestingAssignment || !testEmail || !testUserId}
                 className="w-full"
               >
-                {isTestingAssignment ? 'Testing Assignment...' : 'Test Domain Assignment'}
+                {isTestingAssignment ? 'Testing Assignment...' : 'Test URL-Based Assignment'}
               </Button>
 
               {testResult && (
@@ -129,7 +140,11 @@ export const AuthTestHelper: React.FC = () => {
                       {testResult.success ? (
                         <>
                           <strong>Success!</strong> Account type "{testResult.account_type}" assigned.
-                          {testResult.message && <span> {testResult.message}</span>}
+                          {testResult.assignment_method && (
+                            <div className="mt-1 text-xs">
+                              Method: {testResult.assignment_method}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
@@ -154,7 +169,7 @@ export const AuthTestHelper: React.FC = () => {
                     {scenario.description}
                   </CardTitle>
                   <CardDescription>
-                    Test with: <code className="bg-muted px-2 py-1 rounded">{scenario.email}</code>
+                    {scenario.note}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -167,7 +182,6 @@ export const AuthTestHelper: React.FC = () => {
                       variant="outline"
                       onClick={() => {
                         setTestEmail(scenario.email);
-                        // For demo, generate a mock UUID
                         setTestUserId('00000000-0000-0000-0000-000000000000');
                       }}
                     >
@@ -183,7 +197,8 @@ export const AuthTestHelper: React.FC = () => {
             <ExternalLink className="h-4 w-4" />
             <AlertDescription>
               <strong>Testing Tip:</strong> Load a scenario above, then switch to the "Manual Testing" tab 
-              and replace the user ID with a real UUID from your database to test the assignment function.
+              and replace the user ID with a real UUID from your database to test the assignment function. 
+              Remember that the actual detection is based on the URL where the signup originated, not the email address.
             </AlertDescription>
           </Alert>
         </TabsContent>

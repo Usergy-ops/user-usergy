@@ -18,7 +18,7 @@ const Testing: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Testing & Debugging Center</h1>
             <p className="text-lg text-muted-foreground">
-              Comprehensive testing tools for account type detection and authentication systems
+              Comprehensive testing tools for URL-based account type detection and authentication systems
             </p>
           </div>
         </div>
@@ -26,9 +26,9 @@ const Testing: React.FC = () => {
         <Alert className="mb-6">
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            <strong>Domain-Based Account Type Assignment:</strong> This system automatically detects and assigns 
-            account types based on signup domains (user.usergy.ai → "user", client.usergy.ai → "client"). 
-            All external emails default to "client" accounts.
+            <strong>URL-Based Account Type Assignment:</strong> This system automatically detects and assigns 
+            account types based on the signup URL (user.usergy.ai → "user", client.usergy.ai → "client"). 
+            The referrer URL is captured during signup and used to determine the correct account type.
           </AlertDescription>
         </Alert>
       </div>
@@ -69,15 +69,15 @@ const Testing: React.FC = () => {
                   <h4 className="font-semibold">Account Type Assignment Logic</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">user.usergy.ai</Badge>
+                      <Badge variant="outline">https://user.usergy.ai/</Badge>
                       <span>→ "user" account</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">client.usergy.ai</Badge>
+                      <Badge variant="outline">https://client.usergy.ai/</Badge>
                       <span>→ "client" account</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary">External emails</Badge>
+                      <Badge variant="secondary">Other URLs</Badge>
                       <span>→ "client" account (default)</span>
                     </div>
                   </div>
@@ -94,21 +94,22 @@ const Testing: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="font-semibold">Trigger Configuration</h4>
+                  <h4 className="font-semibold">URL Detection Priority</h4>
                   <div className="space-y-1 text-sm">
-                    <div><strong>Trigger:</strong> handle_account_type_assignment_trigger</div>
-                    <div><strong>Events:</strong> INSERT OR UPDATE on auth.users</div>
-                    <div><strong>Condition:</strong> Email confirmed or OAuth signup</div>
+                    <div><strong>1.</strong> Explicit metadata (account_type, signup_source)</div>
+                    <div><strong>2.</strong> Referrer URL analysis (user.usergy.ai vs client.usergy.ai)</div>
+                    <div><strong>3.</strong> OAuth context preservation</div>
+                    <div><strong>4.</strong> Default fallback to "client"</div>
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <h4 className="font-semibold">Frontend Components</h4>
                   <div className="space-y-1 text-sm">
-                    <div>• Enhanced OTP Verification with domain detection</div>
+                    <div>• Enhanced OTP Verification with URL detection</div>
                     <div>• Real-time account type monitoring</div>
                     <div>• Comprehensive testing interface</div>
-                    <div>• System health diagnostics</div>
+                    <div>• OAuth URL context preservation</div>
                   </div>
                 </div>
               </div>
@@ -118,23 +119,24 @@ const Testing: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Testing Instructions</CardTitle>
-              <CardDescription>Step-by-step guide for testing account type detection</CardDescription>
+              <CardDescription>Step-by-step guide for testing URL-based account type detection</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <h4 className="font-semibold">1. URL-Based Testing</h4>
                   <p className="text-sm text-muted-foreground">
-                    Visit user.usergy.ai or client.usergy.ai and sign up with OTP verification. 
-                    The system should automatically detect and assign the correct account type.
+                    Visit https://user.usergy.ai/ or https://client.usergy.ai/ and sign up with OTP verification 
+                    or Google OAuth. The system should automatically detect and assign the correct account type 
+                    based on the originating URL.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-semibold">2. Domain Detection</h4>
+                  <h4 className="font-semibold">2. URL Detection Verification</h4>
                   <p className="text-sm text-muted-foreground">
-                    Check the "Detection Test" tab above to see real-time domain detection results 
-                    and system health metrics.
+                    Check the "Detection Test" tab above to see real-time URL detection results 
+                    and system health metrics. The system analyzes the current URL to determine expected account type.
                   </p>
                 </div>
 
@@ -142,15 +144,15 @@ const Testing: React.FC = () => {
                   <h4 className="font-semibold">3. Manual Function Testing</h4>
                   <p className="text-sm text-muted-foreground">
                     Use the "Test Helper" tab to manually invoke the account type assignment function 
-                    with custom email and user ID combinations.
+                    with custom email and user ID combinations to verify the database logic.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-semibold">4. System Health Monitoring</h4>
+                  <h4 className="font-semibold">4. OAuth URL Preservation</h4>
                   <p className="text-sm text-muted-foreground">
-                    Monitor overall system health and coverage percentage. Fix any users missing 
-                    account type assignments using the provided tools.
+                    Test Google OAuth from both user.usergy.ai and client.usergy.ai to ensure 
+                    the referrer URL is properly captured and passed through the OAuth state parameter.
                   </p>
                 </div>
               </div>
