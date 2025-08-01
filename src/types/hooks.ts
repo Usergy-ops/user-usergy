@@ -227,7 +227,7 @@ export interface UseErrorHandlerReturn {
   errorContext: string | null;
 }
 
-// Import types from api.ts and components.ts
+// Import types from api.ts
 import type {
   SystemHealthStats,
   AccountTypeFixResult,
