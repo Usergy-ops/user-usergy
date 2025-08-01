@@ -27,18 +27,21 @@ serve(async (req) => {
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
       
-      // Check for existing user
-      const { data: existingUser, error: userCheckError } = await supabase.auth.admin.getUserByEmail(email)
+      // Check for existing user using the admin.listUsers method
+      const { data: usersData, error: userCheckError } = await supabase.auth.admin.listUsers()
       
-      if (userCheckError && !userCheckError.message.includes('not found')) {
-        console.error('Error checking existing user:', userCheckError)
+      if (userCheckError) {
+        console.error('Error checking existing users:', userCheckError)
         return Response.json({ error: 'Failed to check user status' }, { 
           status: 500, 
           headers: corsHeaders 
         })
       }
 
-      if (existingUser?.user) {
+      // Check if user already exists
+      const existingUser = usersData.users.find(user => user.email === email)
+      if (existingUser) {
+        console.log('User already exists:', email)
         return Response.json({ error: 'User already registered' }, { 
           status: 400, 
           headers: corsHeaders 
@@ -72,7 +75,7 @@ serve(async (req) => {
         })
       }
 
-      // Send email (simplified for now)
+      // Send email (simplified for now - in production you'd use a proper email service)
       try {
         const emailSubject = 'Your Usergy Verification Code'
         const emailHtml = `
@@ -131,7 +134,7 @@ serve(async (req) => {
         .single()
 
       if (otpFetchError || !otpData) {
-        console.error('Invalid OTP code for:', email)
+        console.error('Invalid OTP code for:', email, otpFetchError)
         return Response.json({ error: 'Invalid verification code' }, { 
           status: 400, 
           headers: corsHeaders 
@@ -218,9 +221,9 @@ serve(async (req) => {
         .eq('email', email)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
+      if (fetchError) {
         console.error('Error fetching existing OTP:', fetchError)
         return Response.json({ error: 'Failed to resend code' }, { 
           status: 500, 
@@ -307,7 +310,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Edge function error:', error)
-    return Response.json({ error: 'Internal server error' }, { 
+    return Response.json({ 
+      error: 'Internal server error',
+      details: error.message 
+    }, { 
       status: 500, 
       headers: corsHeaders 
     })
