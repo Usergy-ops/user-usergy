@@ -188,7 +188,7 @@ const Index = () => {
                 <>
                   <div className="text-center mb-8">
                     <AuthToggle 
-                      authMode={authMode} 
+                      mode={authMode} 
                       onToggle={(mode) => setAuthMode(mode)} 
                     />
                   </div>

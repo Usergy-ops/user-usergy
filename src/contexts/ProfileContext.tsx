@@ -10,12 +10,39 @@ type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
 interface ProfileData extends Partial<Profile> {}
 
+interface DeviceData {
+  operating_systems?: string[];
+  devices_owned?: string[];
+  mobile_manufacturers?: string[];
+  desktop_manufacturers?: string[];
+  email_clients?: string[];
+  streaming_subscriptions?: string[];
+  music_subscriptions?: string[];
+}
+
+interface TechFluencyData {
+  programming_languages?: string[];
+  ai_models_used?: string[];
+  ai_interests?: string[];
+  coding_experience_years?: number;
+}
+
+interface SkillsData {
+  interests?: string[];
+  product_categories?: string[];
+  skills?: any;
+}
+
 interface ProfileContextType {
   profileData: ProfileData;
+  deviceData: DeviceData;
+  techFluencyData: TechFluencyData;
+  skillsData: SkillsData;
   loading: boolean;
   currentStep: number;
   isProfileComplete: boolean;
   updateProfileData: (section: string, data: any) => Promise<void>;
+  uploadProfilePicture: (file: File) => Promise<string>;
   setCurrentStep: (step: number) => void;
   calculateCompletion: () => number;
   resumeIncompleteSection: () => void;
@@ -35,6 +62,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { user } = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState<ProfileData>({});
+  const [deviceData, setDeviceData] = useState<DeviceData>({});
+  const [techFluencyData, setTechFluencyData] = useState<TechFluencyData>({});
+  const [skillsData, setSkillsData] = useState<SkillsData>({});
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -82,31 +112,72 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     if (user) {
-      loadProfileData();
+      loadAllData();
     } else {
       setLoading(false);
     }
   }, [user]);
 
-  const loadProfileData = async () => {
+  const loadAllData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      // Load profile data
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (data) {
-        setProfileData(data);
-      } else if (error) {
-        console.warn('Profile not found:', error);
+      if (profile) {
+        setProfileData(profile);
+      } else if (profileError && !profileError.message.includes('No rows')) {
+        console.warn('Profile not found:', profileError);
       }
+
+      // Load device data
+      const { data: devices, error: deviceError } = await supabase
+        .from('user_devices')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (devices) {
+        setDeviceData(devices);
+      } else if (deviceError && !deviceError.message.includes('No rows')) {
+        console.warn('Device data not found:', deviceError);
+      }
+
+      // Load tech fluency data
+      const { data: techFluency, error: techError } = await supabase
+        .from('user_tech_fluency')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (techFluency) {
+        setTechFluencyData(techFluency);
+      } else if (techError && !techError.message.includes('No rows')) {
+        console.warn('Tech fluency data not found:', techError);
+      }
+
+      // Load skills data
+      const { data: skills, error: skillsError } = await supabase
+        .from('user_skills')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (skills) {
+        setSkillsData(skills);
+      } else if (skillsError && !skillsError.message.includes('No rows')) {
+        console.warn('Skills data not found:', skillsError);
+      }
+
     } catch (error) {
-      console.error('Error loading profile data:', error);
+      console.error('Error loading data:', error);
       toast({
         title: "Error loading profile",
         description: "Please refresh the page and try again.",
@@ -117,31 +188,86 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const uploadProfilePicture = async (file: File): Promise<string> => {
+    if (!user) throw new Error('No user found');
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('profile-pictures')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('profile-pictures')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const updateProfileData = async (section: string, data: any) => {
     if (!user) return;
 
     try {
       const { _isSubmission, ...cleanData } = data;
       
-      const updateResult = await supabase
-        .from('profiles')
-        .update(cleanData as ProfileUpdate)
-        .eq('user_id', user.id);
-      
-      if (updateResult.error) {
-        throw updateResult.error;
+      if (section === 'profile') {
+        // Update profiles table
+        const updateResult = await supabase
+          .from('profiles')
+          .upsert({ user_id: user.id, ...cleanData as ProfileUpdate }, { onConflict: 'user_id' });
+        
+        if (updateResult.error) {
+          throw updateResult.error;
+        }
+        
+        setProfileData(prev => ({ ...prev, ...cleanData }));
+      } else if (section === 'devices') {
+        // Update user_devices table
+        const updateResult = await supabase
+          .from('user_devices')
+          .upsert({ user_id: user.id, ...cleanData }, { onConflict: 'user_id' });
+        
+        if (updateResult.error) {
+          throw updateResult.error;
+        }
+        
+        setDeviceData(prev => ({ ...prev, ...cleanData }));
+      } else if (section === 'techfluency') {
+        // Update user_tech_fluency table
+        const updateResult = await supabase
+          .from('user_tech_fluency')
+          .upsert({ user_id: user.id, ...cleanData }, { onConflict: 'user_id' });
+        
+        if (updateResult.error) {
+          throw updateResult.error;
+        }
+        
+        setTechFluencyData(prev => ({ ...prev, ...cleanData }));
+      } else if (section === 'skills') {
+        // Update user_skills table
+        const updateResult = await supabase
+          .from('user_skills')
+          .upsert({ user_id: user.id, ...cleanData }, { onConflict: 'user_id' });
+        
+        if (updateResult.error) {
+          throw updateResult.error;
+        }
+        
+        setSkillsData(prev => ({ ...prev, ...cleanData }));
       }
       
-      setProfileData(prev => ({ ...prev, ...cleanData }));
-      
-      if (!_isSubmission) {
-        return; // Don't show success toast for auto-save
+      if (_isSubmission) {
+        toast({
+          title: "Profile updated",
+          description: "Your changes have been saved successfully."
+        });
       }
-      
-      toast({
-        title: "Profile updated",
-        description: "Your changes have been saved successfully."
-      });
     } catch (error) {
       console.error(`Error updating ${section}:`, error);
       toast({
@@ -155,10 +281,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const value = {
     profileData,
+    deviceData,
+    techFluencyData,
+    skillsData,
     loading,
     currentStep,
     isProfileComplete,
     updateProfileData,
+    uploadProfilePicture,
     setCurrentStep,
     calculateCompletion,
     resumeIncompleteSection
