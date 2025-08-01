@@ -147,67 +147,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
+  const signUp = async (email: string, password: string) => {
     try {
-      setLoading(true);
-      monitoring.startTiming('auth_signup');
-
-      // Enhanced context detection for account type
-      const currentUrl = window.location.href;
-      const referrerUrl = document.referrer || currentUrl;
-      const urlParams = new URLSearchParams(window.location.search);
+      const sourceUrl = window.location.href;
+      const accountType = sourceUrl.includes('user.usergy.ai') ? 'user' : 'client';
       
-      let accountType = 'client'; // Default
-      let signupSource = 'enhanced_auth_form';
-      
-      // Check URL parameters first
-      if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
-        accountType = 'user';
-        signupSource = 'enhanced_user_signup';
-      } else if (currentUrl.includes('user.usergy.ai') || referrerUrl.includes('user.usergy.ai')) {
-        accountType = 'user';
-        signupSource = 'enhanced_user_signup';
-      }
-
-      console.log('Signup context:', { accountType, signupSource, currentUrl, referrerUrl });
-
-      // Call unified auth edge function
       const { data, error } = await supabase.functions.invoke('unified-auth', {
         body: {
           action: 'generate',
           email,
           password,
-          signup_source: metadata?.signup_source || signupSource,
-          account_type: metadata?.account_type || accountType
+          account_type: accountType,
+          signup_source: `${accountType}_signup`
         }
       });
 
-      monitoring.endTiming('auth_signup');
-
-      if (error) {
-        console.error('Signup error:', error);
-        monitoring.logError(error, 'signup_error', { email, accountType });
-        return { error: error.message || 'Failed to create account' };
-      }
-
-      if (data?.error) {
-        console.error('Signup response error:', data.error);
-        return { error: data.error };
-      }
-
-      trackUserAction('signup_otp_sent', { 
-        email, 
-        account_type: accountType,
-        signup_source: signupSource
-      });
-
-      return { attemptsLeft: data?.attemptsLeft };
-    } catch (error) {
-      console.error('Unexpected signup error:', error);
-      monitoring.logError(error as Error, 'signup_unexpected_error', { email });
-      return { error: 'An unexpected error occurred during signup' };
-    } finally {
-      setLoading(false);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      return { error: null };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      return { error: error.message || 'Signup failed' };
     }
   };
 
