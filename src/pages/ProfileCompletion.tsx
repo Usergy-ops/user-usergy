@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +12,6 @@ import { SkillsInterestsSection } from '@/components/profile/SkillsInterestsSect
 import { CompletionCelebration } from '@/components/profile/CompletionCelebration';
 import { ChevronLeft } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
 
 const ProfileCompletion = () => {
   const { user } = useAuth();
@@ -20,46 +20,11 @@ const ProfileCompletion = () => {
     currentStep, 
     setCurrentStep, 
     isProfileComplete, 
-    profileData, 
-    deviceData,
-    techFluencyData,
-    skillsData,
+    profileData,
     loading,
     calculateCompletion,
     resumeIncompleteSection
   } = useProfile();
-
-  console.log('ProfileCompletion rendered with:', {
-    currentStep,
-    isProfileComplete,
-    profileData: {
-      completion_percentage: profileData.completion_percentage,
-      section_4_completed: profileData.section_4_completed,
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level
-    },
-    techFluencyData: {
-      ai_interests: techFluencyData.ai_interests,
-      ai_models_used: techFluencyData.ai_models_used,
-      coding_experience_years: techFluencyData.coding_experience_years
-    },
-    skillsData: {
-      interests: skillsData.interests
-    }
-  });
-
-  // Calculate real-time completion percentage using the utility function
-  const realTimeCompletion = calculateProfileCompletionPercentage({
-    profileData,
-    deviceData,
-    techFluencyData,
-    skillsData
-  });
-
-  console.log('Real-time completion calculation:', {
-    realTimeCompletion,
-    storedCompletion: profileData.completion_percentage
-  });
 
   useEffect(() => {
     if (user) {
@@ -67,21 +32,18 @@ const ProfileCompletion = () => {
     }
   }, [user, calculateCompletion]);
 
-  // Resume incomplete section on component mount
   useEffect(() => {
     if (user && !loading && !isProfileComplete) {
       resumeIncompleteSection();
     }
   }, [user, loading, isProfileComplete, resumeIncompleteSection]);
 
-  // Check if profile is complete and redirect to dashboard
   useEffect(() => {
     if (isProfileComplete && profileData?.profile_completed === true && currentStep !== 7) {
       navigate('/dashboard', { replace: true });
     }
   }, [isProfileComplete, profileData?.profile_completed, currentStep, navigate]);
 
-  // Scroll to top when currentStep changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
@@ -137,6 +99,7 @@ const ProfileCompletion = () => {
 
   const currentSection = sections.find(s => s.id === currentStep);
   const isFirstStep = currentStep === 1;
+  const realTimeCompletion = calculateCompletion();
 
   const handlePrevious = () => {
     if (!isFirstStep) {
@@ -145,20 +108,16 @@ const ProfileCompletion = () => {
   };
 
   const handleSectionClick = (sectionId: number) => {
-    // Allow users to navigate to any section
     setCurrentStep(sectionId);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Header */}
       <Header />
 
-      {/* Main Content - Added pt-24 to account for fixed header */}
       <div className="container mx-auto px-4 py-8 pt-24">
         <div className="max-w-4xl mx-auto">
           
-          {/* Header */}
           <div className="text-center mb-8 animate-fade-in">
             <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
               Complete Your Explorer Profile
@@ -168,11 +127,10 @@ const ProfileCompletion = () => {
               This process takes about 5-10 minutes and ensures high-quality matches.
             </p>
             <div className="mt-4 text-sm text-muted-foreground">
-              Overall completion: {realTimeCompletion}% (17 mandatory fields)
+              Overall completion: {realTimeCompletion}%
             </div>
           </div>
 
-          {/* Section Navigation */}
           <div className="mb-8">
             <div className="flex flex-wrap gap-2 justify-center">
               {sections.map((section) => (
@@ -194,10 +152,8 @@ const ProfileCompletion = () => {
             </div>
           </div>
 
-          {/* Section Content */}
           <div className="bg-card/80 backdrop-blur-sm usergy-shadow-strong rounded-3xl p-8 lg:p-12 border border-border/50 animate-slide-up">
             
-            {/* Section Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
@@ -208,7 +164,6 @@ const ProfileCompletion = () => {
                 </div>
               </div>
               
-              {/* Mini Progress for Current Section */}
               <div className="w-full bg-muted rounded-full h-2">
                 <div 
                   className="bg-gradient-to-r from-primary-start to-primary-end h-2 rounded-full transition-all duration-500"
@@ -217,7 +172,6 @@ const ProfileCompletion = () => {
               </div>
             </div>
 
-            {/* Section Component */}
             <div className="mb-8">
               {currentStep === 1 && <BasicProfileSection key="basic-profile" />}
               {currentStep === 2 && <DevicesSection key="devices-section" />}
@@ -227,7 +181,6 @@ const ProfileCompletion = () => {
               {currentStep === 6 && <SkillsInterestsSection key="skills-section" />}
             </div>
 
-            {/* Navigation */}
             <div className="flex items-center justify-between pt-8 border-t border-border">
               <button
                 onClick={handlePrevious}
