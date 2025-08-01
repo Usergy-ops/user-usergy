@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from 'npm:resend@4.0.0'
@@ -45,7 +44,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'generate':
-        return await handleGenerateOTP(email, password, finalAccountType)
+        return await handleGenerateOTP(email, password, finalAccountType, req)
       case 'verify':
         return await handleVerifyOTP(email, otp, password)
       case 'resend':
@@ -66,7 +65,7 @@ serve(async (req) => {
   }
 })
 
-async function handleGenerateOTP(email: string, password: string, accountType: string) {
+async function handleGenerateOTP(email: string, password: string, accountType: string, req: Request) {
   try {
     console.log(`Generating OTP for email: ${email}, account type: ${accountType}`)
     
