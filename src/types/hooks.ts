@@ -37,6 +37,29 @@ export interface UseAccountTypeReturn extends UseAccountTypeState {
 }
 
 // System Monitoring Hook Types
+export interface SystemHealthStats {
+  total_users: number;
+  users_with_account_types: number;
+  users_without_account_types: number;
+  coverage_percentage: number;
+  is_healthy: boolean;
+  timestamp: string;
+}
+
+export interface AccountTypeFixResult {
+  success: boolean;
+  users_analyzed: number;
+  users_fixed: number;
+  message?: string;
+  error?: string;
+}
+
+export interface ClientWorkflowSyncResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
 export interface UseSystemMonitoringState {
   stats: SystemHealthStats | null;
   loading: boolean;
@@ -226,10 +249,3 @@ export interface UseErrorHandlerReturn {
   currentError: Error | null;
   errorContext: string | null;
 }
-
-// Import types from api.ts
-import type {
-  SystemHealthStats,
-  AccountTypeFixResult,
-  ClientWorkflowSyncResult
-} from './api';
