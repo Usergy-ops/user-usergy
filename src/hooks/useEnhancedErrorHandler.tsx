@@ -203,20 +203,15 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
   }, [handleAsyncOperation]);
 
   return {
-    // Main methods
     handleError,
     handleAsyncOperation,
     wrapAsyncFunction,
     clearError,
     retry,
-    
-    // State
     currentError,
     isRetrying,
     retryCount,
     canRetry: retryCount < maxRetries && !isRetrying && !!retryActionRef.current,
-    
-    // Utilities
     processError,
     logError
   };
