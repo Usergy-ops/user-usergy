@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -321,7 +320,7 @@ export const AccountTypeDetectionTest: React.FC = () => {
                           <Building className="w-4 h-4" />
                         )}
                         <span>{result.expectedAccountType}</span>
-                        <Badge variant="outline" size="sm">
+                        <Badge variant="outline">
                           {result.expectedSignupSource}
                         </Badge>
                       </div>
@@ -338,7 +337,6 @@ export const AccountTypeDetectionTest: React.FC = () => {
                         <span>{result.actualAccountType}</span>
                         <Badge 
                           variant="outline" 
-                          size="sm"
                           className={result.actualSignupSource === 'error' ? 'border-red-500 text-red-500' : ''}
                         >
                           {result.actualSignupSource}

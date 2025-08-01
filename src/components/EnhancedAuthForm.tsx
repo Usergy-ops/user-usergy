@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -238,7 +237,6 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
         email={email}
         password={password}
         onSuccess={handleOTPSuccess}
-        onError={handleOTPError}
         attemptsLeft={attemptsLeft}
         options={{
           signup_source: context.signup_source,

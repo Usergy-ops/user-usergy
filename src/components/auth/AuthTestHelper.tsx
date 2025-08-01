@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Building, TestTube, Database, Trash2, CheckCircle } from 'lucide-react';
+import { User, Building, TestTube, Database, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 export const AuthTestHelper: React.FC = () => {
   const [testEmail, setTestEmail] = useState('');
