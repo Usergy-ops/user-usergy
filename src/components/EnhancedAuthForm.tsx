@@ -11,7 +11,6 @@ import { EnhancedGoogleAuth } from '@/components/auth/EnhancedGoogleAuth';
 import { EnhancedOTPVerification } from '@/components/auth/EnhancedOTPVerification';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Mail, Lock, User, Info } from 'lucide-react';
-import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface EnhancedAuthFormProps {
   mode: 'signin' | 'signup';
@@ -107,8 +106,6 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
     setErrors({});
     
     try {
-      monitoring.startTiming(`enhanced_auth_form_${mode}`);
-      
       if (mode === 'signin') {
         const result = await signIn(email, password);
         
@@ -124,7 +121,6 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
             title: "Welcome back!",
             description: "You have successfully signed in.",
           });
-          trackUserAction(`enhanced_signin_success`, { email });
         }
       } else {
         // Get account type context for signup
@@ -158,15 +154,8 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
             title: "Verification Required",
             description: "Please check your email and enter the verification code.",
           });
-          trackUserAction(`enhanced_signup_otp_sent`, { 
-            email, 
-            account_type: context.account_type,
-            signup_source: context.signup_source
-          });
         }
       }
-      
-      monitoring.endTiming(`enhanced_auth_form_${mode}`);
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -220,14 +209,6 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
     toast({
       title: "Account Verified!",
       description: "Your account has been successfully verified.",
-    });
-  };
-
-  const handleOTPError = (error: string) => {
-    toast({
-      title: "Verification Failed",
-      description: error,
-      variant: "destructive"
     });
   };
 
@@ -422,4 +403,3 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
     </Card>
   );
 };
-

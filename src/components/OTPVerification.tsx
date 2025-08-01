@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, RefreshCw, AlertTriangle, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 interface OTPVerificationProps {
   email: string;
@@ -25,7 +24,6 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
   const [isBlocked, setIsBlocked] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { verifyOTP, resendOTP } = useAuth();
-  const { handleError, handleErrorWithRecovery } = useErrorHandler();
 
   useEffect(() => {
     // Focus first input on mount
@@ -75,16 +73,6 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       if (error) {
         console.error('OTP verification failed:', error);
         
-        await handleErrorWithRecovery(
-          new Error(error),
-          'otp_verification',
-          { email, attempts_left: attemptsLeft, isNewUser, accountType },
-          () => {
-            setOtp(['', '', '', '', '', '']);
-            inputRefs.current[0]?.focus();
-          }
-        );
-        
         // Update attempts left
         if (attemptsLeft !== null) {
           setAttemptsLeft(attemptsLeft - 1);
@@ -102,7 +90,6 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       }
     } catch (error) {
       console.error('Unexpected OTP verification error:', error);
-      await handleError(error, 'otp_verification', { email });
     } finally {
       setIsLoading(false);
     }
@@ -117,8 +104,6 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       const { error, attemptsLeft: newAttemptsLeft } = await resendOTP(email);
       
       if (error) {
-        await handleError(new Error(error), 'otp_resend', { email });
-        
         if (error.includes('Too many')) {
           setIsBlocked(true);
         }
@@ -131,7 +116,7 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
-      await handleError(error, 'otp_resend', { email });
+      console.error('Unexpected resend error:', error);
     } finally {
       setIsLoading(false);
     }
