@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Mail, User, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { UserDebugInfo, AccountTypeAssignmentResponse, EmailConfigTestResponse } from '@/types/debug';
 
 export const EmailSystemDebug: React.FC = () => {
   const [userId, setUserId] = useState('');
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<UserDebugInfo | null>(null);
   const [emailLogs, setEmailLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -42,14 +43,16 @@ export const EmailSystemDebug: React.FC = () => {
         return;
       }
 
-      setDebugInfo(data);
+      // Type assertion since we know the structure from our RPC function
+      const typedData = data as UserDebugInfo;
+      setDebugInfo(typedData);
 
       // Also fetch email logs for this user
-      if (data?.auth_info?.email) {
+      if (typedData?.auth_info?.email) {
         const { data: logs, error: logsError } = await supabase
           .from('email_send_logs')
           .select('*')
-          .eq('email', data.auth_info.email)
+          .eq('email', typedData.auth_info.email)
           .order('created_at', { ascending: false })
           .limit(10);
 
@@ -96,7 +99,10 @@ export const EmailSystemDebug: React.FC = () => {
         return;
       }
 
-      if (data.success) {
+      // Type assertion for the response
+      const typedResponse = data as AccountTypeAssignmentResponse;
+      
+      if (typedResponse.success) {
         toast({
           title: "Success",
           description: `Account type set to ${accountType}`,
@@ -107,7 +113,7 @@ export const EmailSystemDebug: React.FC = () => {
       } else {
         toast({
           title: "Error",
-          description: data.error || "Failed to assign account type",
+          description: typedResponse.error || "Failed to assign account type",
           variant: "destructive"
         });
       }
@@ -135,9 +141,12 @@ export const EmailSystemDebug: React.FC = () => {
         return;
       }
 
+      // Type assertion for the response
+      const typedResponse = data as EmailConfigTestResponse;
+      
       toast({
         title: "Email Configuration",
-        description: data.message || "Email system is ready for testing",
+        description: typedResponse.message || "Email system is ready for testing",
       });
 
     } catch (error) {

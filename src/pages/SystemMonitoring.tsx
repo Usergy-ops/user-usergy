@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { DashboardLayout } from '@/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 import { AccountTypeGuard } from '@/components/auth/AccountTypeGuard';
 import { MonitoringDashboard } from '@/components/monitoring/MonitoringDashboard';
 import { AccountTypeMonitoring } from '@/components/monitoring/AccountTypeMonitoring';
