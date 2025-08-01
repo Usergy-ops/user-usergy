@@ -30,13 +30,13 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
     try {
       monitoring.startTiming(`enhanced_google_auth_${mode}`);
       
-      // Enhanced referrer capture and context detection
+      // Enhanced context detection with improved logic
       const currentUrl = window.location.href;
       const currentHost = window.location.host;
       const referrerUrl = document.referrer || currentUrl;
       const urlParams = new URLSearchParams(window.location.search);
       
-      // Determine account type with enhanced detection logic
+      // Determine account type with enhanced detection logic (matching AuthContext)
       let accountType = 'client'; // Default fallback
       let signupSource = 'enhanced_google_oauth';
       
@@ -75,11 +75,11 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         mode
       });
       
-      // Enhanced redirect URL construction with security considerations
+      // Enhanced redirect URL construction
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
       
-      // Create state object with account type context
+      // Create comprehensive state object
       const oauthState = {
         account_type: accountType,
         signup_source: signupSource,
@@ -148,11 +148,21 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         oauth_state: oauthState
       });
       
+      // Success callback
+      if (onSuccess) {
+        onSuccess();
+      }
+      
       // Show success message for signup
       if (mode === 'signup') {
         toast({
           title: "Account Created!",
-          description: "Welcome to Usergy! Please complete your profile.",
+          description: "Welcome to Usergy! Redirecting to complete your profile...",
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
         });
       }
       
