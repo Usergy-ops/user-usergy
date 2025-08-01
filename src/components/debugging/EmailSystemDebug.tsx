@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,7 @@ export const EmailSystemDebug: React.FC = () => {
       }
 
       // Type assertion since we know the structure from our RPC function
-      const typedData = data as UserDebugInfo;
+      const typedData = data as unknown as UserDebugInfo;
       setDebugInfo(typedData);
 
       // Also fetch email logs for this user
@@ -99,8 +98,8 @@ export const EmailSystemDebug: React.FC = () => {
         return;
       }
 
-      // Type assertion for the response
-      const typedResponse = data as AccountTypeAssignmentResponse;
+      // Type assertion for the response - first cast to unknown, then to our type
+      const typedResponse = data as unknown as AccountTypeAssignmentResponse;
       
       if (typedResponse.success) {
         toast({
@@ -141,8 +140,8 @@ export const EmailSystemDebug: React.FC = () => {
         return;
       }
 
-      // Type assertion for the response
-      const typedResponse = data as EmailConfigTestResponse;
+      // Type assertion for the response - first cast to unknown, then to our type
+      const typedResponse = data as unknown as EmailConfigTestResponse;
       
       toast({
         title: "Email Configuration",
