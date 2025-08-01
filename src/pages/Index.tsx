@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAccountType } from '@/hooks/useAccountType';
 
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
@@ -19,23 +20,43 @@ const Index = () => {
     email: string;
     password: string;
   } | null>(null);
-  const {
-    toast
-  } = useToast();
-  const {
-    user,
-    signUp,
-    signIn
-  } = useAuth();
+  const { toast } = useToast();
+  const { user, signUp, signIn } = useAuth();
+  const { accountType, isUser, isClient, loading: accountTypeLoading } = useAccountType();
   const navigate = useNavigate();
 
-  // Redirect authenticated users to appropriate page
+  // Enhanced redirect logic for authenticated users
   useEffect(() => {
-    if (user) {
-      console.log('User is authenticated, redirecting to profile completion');
-      navigate('/profile-completion');
+    if (user && !accountTypeLoading) {
+      console.log('User authenticated, checking account type for redirect:', {
+        user_id: user.id,
+        accountType,
+        isUser,
+        isClient,
+        currentDomain: window.location.hostname
+      });
+
+      // Add small delay to ensure account type is properly loaded
+      const redirectTimer = setTimeout(() => {
+        if (isUser) {
+          // User accounts should go to user.usergy.ai
+          const userDomain = 'https://user.usergy.ai/profile-completion';
+          console.log('Redirecting user account to:', userDomain);
+          window.location.href = userDomain;
+        } else if (isClient) {
+          // Client accounts go to profile completion on current domain
+          console.log('Redirecting client account to profile completion');
+          navigate('/profile-completion');
+        } else {
+          // Fallback - redirect to profile completion and let it handle account type detection
+          console.log('Account type unknown, redirecting to profile completion for detection');
+          navigate('/profile-completion');
+        }
+      }, 1000);
+
+      return () => clearTimeout(redirectTimer);
     }
-  }, [user, navigate]);
+  }, [user, accountType, isUser, isClient, accountTypeLoading, navigate]);
 
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
@@ -114,9 +135,7 @@ const Index = () => {
     try {
       console.log('Attempting Google OAuth');
       const redirectUrl = `${window.location.origin}/`;
-      const {
-        error
-      } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl
@@ -141,14 +160,61 @@ const Index = () => {
     setIsLoading(false);
   };
 
-  const handleOTPSuccess = () => {
-    console.log('OTP verification successful');
-    setShowOTPVerification(false);
-    setPendingSignup(null);
-    toast({
-      title: "Welcome to Usergy!",
-      description: "Your account has been created successfully."
-    });
+  // Enhanced OTP success handler with account-type-based redirection
+  const handleOTPSuccess = async () => {
+    console.log('OTP verification successful, determining redirect...');
+    
+    try {
+      // Get the current user and their account type
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        console.error('No user found after OTP verification');
+        toast({
+          title: "Authentication Error",
+          description: "Unable to complete authentication. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check account type from user metadata (most reliable for new users)
+      const userAccountType = currentUser.user_metadata?.account_type;
+      console.log('OTP Success - User account type from metadata:', userAccountType);
+      
+      setShowOTPVerification(false);
+      setPendingSignup(null);
+      
+      toast({
+        title: "Welcome to Usergy!",
+        description: "Your account has been created successfully."
+      });
+
+      // Add delay to allow auth state to propagate
+      setTimeout(() => {
+        if (userAccountType === 'user') {
+          // Redirect user accounts to user.usergy.ai
+          const userDomain = 'https://user.usergy.ai/profile-completion';
+          console.log('OTP Success: Redirecting user account to:', userDomain);
+          window.location.href = userDomain;
+        } else if (userAccountType === 'client') {
+          // Redirect client accounts to profile completion
+          console.log('OTP Success: Redirecting client account to profile completion');
+          navigate('/profile-completion');
+        } else {
+          // Fallback - redirect to profile completion
+          console.log('OTP Success: Account type unknown, redirecting to profile completion');
+          navigate('/profile-completion');
+        }
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error in handleOTPSuccess:', error);
+      // Fallback redirect
+      setTimeout(() => {
+        navigate('/profile-completion');
+      }, 1500);
+    }
   };
 
   const handleBackToSignup = () => {
