@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccountType } from '@/hooks/useAccountType';
 import { Header } from '@/components/Header';
@@ -12,6 +12,7 @@ import { monitoring } from '@/utils/monitoring';
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const { accountType, loading: accountTypeLoading, isUser, isClient } = useAccountType();
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
 
   useEffect(() => {
     // Debug context on page load
@@ -86,7 +87,10 @@ const Index = () => {
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div className="order-2 lg:order-1">
-              <EnhancedAuthForm />
+              <EnhancedAuthForm 
+                mode={authMode} 
+                onModeChange={setAuthMode} 
+              />
             </div>
             
             <div className="order-1 lg:order-2">

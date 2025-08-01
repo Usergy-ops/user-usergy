@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -83,5 +84,44 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       </svg>
       Continue with Google
     </UsergyButton>
+  );
+};
+
+// Create the missing UsergyCTA component
+export const UsergyCTA: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-4">
+          Ready to get started?
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Join thousands of professionals already using Usergy to connect and collaborate.
+        </p>
+      </div>
+      
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Connect with verified professionals</span>
+        </div>
+        
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Work on exciting projects</span>
+        </div>
+        
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Secure and trusted platform</span>
+        </div>
+      </div>
+    </div>
   );
 };
