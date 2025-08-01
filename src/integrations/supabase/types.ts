@@ -59,6 +59,7 @@ export type Database = {
           id: string
           metadata: Json | null
           otp_code: string
+          resend_attempts: number | null
           source_url: string
           verified_at: string | null
         }
@@ -70,6 +71,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           otp_code: string
+          resend_attempts?: number | null
           source_url: string
           verified_at?: string | null
         }
@@ -81,6 +83,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           otp_code?: string
+          resend_attempts?: number | null
           source_url?: string
           verified_at?: string | null
         }
@@ -758,6 +761,10 @@ export type Database = {
           company_timezone_param?: string
           company_logo_url_param?: string
         }
+        Returns: Json
+      }
+      sync_client_workflow_integration: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       test_email_configuration: {

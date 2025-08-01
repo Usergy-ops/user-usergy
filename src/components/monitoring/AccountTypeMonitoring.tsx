@@ -3,8 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, RefreshCw, Users, UserCheck, UserX } from 'lucide-react';
-import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes } from '@/utils/accountTypeUtils';
+import { AlertCircle, CheckCircle, RefreshCw, Users, UserCheck, UserX, Database, Zap } from 'lucide-react';
+import { 
+  monitorAccountTypeCoverage, 
+  fixExistingUsersWithoutAccountTypes,
+  syncClientWorkflowIntegration
+} from '@/utils/accountTypeUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface AccountTypeStatus {
@@ -29,6 +33,7 @@ export const AccountTypeMonitoring: React.FC = () => {
   const [status, setStatus] = useState<AccountTypeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [fixing, setFixing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   const fetchStatus = async () => {
@@ -80,6 +85,38 @@ export const AccountTypeMonitoring: React.FC = () => {
     }
   };
 
+  const handleSyncClientWorkflow = async () => {
+    try {
+      setSyncing(true);
+      const result = await syncClientWorkflowIntegration();
+      
+      if (result.success) {
+        toast({
+          title: "Sync Complete",
+          description: `Synchronized ${result.synced_records || 0} client records with workflow system`
+        });
+        
+        // Refresh status after sync
+        await fetchStatus();
+      } else {
+        toast({
+          title: "Sync Failed",
+          description: result.error || "Failed to sync client workflow integration",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing client workflow:', error);
+      toast({
+        title: "Sync Error",
+        description: "An unexpected error occurred during sync",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchStatus();
     
@@ -106,7 +143,7 @@ export const AccountTypeMonitoring: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" />
-          Account Type Coverage
+          Enhanced Account Type Coverage
           {status?.is_healthy ? (
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
               <CheckCircle className="w-3 h-3 mr-1" />
@@ -114,13 +151,13 @@ export const AccountTypeMonitoring: React.FC = () => {
             </Badge>
           ) : (
             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-              <AlertCircle className="w-3 h-3 mr-1" />
+              <AlertTriangle className="w-3 h-3 mr-1" />
               Issues Detected
             </Badge>
           )}
         </CardTitle>
         <CardDescription>
-          Monitoring account type assignment for all users
+          Monitoring account type assignment and system integration status
         </CardDescription>
       </CardHeader>
       
@@ -159,35 +196,62 @@ export const AccountTypeMonitoring: React.FC = () => {
             </div>
             
             {!status.is_healthy && (
-              <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg gap-4">
                 <div className="flex items-center gap-2 text-amber-800">
-                  <AlertCircle className="w-5 h-5" />
+                  <AlertTriangle className="w-5 h-5" />
                   <span className="font-medium">
-                    {status.users_without_account_types} users are missing account types
+                    {status.users_without_account_types} users need account type assignment
                   </span>
                 </div>
-                <Button
-                  onClick={fixMissingAccountTypes}
-                  disabled={fixing}
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                >
-                  {fixing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Fixing...
-                    </>
-                  ) : (
-                    'Fix Missing Types'
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={fixMissingAccountTypes}
+                    disabled={fixing}
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                  >
+                    {fixing ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Fixing...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 mr-2" />
+                        Fix Missing Types
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={handleSyncClientWorkflow}
+                    disabled={syncing}
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  >
+                    {syncing ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-4 h-4 mr-2" />
+                        Sync Client Workflow
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
             
             <div className="flex items-center justify-between">
               <div className="text-xs text-muted-foreground">
                 Last updated: {new Date(status.timestamp).toLocaleString()}
+                <br />
+                Enhanced monitoring with security hardening active
               </div>
               
               <Button

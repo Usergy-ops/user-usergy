@@ -5,8 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccountType } from '@/hooks/useAccountType';
-import { monitorAccountTypeCoverage, fixExistingUsersWithoutAccountTypes, ensureUserHasAccountType } from '@/utils/accountTypeUtils';
-import { RefreshCw, Users, CheckCircle, AlertTriangle, Shield, UserPlus } from 'lucide-react';
+import { 
+  monitorAccountTypeCoverage, 
+  fixExistingUsersWithoutAccountTypes, 
+  ensureUserHasAccountType,
+  syncClientWorkflowIntegration,
+  cleanupExpiredOTPRecords
+} from '@/utils/accountTypeUtils';
+import { RefreshCw, Users, CheckCircle, AlertTriangle, Shield, UserPlus, Database, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface CoverageStats {
@@ -33,6 +39,8 @@ export const AuthTestingUtility: React.FC = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
   const [isEnsuring, setIsEnsuring] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const [monitoringData, setMonitoringData] = useState<CoverageStats | null>(null);
   const [fixingData, setFixingData] = useState<FixResult | null>(null);
   const { toast } = useToast();
@@ -45,12 +53,12 @@ export const AuthTestingUtility: React.FC = () => {
       
       if (data.is_healthy) {
         toast({
-          title: "Account Type Coverage",
+          title: "System Health Check",
           description: `${data.coverage_percentage}% coverage - System healthy!`,
         });
       } else {
         toast({
-          title: "Account Type Issues Found",
+          title: "Issues Detected",
           description: `${data.users_without_account_types} users need account type assignment`,
           variant: "destructive"
         });
@@ -125,13 +133,60 @@ export const AuthTestingUtility: React.FC = () => {
     }
   };
 
+  const handleSyncClientWorkflow = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncClientWorkflowIntegration();
+      
+      if (result.success) {
+        toast({
+          title: "Sync Complete",
+          description: `Synchronized ${result.synced_records || 0} client records`,
+        });
+      } else {
+        toast({
+          title: "Sync Failed", 
+          description: result.error || "Failed to sync client workflow",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Sync Error",
+        description: "Failed to sync client workflow integration",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleCleanupOTP = async () => {
+    setIsCleaning(true);
+    try {
+      await cleanupExpiredOTPRecords();
+      toast({
+        title: "Cleanup Complete",
+        description: "Expired OTP records have been cleaned up",
+      });
+    } catch (error) {
+      toast({
+        title: "Cleanup Error",
+        description: "Failed to clean up expired records",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto p-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Shield className="w-5 h-5" />
-            <span>Authentication System Status</span>
+            <span>Enhanced Authentication System Status</span>
           </CardTitle>
         </CardHeader>
         
@@ -196,13 +251,14 @@ export const AuthTestingUtility: React.FC = () => {
             </Badge>
           </div>
 
-          {/* System Actions */}
+          {/* Enhanced System Actions */}
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               <Button
                 onClick={handleMonitorCoverage}
                 disabled={isMonitoring}
                 variant="outline"
+                size="sm"
               >
                 {isMonitoring ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -216,6 +272,7 @@ export const AuthTestingUtility: React.FC = () => {
                 onClick={handleFixAccountTypes}
                 disabled={isFixing}
                 variant="outline"
+                size="sm"
               >
                 {isFixing ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -229,6 +286,7 @@ export const AuthTestingUtility: React.FC = () => {
                 onClick={handleEnsureCurrentUser}
                 disabled={isEnsuring || !user}
                 variant="outline"
+                size="sm"
               >
                 {isEnsuring ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -236,6 +294,34 @@ export const AuthTestingUtility: React.FC = () => {
                   <UserPlus className="w-4 h-4 mr-2" />
                 )}
                 Ensure Current User
+              </Button>
+
+              <Button
+                onClick={handleSyncClientWorkflow}
+                disabled={isSyncing}
+                variant="outline"
+                size="sm"
+              >
+                {isSyncing ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Database className="w-4 h-4 mr-2" />
+                )}
+                Sync Client Workflow
+              </Button>
+
+              <Button
+                onClick={handleCleanupOTP}
+                disabled={isCleaning}
+                variant="outline"
+                size="sm"
+              >
+                {isCleaning ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                Cleanup OTP Records
               </Button>
             </div>
 

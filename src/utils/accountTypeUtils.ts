@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { monitoring } from './monitoring';
 
 /**
- * Enhanced account type utilities - streamlined for cleaned database
+ * Enhanced account type utilities - now aligned with secured database
  */
 
 // Type definitions for RPC responses
@@ -28,6 +28,13 @@ interface FixResult {
 interface AssignAccountTypeResult {
   success: boolean;
   account_type?: string;
+  message?: string;
+  error?: string;
+}
+
+interface SyncResult {
+  success: boolean;
+  synced_records?: number;
   message?: string;
   error?: string;
 }
@@ -58,6 +65,15 @@ const isAssignAccountTypeResult = (data: any): data is AssignAccountTypeResult =
     typeof data.success === 'boolean';
 };
 
+const isSyncResult = (data: any): data is SyncResult => {
+  return data && 
+    typeof data === 'object' &&
+    typeof data.success === 'boolean';
+};
+
+/**
+ * Ensures user has proper account type assignment
+ */
 export const ensureUserHasAccountType = async (userId: string): Promise<void> => {
   try {
     console.log('Ensuring user has account type:', userId);
@@ -87,7 +103,7 @@ export const ensureUserHasAccountType = async (userId: string): Promise<void> =>
       return;
     }
 
-    // Use the manually assign function since assign_account_type_by_domain doesn't exist
+    // Use the manual assign function for explicit assignment
     const { data: result, error: assignError } = await supabase
       .rpc('manually_assign_account_type', {
         user_id_param: userId,
@@ -116,6 +132,9 @@ export const ensureUserHasAccountType = async (userId: string): Promise<void> =>
   }
 };
 
+/**
+ * Monitor account type coverage across all users
+ */
 export const monitorAccountTypeCoverage = async (): Promise<CoverageStats> => {
   try {
     const { data, error } = await supabase.rpc('monitor_account_type_coverage');
@@ -136,16 +155,19 @@ export const monitorAccountTypeCoverage = async (): Promise<CoverageStats> => {
   }
 };
 
+/**
+ * Fix existing users with incorrect account types
+ */
 export const fixExistingUsersWithoutAccountTypes = async (): Promise<FixResult> => {
   try {
-    const { data, error } = await supabase.rpc('fix_account_type_mismatches');
+    const { data, error } = await supabase.rpc('fix_incorrect_account_types');
     
     if (error) {
       throw error;
     }
     
     if (!isFixResult(data)) {
-      throw new Error('Invalid response format from fix_account_type_mismatches');
+      throw new Error('Invalid response format from fix_incorrect_account_types');
     }
     
     return data;
@@ -185,8 +207,52 @@ export const manuallyAssignAccountType = async (
   }
 };
 
-// Export the function that was missing (alias for manuallyAssignAccountType)
+/**
+ * Sync client workflow integration
+ */
+export const syncClientWorkflowIntegration = async (): Promise<SyncResult> => {
+  try {
+    const { data, error } = await supabase.rpc('sync_client_workflow_integration');
+    
+    if (error) {
+      throw error;
+    }
+    
+    if (!isSyncResult(data)) {
+      throw new Error('Invalid response format from sync_client_workflow_integration');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error syncing client workflow integration:', error);
+    monitoring.logError(error as Error, 'sync_client_workflow_integration');
+    throw error;
+  }
+};
+
+/**
+ * Domain-based account type assignment (alias for backward compatibility)
+ */
 export const assignAccountTypeByDomain = async (userId: string, email?: string): Promise<AssignAccountTypeResult> => {
   const accountType = email?.includes('user.usergy.ai') ? 'user' : 'client';
   return manuallyAssignAccountType(userId, accountType);
+};
+
+/**
+ * Enhanced cleanup function for expired OTP records
+ */
+export const cleanupExpiredOTPRecords = async (): Promise<void> => {
+  try {
+    const { error } = await supabase.rpc('cleanup_expired_unified_otp');
+    
+    if (error) {
+      console.error('Error cleaning up expired OTP records:', error);
+      monitoring.logError(error, 'cleanup_expired_otp');
+    } else {
+      console.log('Expired OTP records cleaned up successfully');
+    }
+  } catch (error) {
+    console.error('Unexpected error during OTP cleanup:', error);
+    monitoring.logError(error as Error, 'cleanup_expired_otp_unexpected');
+  }
 };
