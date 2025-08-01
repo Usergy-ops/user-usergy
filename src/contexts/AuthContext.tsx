@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 import { ensureUserHasAccountType } from '@/utils/accountTypeUtils';
-import { handleAuthSuccessRedirect, debugRedirectContext } from '@/utils/redirectionUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -42,19 +41,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Debug redirect context on mount
-    debugRedirectContext();
-
     // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
-        console.log('Initial session check:', {
-          hasSession: !!initialSession,
-          userId: initialSession?.user?.id,
-          email: initialSession?.user?.email
-        });
+        console.log('Initial session:', initialSession);
         
         if (error) {
           console.error('Error getting initial session:', error);
@@ -65,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(initialSession);
           setUser(initialSession.user);
           await fetchAccountType(initialSession.user.id);
+          // Ensure account type is properly set after successful session
           await ensureUserHasAccountType(initialSession.user.id);
         }
       } catch (error) {
@@ -77,44 +70,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     getInitialSession();
 
-    // Listen for auth state changes with enhanced OAuth handling
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        console.log('Auth state change:', {
-          event,
-          hasSession: !!currentSession,
-          userId: currentSession?.user?.id,
-          userMetadata: currentSession?.user?.user_metadata
-        });
+        console.log('Auth state change:', event, currentSession);
         
         setSession(currentSession);
         setUser(currentSession?.user || null);
         
         if (currentSession?.user) {
           await fetchAccountType(currentSession.user.id);
-          
-          // Enhanced handling for different auth events
-          if (event === 'SIGNED_IN') {
-            await ensureUserHasAccountType(currentSession.user.id);
-            
-            // Check if this is an OAuth sign-in that needs redirect handling
-            const userMetadata = currentSession.user.user_metadata;
-            const isOAuthUser = userMetadata?.iss || userMetadata?.provider_id;
-            
-            if (isOAuthUser) {
-              console.log('OAuth user detected, handling redirect...');
-              setTimeout(async () => {
-                const finalAccountType = userMetadata?.account_type || 
-                  (currentSession.user.email?.includes('user.usergy.ai') ? 'user' : 'client');
-                
-                await handleAuthSuccessRedirect(
-                  currentSession.user,
-                  finalAccountType,
-                  true // Assume new user for OAuth initially
-                );
-              }, 1000);
-            }
-          } else if (event === 'TOKEN_REFRESHED') {
+          // Ensure account type is properly set for any auth state change
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             await ensureUserHasAccountType(currentSession.user.id);
           }
         } else {
@@ -144,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const type = data?.account_type || null;
       setAccountType(type);
       
-      console.log('Account type fetched:', { userId, accountType: type });
+      console.log('Account type fetched:', type);
     } catch (error) {
       console.error('Error in fetchAccountType:', error);
       monitoring.logError(error as Error, 'fetch_account_type_error', { userId });
@@ -170,23 +137,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error: error.message };
       }
 
+      // Ensure account type is set after successful sign in
       if (data.user) {
         await ensureUserHasAccountType(data.user.id);
-        
-        // Handle redirect for sign in
-        setTimeout(async () => {
-          const userAccountType = data.user.user_metadata?.account_type ||
-            (data.user.email?.includes('user.usergy.ai') ? 'user' : 'client');
-          
-          await handleAuthSuccessRedirect(data.user, userAccountType, false);
-        }, 1000);
       }
 
       trackUserAction('signin_success', { email, method: 'password' });
       
       toast({
         title: "Welcome back!",
-        description: "Redirecting to your dashboard...",
+        description: "You have successfully signed in.",
       });
 
       return {};
@@ -238,7 +198,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         signupSource = 'enhanced_client_signup';
       }
       
-      console.log('Enhanced signup context detection:', {
+      console.log('Signup context detection:', {
         sourceUrl,
         referrerUrl,
         urlParams: Object.fromEntries(urlParams),
@@ -256,7 +216,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           signup_source: signupSource,
           source_url: sourceUrl,
           referrer_url: referrerUrl,
-          user_metadata: metadata
+          ...metadata
         }
       });
 
@@ -316,17 +276,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error: data.error };
       }
 
-      // Enhanced success handling with redirect
+      // Enhanced success handling with user info
       if (data?.success && data?.user) {
-        const isNewUser = data.isNewUser || true;
+        const isNewUser = data.isNewUser || false;
         const userAccountType = data.accountType || data.user.user_metadata?.account_type;
         
         console.log('OTP verification successful:', {
           email,
           isNewUser,
           accountType: userAccountType,
-          userId: data.user.id,
-          redirectUrl: data.redirectUrl
+          userId: data.user.id
         });
 
         trackUserAction('otp_verification_success', { 
@@ -335,15 +294,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           accountType: userAccountType
         });
 
-        // Handle redirect after successful OTP verification
-        setTimeout(async () => {
-          if (data.redirectUrl) {
-            console.log('Using provided redirect URL:', data.redirectUrl);
-            window.location.href = data.redirectUrl;
-          } else {
-            await handleAuthSuccessRedirect(data.user, userAccountType, isNewUser);
-          }
-        }, 1500);
+        // For existing users, force a session refresh to update auth state
+        if (!isNewUser) {
+          console.log('Refreshing session for existing user...');
+          setTimeout(async () => {
+            try {
+              await supabase.auth.refreshSession();
+              console.log('Session refreshed successfully');
+            } catch (refreshError) {
+              console.error('Error refreshing session:', refreshError);
+            }
+          }, 1000);
+        }
 
         return { 
           isNewUser, 

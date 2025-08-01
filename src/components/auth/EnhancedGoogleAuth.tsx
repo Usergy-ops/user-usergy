@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Chrome, Loader2, Shield } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
-import { generateRedirectUrl, debugRedirectContext } from '@/utils/redirectionUtils';
 
 interface EnhancedGoogleAuthProps {
   mode: 'signin' | 'signup';
@@ -32,39 +31,38 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       monitoring.startTiming(`enhanced_google_auth_${mode}`);
       
       // Enhanced context detection with improved logic
-      const redirectContext = debugRedirectContext();
       const currentUrl = window.location.href;
       const currentHost = window.location.host;
       const referrerUrl = document.referrer || currentUrl;
       const urlParams = new URLSearchParams(window.location.search);
       
-      // Determine account type with enhanced detection logic
+      // Determine account type with enhanced detection logic (matching AuthContext)
       let accountType = 'client'; // Default fallback
       let signupSource = 'enhanced_google_oauth';
       
       // Check URL parameters first (highest priority)
       if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
         accountType = 'user';
-        signupSource = 'enhanced_user_google_signup';
+        signupSource = 'enhanced_user_signup';
       } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
         accountType = 'client';
-        signupSource = 'enhanced_client_google_signup';
+        signupSource = 'enhanced_client_signup';
       }
       // Check domain/host (second priority)
       else if (currentHost.includes('user.usergy.ai')) {
         accountType = 'user';
-        signupSource = 'enhanced_user_google_signup';
+        signupSource = 'enhanced_user_signup';
       } else if (currentHost.includes('client.usergy.ai')) {
         accountType = 'client';
-        signupSource = 'enhanced_client_google_signup';
+        signupSource = 'enhanced_client_signup';
       }
       // Check URL paths (third priority)
       else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
         accountType = 'user';
-        signupSource = 'enhanced_user_google_signup';
+        signupSource = 'enhanced_user_signup';
       } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
         accountType = 'client';
-        signupSource = 'enhanced_client_google_signup';
+        signupSource = 'enhanced_client_signup';
       }
       
       console.log('Enhanced Google Auth - Context detection:', {
@@ -74,30 +72,34 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         urlParams: Object.fromEntries(urlParams),
         detectedAccountType: accountType,
         signupSource,
-        mode,
-        redirectContext
+        mode
       });
       
-      // Enhanced redirect URL construction with proper account type
-      const redirectTo = generateRedirectUrl(accountType, mode === 'signup');
+      // Enhanced redirect URL construction with domain-specific logic
+      const baseUrl = window.location.origin;
+      let redirectTo;
       
-      // Create comprehensive state object with account type context
+      if (mode === 'signup') {
+        if (accountType === 'user') {
+          redirectTo = 'https://user.usergy.ai/profile-completion';
+        } else if (accountType === 'client') {
+          redirectTo = 'https://client.usergy.ai/profile';
+        } else {
+          redirectTo = `${baseUrl}/profile-completion`;
+        }
+      } else {
+        // For signin, redirect to dashboard on current domain first, then let the app handle redirects
+        redirectTo = `${baseUrl}/dashboard`;
+      }
+      
+      // Create comprehensive state object
       const oauthState = {
         account_type: accountType,
         signup_source: signupSource,
         mode: mode,
-        source_url: currentUrl,
         referrer_url: referrerUrl,
-        timestamp: Date.now(),
-        enhanced_oauth: true
+        timestamp: Date.now()
       };
-      
-      console.log('OAuth configuration:', {
-        redirectTo,
-        oauthState,
-        accountType,
-        mode
-      });
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -105,8 +107,10 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
           redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: mode === 'signup' ? 'consent' : 'select_account',
+            prompt: 'consent',
             hd: undefined, // Allow any domain
+            // Pass account type context through OAuth state
+            state: btoa(JSON.stringify(oauthState))
           },
           skipBrowserRedirect: false
         }
@@ -119,8 +123,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
           redirect_to: redirectTo,
           referrer_url: referrerUrl,
           account_type: accountType,
-          signup_source: signupSource,
-          oauth_state: oauthState
+          signup_source: signupSource
         });
         
         // Enhanced error messaging
@@ -163,15 +166,18 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         onSuccess();
       }
       
-      // Show success message
-      const message = mode === 'signup' 
-        ? `Creating your ${accountType} account...` 
-        : "Signing you in...";
-      
-      toast({
-        title: "Redirecting...",
-        description: message,
-      });
+      // Show success message for signup
+      if (mode === 'signup') {
+        toast({
+          title: "Account Created!",
+          description: "Welcome to Usergy! Redirecting to your profile...",
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
+        });
+      }
       
     } catch (error) {
       monitoring.logError(error as Error, `enhanced_google_auth_${mode}_error`, {
