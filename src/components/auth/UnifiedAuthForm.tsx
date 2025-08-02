@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +7,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, User, Shield, Chrome, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Eye, EyeOff, Mail, Lock, User, Shield } from 'lucide-react';
+import { GoogleAuth } from '@/components/GoogleAuth';
 import { UnifiedOTPVerification } from './UnifiedOTPVerification';
+import { detectAccountTypeFromContext } from '@/utils/authRedirection';
 
 interface UnifiedAuthFormProps {
   mode: 'signin' | 'signup';
@@ -22,35 +22,11 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({ mode, onModeCh
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [showOTP, setShowOTP] = useState(false);
   
   const { signIn, signUp, resetPassword } = useAuth();
   const { toast } = useToast();
-
-  const detectAccountTypeContext = () => {
-    const currentUrl = window.location.href;
-    const currentHost = window.location.host;
-    const referrerUrl = document.referrer || currentUrl;
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    let accountType = 'client';
-    let signupSource = 'unified_auth_form';
-    
-    if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
-      accountType = 'user';
-      signupSource = 'unified_user_signup';
-    } else if (currentHost.includes('user.usergy.ai')) {
-      accountType = 'user';
-      signupSource = 'unified_user_signup';
-    } else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
-      accountType = 'user';
-      signupSource = 'unified_user_signup';
-    }
-    
-    return { account_type: accountType, signup_source: signupSource };
-  };
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -97,7 +73,20 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({ mode, onModeCh
           });
         }
       } else {
-        const context = detectAccountTypeContext();
+        // Enhanced context detection for signup
+        const accountType = detectAccountTypeFromContext();
+        const sourceUrl = window.location.href;
+        const referrerUrl = document.referrer || sourceUrl;
+        
+        const context = {
+          account_type: accountType,
+          signup_source: `unified_${accountType}_signup`,
+          source_url: sourceUrl,
+          referrer_url: referrerUrl
+        };
+        
+        console.log('Signup Context:', context);
+        
         const result = await signUp(email, password, context);
         
         if (result.error) {
@@ -135,60 +124,6 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({ mode, onModeCh
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleAuth = async () => {
-    if (isGoogleLoading) return;
-    
-    setIsGoogleLoading(true);
-    
-    try {
-      const context = detectAccountTypeContext();
-      const baseUrl = window.location.origin;
-      
-      let redirectTo;
-      if (mode === 'signup') {
-        redirectTo = context.account_type === 'user' 
-          ? 'https://user.usergy.ai/profile-completion'
-          : 'https://client.usergy.ai/profile';
-      } else {
-        redirectTo = `${baseUrl}/dashboard`;
-      }
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Google auth error:', error);
-        let userMessage = `Failed to ${mode} with Google`;
-        if (error.message.includes('popup')) {
-          userMessage = 'Popup was blocked. Please allow popups and try again.';
-        }
-        
-        toast({
-          title: "Authentication Error",
-          description: userMessage,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Google auth error:', error);
-      toast({
-        title: "Authentication Error",
-        description: "An unexpected error occurred during authentication",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -240,7 +175,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({ mode, onModeCh
         email={email}
         password={password}
         onBack={() => setShowOTP(false)}
-        onSuccess={handleOTPSuccess}
+        onSuccess={() => setShowOTP(false)}
       />
     );
   }
@@ -264,27 +199,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({ mode, onModeCh
       
       <CardContent className="space-y-4">
         {/* Google Auth */}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleGoogleAuth}
-          disabled={isGoogleLoading || isLoading}
-          className="w-full flex items-center justify-center space-x-2 border-2 hover:bg-muted/50 transition-colors"
-        >
-          {isGoogleLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Connecting...</span>
-            </>
-          ) : (
-            <>
-              <Chrome className="w-5 h-5" />
-              <span>
-                {mode === 'signin' ? 'Sign in with Google' : 'Sign up with Google'}
-              </span>
-            </>
-          )}
-        </Button>
+        <GoogleAuth mode={mode} />
         
         <div className="relative">
           <Separator />

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { performRedirection, detectAccountTypeFromContext } from '@/utils/authRedirection';
 
 interface UnifiedOTPVerificationProps {
   email: string;
@@ -95,7 +96,7 @@ export const UnifiedOTPVerification: React.FC<UnifiedOTPVerificationProps> = ({
     setIsLoading(true);
     
     try {
-      const { error } = await verifyOTP(email, otpCode, password);
+      const { error, isNewUser, accountType } = await verifyOTP(email, otpCode, password);
       
       if (error) {
         if (error.includes('Too many') || error.includes('blocked')) {
@@ -135,8 +136,23 @@ export const UnifiedOTPVerification: React.FC<UnifiedOTPVerificationProps> = ({
           description: "Your account has been created successfully."
         });
         
+        // Determine account type for redirection
+        const finalAccountType = accountType || detectAccountTypeFromContext();
+        
+        console.log('OTP Verification Success - Redirecting:', {
+          email,
+          isNewUser,
+          accountType: finalAccountType,
+          currentDomain: window.location.hostname
+        });
+        
+        // Redirect to appropriate domain/page
         setTimeout(() => {
-          onSuccess();
+          performRedirection({
+            accountType: finalAccountType,
+            isNewUser: isNewUser ?? true,
+            isGoogleAuth: false
+          });
         }, 1500);
       }
     } catch (error) {

@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     getInitialSession();
 
-    // Listen for auth state changes
+    // Listen for auth state changes with enhanced redirect handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('Auth state change:', event, currentSession);
@@ -115,6 +115,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Ensure account type is properly set for any auth state change
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             await ensureUserHasAccountType(currentSession.user.id);
+            
+            // Handle post-authentication redirection for Google OAuth
+            if (event === 'SIGNED_IN') {
+              const pendingAccountType = localStorage.getItem('pending_account_type');
+              const pendingSourceUrl = localStorage.getItem('pending_source_url');
+              
+              if (pendingAccountType && pendingSourceUrl) {
+                console.log('Handling post-Google-OAuth redirection:', {
+                  pendingAccountType,
+                  pendingSourceUrl,
+                  userId: currentSession.user.id
+                });
+                
+                // Clean up pending data
+                localStorage.removeItem('pending_account_type');
+                localStorage.removeItem('pending_source_url');
+                
+                // Import redirection utility dynamically to avoid circular dependency
+                setTimeout(async () => {
+                  const { performRedirection } = await import('@/utils/authRedirection');
+                  performRedirection({
+                    accountType: pendingAccountType as 'user' | 'client',
+                    isNewUser: true,
+                    isGoogleAuth: true
+                  });
+                }, 1000);
+              }
+            }
           }
         } else {
           setAccountType(null);

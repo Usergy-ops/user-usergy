@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Chrome, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getGoogleOAuthRedirectUrl, detectAccountTypeFromContext } from '@/utils/authRedirection';
 
 interface GoogleAuthProps {
   mode?: 'signin' | 'signup';
@@ -25,19 +26,24 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     setIsLoading(true);
     
     try {
-      const sourceUrl = window.location.href;
-      const accountType = sourceUrl.includes('user.usergy.ai') ? 'user' : 'client';
+      const accountType = detectAccountTypeFromContext();
+      const redirectUrl = getGoogleOAuthRedirectUrl(accountType);
+      
+      console.log('Google Auth - Context Detection:', {
+        accountType,
+        redirectUrl,
+        mode,
+        currentUrl: window.location.href
+      });
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent'
-          },
-          // Pass account type through metadata
-          scopes: 'email profile'
+          }
         }
       });
 
@@ -53,7 +59,7 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
 
       // Store account type for post-OAuth processing
       localStorage.setItem('pending_account_type', accountType);
-      localStorage.setItem('pending_source_url', sourceUrl);
+      localStorage.setItem('pending_source_url', window.location.href);
 
       if (onSuccess) {
         onSuccess();
