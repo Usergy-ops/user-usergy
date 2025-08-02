@@ -37,7 +37,7 @@ export const WorkspaceContent: React.FC<WorkspaceContentProps> = ({
 
   return (
     <main className={cn(
-      "flex-1 transition-all duration-300 pb-20 md:pb-8",
+      "flex-1 transition-all duration-300 pb-8",
       sidebarOpen ? "md:ml-[280px]" : "md:ml-[60px]"
     )}>
       <div className="max-w-4xl mx-auto p-4 md:p-8">

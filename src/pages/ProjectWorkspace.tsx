@@ -77,7 +77,7 @@ const ProjectWorkspace: React.FC = () => {
     console.error('No project ID provided in route');
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-2">Project Not Found</h1>
             <p className="text-muted-foreground">The requested project could not be found.</p>
@@ -90,7 +90,7 @@ const ProjectWorkspace: React.FC = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-2">Loading Project...</h1>
             <p className="text-muted-foreground">Please wait while we load the project details.</p>
@@ -103,7 +103,7 @@ const ProjectWorkspace: React.FC = () => {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-2">Error Loading Project</h1>
             <p className="text-muted-foreground">There was an error loading the project. Please try again.</p>
