@@ -19,7 +19,35 @@ interface UseEnhancedErrorHandlerOptions {
   customErrorProcessor?: (error: Error, context?: string) => string;
 }
 
-export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions = {}) => {
+interface ErrorHandlerReturn {
+  handleError: (
+    error: Error | string,
+    context?: string,
+    metadata?: Record<string, any>,
+    retryAction?: () => Promise<void>
+  ) => Promise<void>;
+  retry: () => Promise<void>;
+  clearError: () => void;
+  handleAsyncOperation: <T>(
+    operation: () => Promise<T>,
+    context: string,
+    metadata?: Record<string, any>
+  ) => Promise<T | null>;
+  wrapAsyncFunction: <TArgs extends any[], TReturn>(
+    fn: (...args: TArgs) => Promise<TReturn>,
+    context: string
+  ) => (...args: TArgs) => Promise<TReturn | null>;
+  processError: (error: Error | string, context?: string) => string;
+  logError: (error: Error, context?: string, metadata?: Record<string, any>) => void;
+  currentError: EnhancedError | null;
+  retryCount: number;
+  isRetrying: boolean;
+  canRetry: boolean;
+}
+
+export const useEnhancedErrorHandler = (
+  options: UseEnhancedErrorHandlerOptions = {}
+): ErrorHandlerReturn => {
   const {
     defaultErrorMessage = 'An unexpected error occurred',
     logErrors = true,
@@ -49,7 +77,11 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     return getAuthErrorMessage(errorMessage, context);
   }, [customErrorProcessor]);
 
-  const logError = useCallback((error: Error, context?: string, metadata?: Record<string, any>) => {
+  const logError = useCallback((
+    error: Error, 
+    context?: string, 
+    metadata?: Record<string, any>
+  ) => {
     if (!logErrors) return;
     
     console.group(`🚨 Enhanced Error Handler: ${context || 'Unknown Context'}`);
@@ -186,6 +218,8 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     };
   }, [handleAsyncOperation]);
 
+  const canRetry = retryCount < maxRetries && !isRetrying && !!retryActionRef.current;
+
   return {
     handleError,
     handleAsyncOperation,
@@ -195,7 +229,7 @@ export const useEnhancedErrorHandler = (options: UseEnhancedErrorHandlerOptions 
     currentError,
     isRetrying,
     retryCount,
-    canRetry: retryCount < maxRetries && !isRetrying && !!retryActionRef.current,
+    canRetry,
     processError,
     logError
   };
