@@ -43,7 +43,10 @@ export class ProfileSectionUpdater {
       .from('consolidated_social_presence')
       .upsert({ 
         user_id: userId, 
-        ...data
+        ...data,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       });
     
     if (updateResult.error) {

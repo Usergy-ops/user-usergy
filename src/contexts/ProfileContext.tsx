@@ -99,6 +99,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Preload dependencies in background
       preloadProfileDependencies(user.id).catch(console.warn);
     } else {
+      // Reset all state when no user
+      setProfileData({});
+      setDeviceData({});
+      setTechFluencyData({});
+      setSkillsData({});
+      setSocialPresenceData({});
       setLoading(false);
     }
   }, [user]);
@@ -132,8 +138,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setLoading(true);
       
+      console.log('Loading profile data for user:', user.id);
+      
       // Use cached profile data loader
       const profileDataResponse = await cachedProfileDataLoader.loadAll(user.id);
+      
+      console.log('Profile data loaded:', profileDataResponse);
       
       setProfileData(profileDataResponse.profile || {});
       setDeviceData(profileDataResponse.devices || {});

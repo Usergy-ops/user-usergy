@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -28,10 +29,11 @@ const isValidUrl = (url: string): boolean => {
 };
 
 export const EnhancedSocialPresenceSection: React.FC = () => {
-  const { profileData, setCurrentStep, currentStep, updateProfileData } = useProfile();
+  const { user } = useAuth();
+  const { profileData, setCurrentStep, currentStep, updateProfileData, loading: profileLoading } = useProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [formData, setFormData] = useState<SocialFormData>({
     linkedin_url: '',
     github_url: '',
@@ -43,20 +45,31 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
   // Load existing social presence data from consolidated table
   useEffect(() => {
     const loadExistingData = async () => {
-      if (!profileData.user_id) return;
+      if (!user?.id || profileLoading) return;
       
       try {
+        setIsLoadingData(true);
+        
         const { data, error } = await supabase
           .from('consolidated_social_presence')
           .select('*')
-          .eq('user_id', profileData.user_id)
+          .eq('user_id', user.id)
           .maybeSingle();
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           console.error('Error loading social presence:', error);
           return;
         }
         
+        // Also try to get data from profile table as fallback
+        const profileSocialData = {
+          linkedin_url: profileData.linkedin_url || '',
+          github_url: profileData.github_url || '',
+          twitter_url: profileData.twitter_url || '',
+          portfolio_url: profileData.portfolio_url || ''
+        };
+        
+        // Use consolidated data if available, otherwise use profile data
         if (data) {
           setFormData({
             linkedin_url: data.linkedin_url || '',
@@ -64,16 +77,18 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
             twitter_url: data.twitter_url || '',
             portfolio_url: data.portfolio_url || ''
           });
+        } else {
+          setFormData(profileSocialData);
         }
       } catch (error) {
         console.error('Error loading social presence:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingData(false);
       }
     };
     
     loadExistingData();
-  }, [profileData.user_id]);
+  }, [user?.id, profileLoading, profileData]);
 
   const handleInputChange = (field: keyof SocialFormData, value: string) => {
     setFormData(prev => ({
@@ -102,10 +117,10 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profileData.user_id) {
+    if (!user?.id) {
       toast({
         title: "Error",
-        description: "User not found. Please try again.",
+        description: "User not authenticated. Please try again.",
         variant: "destructive"
       });
       return;
@@ -163,7 +178,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     } catch (error) {
       monitoring.logError(error as Error, 'social_presence_save_error', {
         section: 'social_presence',
-        user_id: profileData.user_id
+        user_id: user.id
       });
       
       toast({
@@ -211,7 +226,8 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
     }
   ];
 
-  if (isLoading) {
+  // Show loading if profile context is loading or we're loading data
+  if (profileLoading || isLoadingData) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="w-6 h-6 animate-spin" />

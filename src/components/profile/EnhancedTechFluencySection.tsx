@@ -1,291 +1,164 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+
+import React, { useState, useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { Brain, Code, Zap, Save, AlertCircle } from 'lucide-react';
+import { Bot, Code, Lightbulb, Loader2 } from 'lucide-react';
+import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface TechFluencyFormData {
   technical_experience_level: string;
   ai_familiarity_level: string;
-  ai_interests: string[];
   ai_models_used: string[];
+  ai_interests: string[];
+  coding_experience_years: number | null;
   programming_languages: string[];
-  coding_experience_years: number;
 }
 
-const AUTO_SAVE_DELAY = 2000; // 2 seconds
-
 export const EnhancedTechFluencySection: React.FC = () => {
-  const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { user } = useAuth();
+  const { 
+    profileData, 
+    techFluencyData, 
+    setCurrentStep, 
+    currentStep, 
+    updateProfileData,
+    loading: profileLoading 
+  } = useProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [lastSavedData, setLastSavedData] = useState<TechFluencyFormData | null>(null);
-
-  // User-specific localStorage key
-  const getAutoSaveKey = useCallback(() => {
-    if (!user?.id) return null;
-    return `tech_fluency_form_data_${user.id}`;
-  }, [user?.id]);
-
-  console.log('EnhancedTechFluencySection rendered with data:', {
-    profileData: {
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level
-    },
-    techFluencyData: {
-      ai_interests: techFluencyData.ai_interests,
-      ai_models_used: techFluencyData.ai_models_used,
-      coding_experience_years: techFluencyData.coding_experience_years
-    }
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [formData, setFormData] = useState<TechFluencyFormData>({
+    technical_experience_level: '',
+    ai_familiarity_level: '',
+    ai_models_used: [],
+    ai_interests: [],
+    coding_experience_years: null,
+    programming_languages: []
   });
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<TechFluencyFormData>({
-    defaultValues: {
+  // Initialize form data when profile data is available
+  useEffect(() => {
+    if (!user?.id || profileLoading) return;
+    
+    setIsLoadingData(true);
+    
+    // Load existing data from both profile and tech fluency tables
+    const existingData: TechFluencyFormData = {
       technical_experience_level: profileData.technical_experience_level || '',
       ai_familiarity_level: profileData.ai_familiarity_level || '',
-      ai_interests: techFluencyData.ai_interests || [],
-      ai_models_used: techFluencyData.ai_models_used || [],
-      programming_languages: techFluencyData.programming_languages || [],
-      coding_experience_years: techFluencyData.coding_experience_years || 0,
-    }
-  });
-
-  // Auto-save functionality with user-specific keys
-  const saveToLocalStorage = useCallback((data: TechFluencyFormData) => {
-    const autoSaveKey = getAutoSaveKey();
-    if (!autoSaveKey) return;
-
-    try {
-      localStorage.setItem(autoSaveKey, JSON.stringify(data));
-      console.log('Auto-saved to localStorage:', data);
-    } catch (error) {
-      console.error('Failed to save to localStorage:', error);
-    }
-  }, [getAutoSaveKey]);
-
-  const loadFromLocalStorage = useCallback(() => {
-    const autoSaveKey = getAutoSaveKey();
-    if (!autoSaveKey) return;
-
-    try {
-      const saved = localStorage.getItem(autoSaveKey);
-      if (saved) {
-        const parsedData = JSON.parse(saved) as TechFluencyFormData;
-        console.log('Loaded from localStorage:', parsedData);
-        
-        // Only restore if current form is mostly empty AND we have meaningful saved data
-        const hasCurrentData = (
-          profileData.technical_experience_level ||
-          profileData.ai_familiarity_level ||
-          (techFluencyData.ai_interests && techFluencyData.ai_interests.length > 0) ||
-          (techFluencyData.ai_models_used && techFluencyData.ai_models_used.length > 0)
-        );
-
-        const hasSavedData = (
-          parsedData.technical_experience_level ||
-          parsedData.ai_familiarity_level ||
-          (parsedData.ai_interests && parsedData.ai_interests.length > 0) ||
-          (parsedData.ai_models_used && parsedData.ai_models_used.length > 0)
-        );
-
-        // Only restore if we don't have current data but we have saved data
-        if (!hasCurrentData && hasSavedData) {
-          // Type-safe setValue calls
-          if (parsedData.technical_experience_level) {
-            setValue('technical_experience_level', parsedData.technical_experience_level);
-          }
-          if (parsedData.ai_familiarity_level) {
-            setValue('ai_familiarity_level', parsedData.ai_familiarity_level);
-          }
-          if (parsedData.ai_interests) {
-            setValue('ai_interests', parsedData.ai_interests);
-          }
-          if (parsedData.ai_models_used) {
-            setValue('ai_models_used', parsedData.ai_models_used);
-          }
-          if (parsedData.programming_languages) {
-            setValue('programming_languages', parsedData.programming_languages);
-          }
-          if (parsedData.coding_experience_years !== undefined) {
-            setValue('coding_experience_years', parsedData.coding_experience_years);
-          }
-          
-          toast({
-            title: "Form data restored",
-            description: "Your previous selections have been restored.",
-            duration: 3000,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load from localStorage:', error);
-    }
-  }, [setValue, profileData, techFluencyData, toast, getAutoSaveKey]);
-
-  const clearLocalStorage = useCallback(() => {
-    const autoSaveKey = getAutoSaveKey();
-    if (!autoSaveKey) return;
-
-    try {
-      localStorage.removeItem(autoSaveKey);
-      console.log('Cleared localStorage for tech fluency form');
-    } catch (error) {
-      console.error('Failed to clear localStorage:', error);
-    }
-  }, [getAutoSaveKey]);
-
-  // Load from localStorage on component mount
-  useEffect(() => {
-    if (user?.id) {
-      loadFromLocalStorage();
-    }
-  }, [loadFromLocalStorage, user?.id]);
-
-  // Clean up localStorage when user changes
-  useEffect(() => {
-    return () => {
-      // Clean up old localStorage entries when component unmounts
-      clearLocalStorage();
+      ai_models_used: techFluencyData?.ai_models_used || [],
+      ai_interests: techFluencyData?.ai_interests || [],
+      coding_experience_years: techFluencyData?.coding_experience_years || null,
+      programming_languages: techFluencyData?.programming_languages || []
     };
-  }, [clearLocalStorage]);
-
-  // Auto-save on form changes
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const subscription = watch((data) => {
-      if (data && Object.keys(data).length > 0) {
-        saveToLocalStorage(data as TechFluencyFormData);
-        
-        // Auto-save to database with debounce
-        const timeoutId = setTimeout(async () => {
-          try {
-            setAutoSaveStatus('saving');
-            await autoSaveToDatabase(data as TechFluencyFormData);
-            setAutoSaveStatus('saved');
-            setTimeout(() => setAutoSaveStatus('idle'), 2000);
-          } catch (error) {
-            setAutoSaveStatus('error');
-            console.error('Auto-save failed:', error);
-          }
-        }, AUTO_SAVE_DELAY);
-
-        return () => clearTimeout(timeoutId);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [watch, user?.id, saveToLocalStorage]);
-
-  const autoSaveToDatabase = async (data: TechFluencyFormData) => {
-    console.log('Auto-saving to database:', data);
     
-    try {
-      // Update profile with basic tech levels
-      await updateProfileData('profile', {
-        technical_experience_level: data.technical_experience_level,
-        ai_familiarity_level: data.ai_familiarity_level,
-      });
+    setFormData(existingData);
+    setIsLoadingData(false);
+  }, [user?.id, profileLoading, profileData, techFluencyData]);
 
-      // Update tech fluency details
-      await updateProfileData('tech_fluency', {
-        ai_interests: data.ai_interests || [],
-        ai_models_used: data.ai_models_used || [],
-        programming_languages: data.programming_languages || [],
-        coding_experience_years: data.coding_experience_years || 0,
-      });
+  const handleSelectChange = (field: keyof TechFluencyFormData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
-      setLastSavedData(data);
-      console.log('Auto-save successful');
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-      throw error;
+  const handleArrayChange = (field: 'ai_models_used' | 'ai_interests' | 'programming_languages', value: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: checked 
+        ? [...prev[field], value]
+        : prev[field].filter(item => item !== value)
+    }));
+  };
+
+  const handleCodingExperienceChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      coding_experience_years: value ? parseInt(value) : null
+    }));
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated. Please try again.",
+        variant: "destructive"
+      });
+      return;
     }
-  };
 
-  const isSectionComplete = () => {
-    const formData = watch();
-    return !!(
-      formData.technical_experience_level &&
-      formData.ai_familiarity_level &&
-      formData.ai_interests?.length &&
-      formData.ai_models_used?.length
-    );
-  };
+    // Validate required fields
+    if (!formData.technical_experience_level || !formData.ai_familiarity_level) {
+      toast({
+        title: "Required fields missing",
+        description: "Please fill in your technical experience and AI familiarity levels.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  const onSubmit = async (data: TechFluencyFormData) => {
-    console.log('Form submitted with data:', data);
+    if (formData.ai_models_used.length === 0 || formData.ai_interests.length === 0) {
+      toast({
+        title: "Required selections missing",
+        description: "Please select at least one AI model and one area of interest.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
     
     try {
-      setIsSubmitting(true);
+      monitoring.startTiming('tech_fluency_save');
       
-      // Validate required fields
-      if (!data.technical_experience_level || !data.ai_familiarity_level) {
-        toast({
-          title: "Missing required fields",
-          description: "Please fill in all required fields.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.ai_interests || data.ai_interests.length === 0) {
-        toast({
-          title: "Missing AI interests",
-          description: "Please select at least one AI interest.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!data.ai_models_used || data.ai_models_used.length === 0) {
-        toast({
-          title: "Missing AI models",
-          description: "Please select at least one AI model you've used.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Update profile with basic tech levels
+      // Update profile table fields
       await updateProfileData('profile', {
-        technical_experience_level: data.technical_experience_level,
-        ai_familiarity_level: data.ai_familiarity_level,
+        technical_experience_level: formData.technical_experience_level,
+        ai_familiarity_level: formData.ai_familiarity_level,
         section_4_completed: true
       });
 
-      // Update tech fluency details
+      // Update tech fluency table fields
       await updateProfileData('tech_fluency', {
-        ai_interests: data.ai_interests || [],
-        ai_models_used: data.ai_models_used || [],
-        programming_languages: data.programming_languages || [],
-        coding_experience_years: data.coding_experience_years || 0,
+        ai_models_used: formData.ai_models_used,
+        ai_interests: formData.ai_interests,
+        coding_experience_years: formData.coding_experience_years,
+        programming_languages: formData.programming_languages
       });
       
-      // Clear localStorage after successful save
-      clearLocalStorage();
+      monitoring.endTiming('tech_fluency_save');
+      
+      trackUserAction('tech_fluency_completed', {
+        technical_level: formData.technical_experience_level,
+        ai_familiarity: formData.ai_familiarity_level,
+        models_count: formData.ai_models_used.length,
+        interests_count: formData.ai_interests.length,
+        section: 'tech_fluency'
+      });
       
       toast({
         title: "Tech fluency saved!",
-        description: "Your technical expertise has been updated successfully.",
+        description: "Your technical experience has been updated successfully.",
       });
 
-      // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (error) {
-      console.error('Form submission error:', error);
+      monitoring.logError(error as Error, 'tech_fluency_save_error', {
+        section: 'tech_fluency',
+        user_id: user.id
+      });
+      
       toast({
         title: "Error saving tech fluency",
-        description: "Please try again. Your data has been auto-saved.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -293,223 +166,250 @@ export const EnhancedTechFluencySection: React.FC = () => {
     }
   };
 
-  const techExperienceLevels = [
-    { value: 'beginner', label: 'Beginner - Basic computer skills' },
-    { value: 'intermediate', label: 'Intermediate - Comfortable with most software' },
-    { value: 'advanced', label: 'Advanced - Power user, some technical skills' },
-    { value: 'expert', label: 'Expert - Strong technical background' }
+  const technicalLevels = [
+    { value: 'beginner', label: 'Beginner - Limited technical experience' },
+    { value: 'intermediate', label: 'Intermediate - Some technical background' },
+    { value: 'advanced', label: 'Advanced - Strong technical expertise' },
+    { value: 'expert', label: 'Expert - Deep technical knowledge' }
   ];
 
   const aiFamiliarityLevels = [
     { value: 'none', label: 'No experience with AI tools' },
-    { value: 'basic', label: 'Basic - Used ChatGPT or similar occasionally' },
-    { value: 'intermediate', label: 'Intermediate - Regular AI tool user' },
-    { value: 'advanced', label: 'Advanced - Integrate AI into workflows' },
-    { value: 'expert', label: 'Expert - Develop or customize AI solutions' }
-  ];
-
-  const aiInterests = [
-    'Content Creation', 'Code Generation', 'Data Analysis', 'Design & Art',
-    'Research & Writing', 'Automation', 'Customer Service', 'Marketing',
-    'Education & Training', 'Healthcare', 'Finance', 'Gaming'
+    { value: 'basic', label: 'Basic - Tried a few AI tools' },
+    { value: 'intermediate', label: 'Intermediate - Regular AI user' },
+    { value: 'advanced', label: 'Advanced - Power user of AI tools' }
   ];
 
   const aiModels = [
-    'ChatGPT', 'Claude', 'GPT-4', 'Gemini', 'Midjourney', 'DALL-E',
-    'Stable Diffusion', 'GitHub Copilot', 'Cursor', 'Perplexity',
-    'Notion AI', 'Jasper', 'Copy.ai', 'Other'
+    'ChatGPT', 'Claude', 'Gemini', 'GitHub Copilot', 'Midjourney', 
+    'DALL-E', 'Stable Diffusion', 'Perplexity', 'Notion AI', 'Jasper',
+    'Copy.ai', 'Grammarly', 'Other'
+  ];
+
+  const aiInterestAreas = [
+    'Content Creation', 'Code Generation', 'Data Analysis', 'Image Generation',
+    'Research & Learning', 'Productivity Tools', 'Creative Writing', 
+    'Business Automation', 'Marketing', 'Design', 'Education', 'Healthcare'
   ];
 
   const programmingLanguages = [
-    'JavaScript', 'Python', 'Java', 'TypeScript', 'C#', 'C++',
-    'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin', 'SQL', 'HTML/CSS'
+    'JavaScript', 'Python', 'Java', 'TypeScript', 'C#', 'PHP', 'C++',
+    'Ruby', 'Go', 'Swift', 'Kotlin', 'Rust', 'SQL', 'HTML/CSS'
   ];
 
-  const handleCheckboxChange = (field: 'ai_interests' | 'ai_models_used' | 'programming_languages', value: string, checked: boolean) => {
-    const current = watch(field) || [];
-    const newValue = checked ? [...current, value] : current.filter(item => item !== value);
-    setValue(field, newValue);
-    console.log(`${field} updated:`, newValue);
-  };
+  const codingExperienceOptions = [
+    { value: '0', label: 'No coding experience' },
+    { value: '1', label: 'Less than 1 year' },
+    { value: '2', label: '1-2 years' },
+    { value: '5', label: '3-5 years' },
+    { value: '10', label: '6-10 years' },
+    { value: '15', label: '10+ years' }
+  ];
+
+  // Show loading if profile context is loading or we're loading data
+  if (profileLoading || isLoadingData) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <span className="ml-2">Loading tech fluency data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h3 className="text-xl font-semibold text-foreground mb-2 flex items-center justify-center space-x-2">
-          <Brain className="w-6 h-6 text-primary" />
-          <span>Your AI & Tech Superpowers</span>
+        <h3 className="text-xl font-semibold text-foreground mb-2">
+          AI & Technical Fluency
         </h3>
         <p className="text-muted-foreground">
-          Share your technical expertise to help us find the perfect projects for you
+          Help us understand your technical background and AI experience
         </p>
-        
-        {/* Auto-save status */}
-        <div className="mt-2 flex items-center justify-center space-x-2 text-sm">
-          {autoSaveStatus === 'saving' && (
-            <>
-              <Save className="w-4 h-4 animate-spin" />
-              <span className="text-muted-foreground">Saving...</span>
-            </>
-          )}
-          {autoSaveStatus === 'saved' && (
-            <>
-              <Save className="w-4 h-4 text-green-500" />
-              <span className="text-green-500">Auto-saved</span>
-            </>
-          )}
-          {autoSaveStatus === 'error' && (
-            <>
-              <AlertCircle className="w-4 h-4 text-destructive" />
-              <span className="text-destructive">Save failed</span>
-            </>
-          )}
-        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        
+      <form onSubmit={onSubmit} className="space-y-6">
         {/* Technical Experience Level */}
-        <div className="space-y-4 p-6 border rounded-lg bg-muted/20">
-          <h4 className="text-lg font-medium flex items-center space-x-2">
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
             <Code className="w-5 h-5 text-primary" />
-            <span>Technical Experience <span className="text-red-500">*</span></span>
-          </h4>
-          
-          <div className="space-y-3">
-            {techExperienceLevels.map((level) => (
-              <div key={level.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="radio"
-                  id={`tech-${level.value}`}
-                  value={level.value}
-                  {...register('technical_experience_level')}
-                  className="w-4 h-4 text-primary"
-                />
-                <Label htmlFor={`tech-${level.value}`} className="cursor-pointer">
-                  {level.label}
-                </Label>
-              </div>
-            ))}
+            <label className="text-sm font-medium text-foreground">
+              Technical Experience Level *
+            </label>
           </div>
+          <Select 
+            value={formData.technical_experience_level} 
+            onValueChange={(value) => handleSelectChange('technical_experience_level', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select your technical experience level" />
+            </SelectTrigger>
+            <SelectContent>
+              {technicalLevels.map((level) => (
+                <SelectItem key={level.value} value={level.value}>
+                  {level.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* AI Familiarity */}
-        <div className="space-y-4 p-6 border rounded-lg bg-muted/20">
-          <h4 className="text-lg font-medium flex items-center space-x-2">
-            <Zap className="w-5 h-5 text-primary" />
-            <span>AI Familiarity <span className="text-red-500">*</span></span>
-          </h4>
-          
-          <div className="space-y-3">
-            {aiFamiliarityLevels.map((level) => (
-              <div key={level.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="radio"
-                  id={`ai-${level.value}`}
-                  value={level.value}
-                  {...register('ai_familiarity_level')}
-                  className="w-4 h-4 text-primary"
-                />
-                <Label htmlFor={`ai-${level.value}`} className="cursor-pointer">
+        {/* AI Familiarity Level */}
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Bot className="w-5 h-5 text-primary" />
+            <label className="text-sm font-medium text-foreground">
+              AI Familiarity Level *
+            </label>
+          </div>
+          <Select 
+            value={formData.ai_familiarity_level} 
+            onValueChange={(value) => handleSelectChange('ai_familiarity_level', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select your AI familiarity level" />
+            </SelectTrigger>
+            <SelectContent>
+              {aiFamiliarityLevels.map((level) => (
+                <SelectItem key={level.value} value={level.value}>
                   {level.label}
-                </Label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* AI Interests */}
-        <div className="space-y-4">
-          <Label className="text-lg font-medium">
-            AI Use Cases You're Interested In <span className="text-red-500">*</span>
-          </Label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {aiInterests.map((interest) => (
-              <div key={interest} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id={`interest-${interest}`}
-                  checked={watch('ai_interests')?.includes(interest)}
-                  onCheckedChange={(checked) => 
-                    handleCheckboxChange('ai_interests', interest, checked as boolean)
-                  }
-                />
-                <Label htmlFor={`interest-${interest}`} className="cursor-pointer text-sm">
-                  {interest}
-                </Label>
-              </div>
-            ))}
-          </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* AI Models Used */}
-        <div className="space-y-4">
-          <Label className="text-lg font-medium">
-            AI Tools You've Used <span className="text-red-500">*</span>
-          </Label>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Bot className="w-5 h-5 text-primary" />
+            <label className="text-sm font-medium text-foreground">
+              AI Models/Tools You've Used *
+            </label>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Select all AI tools and models you have experience with
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {aiModels.map((model) => (
-              <div key={model} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
+              <div key={model} className="flex items-center space-x-2">
                 <Checkbox
                   id={`model-${model}`}
-                  checked={watch('ai_models_used')?.includes(model)}
-                  onCheckedChange={(checked) => 
-                    handleCheckboxChange('ai_models_used', model, checked as boolean)
-                  }
+                  checked={formData.ai_models_used.includes(model)}
+                  onCheckedChange={(checked) => handleArrayChange('ai_models_used', model, checked as boolean)}
                 />
-                <Label htmlFor={`model-${model}`} className="cursor-pointer text-sm">
+                <label htmlFor={`model-${model}`} className="text-sm">
                   {model}
-                </Label>
+                </label>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* AI Interest Areas */}
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Lightbulb className="w-5 h-5 text-primary" />
+            <label className="text-sm font-medium text-foreground">
+              AI Interest Areas *
+            </label>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Select areas where you're interested in AI applications
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {aiInterestAreas.map((interest) => (
+              <div key={interest} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`interest-${interest}`}
+                  checked={formData.ai_interests.includes(interest)}
+                  onCheckedChange={(checked) => handleArrayChange('ai_interests', interest, checked as boolean)}
+                />
+                <label htmlFor={`interest-${interest}`} className="text-sm">
+                  {interest}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Coding Experience */}
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Code className="w-5 h-5 text-primary" />
+            <label className="text-sm font-medium text-foreground">
+              Coding Experience
+            </label>
+          </div>
+          <Select 
+            value={formData.coding_experience_years?.toString() || ''} 
+            onValueChange={handleCodingExperienceChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select your coding experience" />
+            </SelectTrigger>
+            <SelectContent>
+              {codingExperienceOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Programming Languages */}
-        <div className="space-y-4">
-          <Label className="text-lg font-medium">Programming Languages (Optional)</Label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {programmingLanguages.map((language) => (
-              <div key={language} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id={`lang-${language}`}
-                  checked={watch('programming_languages')?.includes(language)}
-                  onCheckedChange={(checked) => 
-                    handleCheckboxChange('programming_languages', language, checked as boolean)
-                  }
-                />
-                <Label htmlFor={`lang-${language}`} className="cursor-pointer text-sm">
-                  {language}
-                </Label>
-              </div>
-            ))}
+        {formData.coding_experience_years && formData.coding_experience_years > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Code className="w-5 h-5 text-primary" />
+              <label className="text-sm font-medium text-foreground">
+                Programming Languages
+              </label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Select programming languages you have experience with
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {programmingLanguages.map((language) => (
+                <div key={language} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`lang-${language}`}
+                    checked={formData.programming_languages.includes(language)}
+                    onCheckedChange={(checked) => handleArrayChange('programming_languages', language, checked as boolean)}
+                  />
+                  <label htmlFor={`lang-${language}`} className="text-sm">
+                    {language}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Coding Experience Years */}
-        <div className="space-y-4">
-          <Label className="text-lg font-medium">
-            Years of Coding Experience: {watch('coding_experience_years') || 0}
-          </Label>
-          <Slider
-            value={[watch('coding_experience_years') || 0]}
-            onValueChange={(value) => setValue('coding_experience_years', value[0])}
-            max={20}
-            step={1}
-            className="w-full"
-          />
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>0 years</span>
-            <span>20+ years</span>
-          </div>
+        <div className="bg-muted/50 rounded-lg p-4">
+          <h4 className="font-medium text-foreground mb-2">Why we ask about your tech fluency:</h4>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            <li>• Match you with projects suited to your skill level</li>
+            <li>• Understand how AI tools fit into your workflow</li>
+            <li>• Connect you with relevant research opportunities</li>
+            <li>• Help researchers design better AI experiences</li>
+          </ul>
         </div>
 
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={!isSectionComplete() || isSubmitting}
-            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isSubmitting}
+            className="bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
           >
-            {isSubmitting ? 'Saving...' : 'Save & Continue'}
+            {isSubmitting ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving...</span>
+              </div>
+            ) : (
+              'Save & Continue'
+            )}
           </Button>
         </div>
       </form>
