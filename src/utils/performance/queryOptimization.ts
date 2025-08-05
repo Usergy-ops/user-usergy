@@ -89,11 +89,27 @@ export const optimizedProfileQueries = {
   // Optimized multi-table query with joins
   loadCompleteProfile: async (userId: string) => {
     const queries = [
-      () => supabase.from('profiles').select('*').eq('user_id', userId).single(),
-      () => supabase.from('user_devices').select('*').eq('user_id', userId).maybeSingle(),
-      () => supabase.from('user_tech_fluency').select('*').eq('user_id', userId).maybeSingle(),
-      () => supabase.from('user_skills').select('*').eq('user_id', userId).maybeSingle(),
-      () => supabase.from('consolidated_social_presence').select('*').eq('user_id', userId).maybeSingle()
+      async () => {
+        const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
+        if (error) throw error;
+        return { data, error: null };
+      },
+      async () => {
+        const { data, error } = await supabase.from('user_devices').select('*').eq('user_id', userId).maybeSingle();
+        return { data, error };
+      },
+      async () => {
+        const { data, error } = await supabase.from('user_tech_fluency').select('*').eq('user_id', userId).maybeSingle();
+        return { data, error };
+      },
+      async () => {
+        const { data, error } = await supabase.from('user_skills').select('*').eq('user_id', userId).maybeSingle();
+        return { data, error };
+      },
+      async () => {
+        const { data, error } = await supabase.from('consolidated_social_presence').select('*').eq('user_id', userId).maybeSingle();
+        return { data, error };
+      }
     ];
     
     const results = await executeBatchQueries(queries, 3);

@@ -9,7 +9,7 @@ import { withPerformanceMonitoring } from '@/utils/performance';
 export const LazyBasicProfileSection = lazy(() => 
   withPerformanceMonitoring(
     () => import('@/components/profile/BasicProfileSection').then(module => ({ 
-      default: module.default || module.BasicProfileSection 
+      default: module.BasicProfileSection || module.default
     })),
     'lazy_load_basic_profile'
   )()
@@ -18,7 +18,7 @@ export const LazyBasicProfileSection = lazy(() =>
 export const LazyDevicesSection = lazy(() =>
   withPerformanceMonitoring(
     () => import('@/components/profile/DevicesSection').then(module => ({ 
-      default: module.default || module.DevicesSection 
+      default: module.DevicesSection || module.default
     })),
     'lazy_load_devices_section'
   )()
@@ -27,7 +27,7 @@ export const LazyDevicesSection = lazy(() =>
 export const LazyTechFluencySection = lazy(() =>
   withPerformanceMonitoring(
     () => import('@/components/profile/EnhancedTechFluencySection').then(module => ({ 
-      default: module.default || module.EnhancedTechFluencySection 
+      default: module.EnhancedTechFluencySection || module.default
     })),
     'lazy_load_tech_fluency'
   )()
@@ -36,7 +36,7 @@ export const LazyTechFluencySection = lazy(() =>
 export const LazySkillsSection = lazy(() =>
   withPerformanceMonitoring(
     () => import('@/components/profile/SkillsInterestsSection').then(module => ({ 
-      default: module.default || module.SkillsInterestsSection 
+      default: module.SkillsInterestsSection || module.default
     })),
     'lazy_load_skills_section'
   )()
@@ -45,7 +45,7 @@ export const LazySkillsSection = lazy(() =>
 export const LazySocialPresenceSection = lazy(() =>
   withPerformanceMonitoring(
     () => import('@/components/profile/EnhancedSocialPresenceSection').then(module => ({ 
-      default: module.default || module.EnhancedSocialPresenceSection 
+      default: module.EnhancedSocialPresenceSection || module.default
     })),
     'lazy_load_social_presence'
   )()
@@ -54,7 +54,7 @@ export const LazySocialPresenceSection = lazy(() =>
 export const LazyEducationWorkSection = lazy(() =>
   withPerformanceMonitoring(
     () => import('@/components/profile/EducationWorkSection').then(module => ({ 
-      default: module.default || module.EducationWorkSection 
+      default: module.EducationWorkSection || module.default
     })),
     'lazy_load_education_work'
   )()
