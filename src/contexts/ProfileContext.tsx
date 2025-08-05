@@ -1,11 +1,10 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { handleError } from '@/utils/unifiedErrorHandling';
 import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
 import { profileDataLoader } from '@/services/profileDataLoader';
-import { profileDataUpdater } from '@/services/profileDataUpdater';
+import { profileDataUpdater } from '@/services/profileUpdater';
 import { profilePictureUploader } from '@/services/profilePictureUploader';
 import { profileCompletionTracker } from '@/services/profileCompletionTracker';
 import type { Database } from '@/integrations/supabase/types';
