@@ -200,7 +200,9 @@ export const useEnhancedErrorHandler = (
       clearError();
       return result;
     } catch (error) {
-      await handleError(error as Error, context, metadata, operation);
+      await handleError(error as Error, context, metadata, async () => {
+        await operation();
+      });
       return null;
     }
   }, [handleError, clearError]);

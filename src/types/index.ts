@@ -9,72 +9,100 @@ export * from './api';
 export * from './components';
 export * from './hooks';
 export * from './utils';
-export * from './errors';
+
+// Error types
+export type {
+  ApiError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  RateLimitError,
+  DatabaseError,
+  NetworkError,
+  BusinessLogicError,
+  AppError,
+  ErrorCategory,
+  ErrorSeverity,
+  ErrorHandlingStrategy,
+  ErrorHandlerConfig,
+  ErrorRecoveryAction,
+  ErrorBoundaryState,
+  ErrorReporter,
+  ErrorTransformer,
+  OTPVerificationError,
+  ProfileValidationError,
+  AccountTypeError,
+  SystemHealthError,
+  ErrorContextProvider,
+  ErrorRecoveryStrategy,
+  ErrorNotification,
+  ErrorMetrics,
+  EnvironmentErrorConfig
+} from './errors';
 
 // Validation types
-export * from './validation/types';
+export type {
+  ValidationRule,
+  ValidationSchema,
+  ValidationResult,
+  ValidationContext,
+  ValidationOptions,
+  EmailValidationRule,
+  PasswordValidationRule,
+  PhoneValidationRule,
+  DateValidationRule,
+  FileValidationRule,
+  ProfileValidationSchema,
+  ProfileValidationResult,
+  FormValidationState,
+  FormValidationConfig,
+  APIValidationError,
+  APIValidationResponse,
+  ValidationMiddleware,
+  CustomValidator,
+  ValidationCacheEntry,
+  ValidationCache
+} from './validation/types';
 
 // Rate limiting types
-export * from './rateLimit/types';
+export type {
+  RateLimitConfig,
+  RateLimitResult,
+  RateLimitEntry,
+  RateLimitRecord,
+  RateLimitStrategy,
+  RateLimitStorage,
+  RateLimitManager,
+  RateLimitMiddleware,
+  RateLimitMetrics,
+  RateLimitAlert,
+  ActionRateLimitConfigs,
+  AdaptiveRateLimitConfig,
+  GeographicRateLimitConfig,
+  UserTierRateLimitConfig,
+  RateLimitEvent,
+  RateLimitEventHandler,
+  RateLimitCacheEntry,
+  RateLimitCache
+} from './rateLimit/types';
 
 // Debug types (re-export from existing file)
 export * from './debug';
 
-// Re-export commonly used types for convenience
-export type {
-  // Authentication
-  UnifiedAuthResponse,
-  OTPVerificationData,
-  AccountTypeInfo,
-  
-  // System monitoring
-  SystemHealthStats,
-  AccountTypeFixResult,
-  ClientWorkflowSyncResult,
-  
-  // Component props
-  AuthFormProps,
-  OTPVerificationProps,
-  AccountTypeGuardProps,
-  AccountTypeStatusDisplayProps,
-  SystemHealthIndicatorProps,
-  
-  // Hook returns
-  UseAuthReturn,
-  UseAccountTypeReturn,
-  UseSystemMonitoringReturn,
-  
-  // Error types
-  AppError,
-  ValidationError,
-  AuthenticationError,
-  
-  // Utility types
-  Maybe,
-  Optional,
-  RequiredFields,
-  DeepPartial,
-  
-  // Rate limiting
-  RateLimitConfig,
-  RateLimitResult,
-  RateLimitEntry
-} from './api';
-
 // Type utility functions
-export const isApiError = (error: any): error is import('./errors').ApiError => {
+export const isApiError = (error: any): error is ApiError => {
   return error && typeof error === 'object' && 'status' in error && 'endpoint' in error;
 };
 
-export const isValidationError = (error: any): error is import('./errors').ValidationError => {
+export const isValidationError = (error: any): error is ValidationError => {
   return error && typeof error === 'object' && 'field' in error && 'constraints' in error;
 };
 
-export const isAuthenticationError = (error: any): error is import('./errors').AuthenticationError => {
+export const isAuthenticationError = (error: any): error is AuthenticationError => {
   return error && typeof error === 'object' && 'reason' in error;
 };
 
-export const isRateLimitError = (error: any): error is import('./errors').RateLimitError => {
+export const isRateLimitError = (error: any): error is RateLimitError => {
   return error && typeof error === 'object' && 'limit' in error && 'resetTime' in error;
 };
 

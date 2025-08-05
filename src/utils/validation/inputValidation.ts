@@ -39,27 +39,38 @@ export const sanitizeUserInput = (input: string): string => {
 };
 
 // SQL injection prevention
-export const sanitizeForDatabase = (input: string): string => {
-  if (!input || typeof input !== 'string') return '';
+export const sanitizeForDatabase = (input: Record<string, any>): Record<string, any> => {
+  if (!input || typeof input !== 'object') return {};
   
-  // Remove potential SQL injection patterns
-  const sqlPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
-    /('|(\')|"|(\")|(;)|(\|)|(\*)|(\%))/g,
-    /((\-\-)|(\#)|(\/\*)|(\*\/))/g
-  ];
+  const sanitized: Record<string, any> = {};
   
-  let sanitized = input;
-  sqlPatterns.forEach(pattern => {
-    sanitized = sanitized.replace(pattern, '');
-  });
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === 'string') {
+      // Remove potential SQL injection patterns
+      const sqlPatterns = [
+        /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
+        /('|(\')|"|(\")|(;)|(\|)|(\*)|(\%))/g,
+        /((\-\-)|(\#)|(\/\*)|(\*\/))/g
+      ];
+      
+      let sanitizedValue = value;
+      sqlPatterns.forEach(pattern => {
+        sanitizedValue = sanitizedValue.replace(pattern, '');
+      });
+      
+      sanitized[key] = sanitizedValue.trim();
+    } else {
+      sanitized[key] = value;
+    }
+  }
   
-  return sanitized.trim();
+  return sanitized;
 };
 
 // Advanced validation engine
 export const validateInput = (data: Record<string, any>, schema: ValidationSchema): ValidationResult => {
   const errors: string[] = [];
+  const fieldErrors: Record<string, string[]> = {};
   const sanitizedData: Record<string, any> = {};
   
   for (const [field, rule] of Object.entries(schema)) {
@@ -67,7 +78,9 @@ export const validateInput = (data: Record<string, any>, schema: ValidationSchem
     
     // Check required fields
     if (rule.required && (value === undefined || value === null || value === '')) {
-      errors.push(`${field} is required`);
+      const error = `${field} is required`;
+      errors.push(error);
+      fieldErrors[field] = [error];
       continue;
     }
     
@@ -86,24 +99,32 @@ export const validateInput = (data: Record<string, any>, schema: ValidationSchem
     // String validation
     if (typeof processedValue === 'string') {
       if (rule.minLength && processedValue.length < rule.minLength) {
-        errors.push(`${field} must be at least ${rule.minLength} characters`);
+        const error = `${field} must be at least ${rule.minLength} characters`;
+        errors.push(error);
+        fieldErrors[field] = [error];
         continue;
       }
       
       if (rule.maxLength && processedValue.length > rule.maxLength) {
-        errors.push(`${field} cannot exceed ${rule.maxLength} characters`);
+        const error = `${field} cannot exceed ${rule.maxLength} characters`;
+        errors.push(error);
+        fieldErrors[field] = [error];
         continue;
       }
       
       if (rule.pattern && !rule.pattern.test(processedValue)) {
-        errors.push(`${field} format is invalid`);
+        const error = `${field} format is invalid`;
+        errors.push(error);
+        fieldErrors[field] = [error];
         continue;
       }
     }
     
     // Custom validation
     if (rule.customValidator && !rule.customValidator(processedValue)) {
-      errors.push(`${field} validation failed`);
+      const error = `${field} validation failed`;
+      errors.push(error);
+      fieldErrors[field] = [error];
       continue;
     }
     
@@ -117,10 +138,20 @@ export const validateInput = (data: Record<string, any>, schema: ValidationSchem
     field_count: Object.keys(schema).length.toString()
   });
   
+  const totalFields = Object.keys(schema).length;
+  const invalidFields = Object.keys(fieldErrors).length;
+  
   return {
     isValid: errors.length === 0,
     errors,
-    sanitizedData
+    fieldErrors,
+    sanitizedData,
+    summary: {
+      totalFields,
+      validFields: totalFields - invalidFields,
+      invalidFields,
+      warningFields: 0
+    }
   };
 };
 
