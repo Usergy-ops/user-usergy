@@ -1,20 +1,22 @@
 
 import React, { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Chrome, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { getGoogleOAuthRedirectUrl, detectAccountTypeFromContext } from '@/utils/authRedirection';
+import { Chrome, Loader2, Shield } from 'lucide-react';
+import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface GoogleAuthProps {
-  mode?: 'signin' | 'signup';
+  mode: 'signin' | 'signup';
   onSuccess?: () => void;
+  onError?: (error: string) => void;
   disabled?: boolean;
 }
 
 export const GoogleAuth: React.FC<GoogleAuthProps> = ({ 
-  mode = 'signin', 
-  onSuccess,
+  mode, 
+  onSuccess, 
+  onError,
   disabled = false 
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -26,46 +28,75 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     setIsLoading(true);
     
     try {
-      const accountType = detectAccountTypeFromContext();
-      const redirectUrl = getGoogleOAuthRedirectUrl(accountType);
+      monitoring.startTiming(`google_auth_${mode}`);
       
-      console.log('Google Auth - Context Detection:', {
-        accountType,
-        redirectUrl,
-        mode,
-        currentUrl: window.location.href
-      });
+      // Enhanced redirect URL construction
+      const baseUrl = window.location.origin;
+      const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
+          redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent'
-          }
+            prompt: 'consent',
+          },
+          skipBrowserRedirect: false
         }
       });
 
       if (error) {
         console.error('Google auth error:', error);
+        monitoring.logError(error, `google_auth_${mode}_error`, {
+          error_code: error.message,
+          redirect_to: redirectTo
+        });
+        
+        // Enhanced error messaging
+        let userMessage = `Failed to ${mode} with Google`;
+        if (error.message.includes('popup')) {
+          userMessage = 'Popup was blocked. Please allow popups and try again.';
+        } else if (error.message.includes('network')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('cancelled')) {
+          userMessage = 'Authentication was cancelled. Please try again.';
+        }
+        
         toast({
           title: "Authentication Error",
-          description: error.message || `Failed to ${mode} with Google`,
+          description: userMessage,
           variant: "destructive"
         });
+        
+        if (onError) {
+          onError(userMessage);
+        }
         return;
       }
 
-      // Store account type for post-OAuth processing
-      localStorage.setItem('pending_account_type', accountType);
-      localStorage.setItem('pending_source_url', window.location.href);
-
-      if (onSuccess) {
-        onSuccess();
+      monitoring.endTiming(`google_auth_${mode}`);
+      
+      trackUserAction(`google_auth_${mode}_initiated`, {
+        provider: 'google',
+        redirect_to: redirectTo,
+        mode
+      });
+      
+      // Show success message for signup
+      if (mode === 'signup') {
+        toast({
+          title: "Account Created!",
+          description: "Welcome to Usergy! Please complete your profile.",
+        });
       }
       
     } catch (error) {
+      monitoring.logError(error as Error, `google_auth_${mode}_error`, {
+        mode,
+        disabled
+      });
+      
       const errorMessage = error instanceof Error ? error.message : `An unexpected error occurred during ${mode}`;
       console.error('Google auth error:', error);
       
@@ -75,6 +106,9 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         variant: "destructive"
       });
       
+      if (onError) {
+        onError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -86,19 +120,20 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       variant="outline"
       onClick={handleGoogleAuth}
       disabled={isLoading || disabled}
-      className="w-full flex items-center justify-center space-x-2"
+      className="w-full flex items-center justify-center space-x-2 border-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isLoading ? (
         <>
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <Loader2 className="w-5 h-5 animate-spin" />
           <span>Connecting...</span>
         </>
       ) : (
         <>
-          <Chrome className="w-4 h-4" />
+          <Chrome className="w-5 h-5" />
           <span>
             {mode === 'signin' ? 'Sign in with Google' : 'Sign up with Google'}
           </span>
+          <Shield className="w-4 h-4 ml-2 text-muted-foreground" />
         </>
       )}
     </Button>

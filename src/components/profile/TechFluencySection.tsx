@@ -19,32 +19,19 @@ interface TechFluencyFormData {
   coding_experience_years: number;
 }
 
-// Extended interface to include missing properties
-interface ExtendedTechFluencyData {
-  technical_experience_level?: string;
-  ai_familiarity_level?: string;
-  ai_interests?: string[];
-  ai_models_used?: string[];
-  programming_languages?: string[];
-  coding_experience_years?: number;
-}
-
 export const TechFluencySection: React.FC = () => {
   const { profileData, techFluencyData, updateProfileData, setCurrentStep, currentStep } = useProfile();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Cast techFluencyData to our extended type
-  const extendedTechFluencyData = techFluencyData as ExtendedTechFluencyData;
-
   const { register, handleSubmit, setValue, watch } = useForm<TechFluencyFormData>({
     defaultValues: {
-      technical_experience_level: extendedTechFluencyData.technical_experience_level || '',
-      ai_familiarity_level: extendedTechFluencyData.ai_familiarity_level || '',
-      ai_interests: extendedTechFluencyData.ai_interests || [],
-      ai_models_used: extendedTechFluencyData.ai_models_used || [],
-      programming_languages: extendedTechFluencyData.programming_languages || [],
-      coding_experience_years: extendedTechFluencyData.coding_experience_years || 0,
+      technical_experience_level: profileData.technical_experience_level || '',
+      ai_familiarity_level: profileData.ai_familiarity_level || '',
+      ai_interests: techFluencyData.ai_interests || [],
+      ai_models_used: techFluencyData.ai_models_used || [],
+      programming_languages: techFluencyData.programming_languages || [],
+      coding_experience_years: techFluencyData.coding_experience_years || 0,
     }
   });
 
@@ -56,14 +43,22 @@ export const TechFluencySection: React.FC = () => {
           try {
             setIsSaving(true);
             
-            // Save all tech fluency data including experience levels
-            const techFluencyDataToSave: any = {};
+            // Save profile data - only non-empty values
+            const profileDataToSave: any = {};
             if (value.technical_experience_level && value.technical_experience_level !== '') {
-              techFluencyDataToSave.technical_experience_level = value.technical_experience_level;
+              profileDataToSave.technical_experience_level = value.technical_experience_level;
             }
             if (value.ai_familiarity_level && value.ai_familiarity_level !== '') {
-              techFluencyDataToSave.ai_familiarity_level = value.ai_familiarity_level;
+              profileDataToSave.ai_familiarity_level = value.ai_familiarity_level;
             }
+            
+            if (Object.keys(profileDataToSave).length > 0) {
+              console.log('Auto-saving profile data:', profileDataToSave);
+              await updateProfileData('profile', profileDataToSave);
+            }
+
+            // Save tech fluency data - allow empty arrays during auto-save
+            const techFluencyDataToSave: any = {};
             if (value.ai_interests !== undefined) {
               techFluencyDataToSave.ai_interests = value.ai_interests || [];
             }
@@ -140,20 +135,19 @@ export const TechFluencySection: React.FC = () => {
         return;
       }
 
-      // Update tech fluency data with all fields including experience levels
-      await updateProfileData('tech_fluency', {
+      // Update profile with basic tech levels
+      await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
         ai_familiarity_level: data.ai_familiarity_level,
+        section_4_completed: true
+      });
+
+      // Update tech fluency details
+      await updateProfileData('tech_fluency', {
         ai_interests: data.ai_interests || [],
         ai_models_used: data.ai_models_used || [],
         programming_languages: data.programming_languages || [],
         coding_experience_years: data.coding_experience_years || 0,
-        _isSubmission: true
-      });
-
-      // Update section completion separately
-      await updateProfileData('profile', {
-        section_4_completed: true
       });
       
       toast({

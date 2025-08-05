@@ -1,22 +1,24 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { validateEmail, validatePassword } from '@/utils/security';
+import { ValidationError, AuthError } from '@/utils/errorHandling';
+import { checkRateLimit } from '@/utils/rateLimit';
+import { handleCentralizedError, createAuthenticationError, createRateLimitError } from '@/utils/centralizedErrorHandling';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
-import { ensureUserHasAccountType } from '@/utils/accountTypeUtils';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  accountType: string | null;
+  signUp: (email: string, password: string) => Promise<{ error?: string; attemptsLeft?: number }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<{ error?: string; attemptsLeft?: number }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error?: string }>;
-  verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string; isNewUser?: boolean; accountType?: string }>;
+  verifyOTP: (email: string, otp: string, password: string) => Promise<{ error?: string }>;
   resendOTP: (email: string) => Promise<{ error?: string; attemptsLeft?: number }>;
-  refreshAccountType: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,442 +31,464 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accountType, setAccountType] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  const fetchAccountType = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('account_types')
-        .select('account_type')
-        .eq('auth_user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching account type:', error);
-        monitoring.logError(error, 'fetch_account_type_error', { userId });
-      }
-
-      const type = data?.account_type || null;
-      setAccountType(type);
-      
-      console.log('Account type fetched:', type);
-      return type;
-    } catch (error) {
-      console.error('Error in fetchAccountType:', error);
-      monitoring.logError(error as Error, 'fetch_account_type_error', { userId });
-      setAccountType(null);
-      return null;
-    }
-  };
-
-  const refreshAccountType = async () => {
-    if (user) {
-      await fetchAccountType(user.id);
-    }
-  };
+  const { handleError } = useErrorHandler();
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
-        
-        console.log('Initial session:', initialSession);
-        
-        if (error) {
-          console.error('Error getting initial session:', error);
-          monitoring.logError(error, 'get_initial_session_error');
-        }
-        
-        if (initialSession) {
-          setSession(initialSession);
-          setUser(initialSession.user);
-          await fetchAccountType(initialSession.user.id);
-          // Ensure account type is properly set after successful session
-          await ensureUserHasAccountType(initialSession.user.id);
-        }
-      } catch (error) {
-        console.error('Error in getInitialSession:', error);
-        monitoring.logError(error as Error, 'get_initial_session_error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getInitialSession();
-
-    // Listen for auth state changes with enhanced redirect handling
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('Auth state change:', event, currentSession);
-        
-        setSession(currentSession);
-        setUser(currentSession?.user || null);
-        
-        if (currentSession?.user) {
-          await fetchAccountType(currentSession.user.id);
-          // Ensure account type is properly set for any auth state change
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            await ensureUserHasAccountType(currentSession.user.id);
-            
-            // Handle post-authentication redirection for Google OAuth
-            if (event === 'SIGNED_IN') {
-              const pendingAccountType = localStorage.getItem('pending_account_type');
-              const pendingSourceUrl = localStorage.getItem('pending_source_url');
-              
-              if (pendingAccountType && pendingSourceUrl) {
-                console.log('Handling post-Google-OAuth redirection:', {
-                  pendingAccountType,
-                  pendingSourceUrl,
-                  userId: currentSession.user.id
-                });
-                
-                // Clean up pending data
-                localStorage.removeItem('pending_account_type');
-                localStorage.removeItem('pending_source_url');
-                
-                // Import redirection utility dynamically to avoid circular dependency
-                setTimeout(async () => {
-                  const { performRedirection } = await import('@/utils/authRedirection');
-                  performRedirection({
-                    accountType: pendingAccountType as 'user' | 'client',
-                    isNewUser: true,
-                    isGoogleAuth: true
-                  });
-                }, 1000);
-              }
-            }
-          }
-        } else {
-          setAccountType(null);
-        }
-        
+      (event, session) => {
+        console.log('Auth state change:', event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Track auth events
+        if (event === 'SIGNED_IN' && session?.user) {
+          trackUserAction('user_signed_in', {
+            user_id: session.user.id,
+            email: session.user.email
+          });
+        } else if (event === 'SIGNED_OUT') {
+          trackUserAction('user_signed_out', {});
+        }
       }
     );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session);
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string) => {
     try {
-      setLoading(true);
-      monitoring.startTiming('auth_signin');
+      monitoring.startTiming('auth_signup');
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'signup');
+      if (!rateLimitResult.allowed) {
+        const error = createRateLimitError(
+          `Too many signup attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'signup'
+        );
+        await handleCentralizedError(error, 'auth_signup', undefined, { email });
+        return { 
+          error: error.message,
+          attemptsLeft: rateLimitResult.attemptsRemaining
+        };
+      }
 
-      monitoring.endTiming('auth_signin');
-
-      if (error) {
-        console.error('Sign in error:', error);
-        monitoring.logError(error, 'signin_error', { email });
+      // Validate input
+      if (!validateEmail(email)) {
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_signup', undefined, { email });
+        return { error: error.message };
+      }
+      
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        const error = createAuthenticationError(passwordValidation.errors.join(', '));
+        await handleCentralizedError(error, 'auth_signup', undefined, { email });
         return { error: error.message };
       }
 
-      // Ensure account type is set after successful sign in
-      if (data.user) {
-        await ensureUserHasAccountType(data.user.id);
-      }
-
-      trackUserAction('signin_success', { email, method: 'password' });
+      console.log('Starting sign up process for:', email);
       
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
-      });
-
-      return {};
-    } catch (error) {
-      console.error('Unexpected sign in error:', error);
-      monitoring.logError(error as Error, 'signin_unexpected_error', { email });
-      return { error: 'An unexpected error occurred during sign in' };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signUp = async (email: string, password: string, metadata?: any) => {
-    try {
-      setLoading(true);
-      monitoring.startTiming('auth_signup');
-
-      // Enhanced context detection for signup
-      const sourceUrl = window.location.href;
-      const referrerUrl = document.referrer || sourceUrl;
-      const urlParams = new URLSearchParams(window.location.search);
-      
-      // Determine account type with enhanced detection
-      let accountType = 'client'; // Default fallback
-      let signupSource = 'enhanced_signup';
-      
-      // Check URL parameters first (highest priority)
-      if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
-        accountType = 'user';
-        signupSource = 'enhanced_user_signup';
-      } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
-        accountType = 'client';
-        signupSource = 'enhanced_client_signup';
-      }
-      // Check domain/host (second priority)
-      else if (sourceUrl.includes('user.usergy.ai') || referrerUrl.includes('user.usergy.ai')) {
-        accountType = 'user';
-        signupSource = 'enhanced_user_signup';
-      } else if (sourceUrl.includes('client.usergy.ai') || referrerUrl.includes('client.usergy.ai')) {
-        accountType = 'client';
-        signupSource = 'enhanced_client_signup';
-      }
-      // Check URL paths (third priority)
-      else if (sourceUrl.includes('/user')) {
-        accountType = 'user';
-        signupSource = 'enhanced_user_signup';
-      } else if (sourceUrl.includes('/client')) {
-        accountType = 'client';
-        signupSource = 'enhanced_client_signup';
-      }
-      
-      console.log('Signup context detection:', {
-        sourceUrl,
-        referrerUrl,
-        urlParams: Object.fromEntries(urlParams),
-        detectedAccountType: accountType,
-        signupSource,
-        providedMetadata: metadata
-      });
-
-      const { data, error } = await supabase.functions.invoke('unified-auth', {
+      // Call our edge function to generate OTP
+      const { data, error } = await supabase.functions.invoke('auth-otp', {
         body: {
-          action: 'generate',
           email,
           password,
-          account_type: accountType,
-          signup_source: signupSource,
-          source_url: sourceUrl,
-          referrer_url: referrerUrl,
-          ...metadata
+          action: 'generate'
         }
       });
 
-      monitoring.endTiming('auth_signup');
+      console.log('Sign up response:', { data, error });
 
       if (error) {
-        console.error('Signup error:', error);
-        monitoring.logError(error, 'signup_error', { email, accountType });
-        return { error: error.message || 'Signup failed' };
+        console.error('Sign up error:', error);
+        
+        // Handle specific error cases
+        let userFriendlyMessage = error.message || 'Failed to send verification code';
+        
+        if (error.message?.includes('User already registered')) {
+          userFriendlyMessage = 'This email is already registered. Please sign in instead.';
+        } else if (error.message?.includes('duplicate key value')) {
+          userFriendlyMessage = 'An account with this email already exists. Please sign in.';
+        }
+        
+        const authError = createAuthenticationError(userFriendlyMessage);
+        await handleCentralizedError(authError, 'auth_signup', undefined, { email });
+        
+        // Handle rate limiting errors
+        if (error.message?.includes('Too many')) {
+          return { error: error.message };
+        }
+        
+        return { error: authError.message };
       }
 
-      if (data?.error) {
-        console.error('Signup response error:', data.error);
-        return { error: data.error };
+      if (data.error) {
+        console.error('Sign up data error:', data.error);
+        
+        // Handle specific error cases
+        let userFriendlyMessage = data.error;
+        
+        if (data.error.includes('User already registered') || data.error.includes('already exists')) {
+          userFriendlyMessage = 'This email is already registered. Please sign in instead.';
+        }
+        
+        const authError = createAuthenticationError(userFriendlyMessage);
+        await handleCentralizedError(authError, 'auth_signup', undefined, { email });
+        
+        // Handle rate limiting errors
+        if (data.error.includes('Too many')) {
+          return { error: data.error };
+        }
+        
+        return { error: authError.message };
       }
+
+      console.log('Sign up successful, OTP sent');
+      monitoring.endTiming('auth_signup');
       
-      trackUserAction('signup_otp_sent', { 
-        email, 
-        account_type: accountType,
-        signup_source: signupSource
+      trackUserAction('signup_initiated', {
+        email,
+        attempts_left: rateLimitResult.attemptsRemaining
       });
       
-      return { attemptsLeft: data?.attemptsLeft };
+      return { 
+        error: undefined, 
+        attemptsLeft: data.attemptsLeft 
+      };
     } catch (error) {
-      console.error('Unexpected signup error:', error);
-      monitoring.logError(error as Error, 'signup_unexpected_error', { email });
-      return { error: 'An unexpected error occurred during signup' };
-    } finally {
-      setLoading(false);
+      const authError = createAuthenticationError('An unexpected error occurred during signup');
+      await handleCentralizedError(error as Error, 'auth_signup', undefined, { email });
+      return { error: authError.message };
     }
   };
 
   const verifyOTP = async (email: string, otp: string, password: string) => {
     try {
-      setLoading(true);
-      monitoring.startTiming('auth_verify_otp');
+      monitoring.startTiming('auth_otp_verify');
+      
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'otp_verify');
+      if (!rateLimitResult.allowed) {
+        const error = createRateLimitError(
+          `Too many OTP verification attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'otp_verify'
+        );
+        await handleCentralizedError(error, 'auth_otp_verify', undefined, { email });
+        return { error: error.message };
+      }
 
-      const { data, error } = await supabase.functions.invoke('unified-auth', {
+      // Validate input
+      if (!validateEmail(email)) {
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_otp_verify', undefined, { email });
+        return { error: error.message };
+      }
+      
+      if (!otp || otp.length !== 6) {
+        const error = createAuthenticationError('OTP must be 6 digits');
+        await handleCentralizedError(error, 'auth_otp_verify', undefined, { email });
+        return { error: error.message };
+      }
+
+      console.log('Starting OTP verification for:', email);
+      
+      const { data, error } = await supabase.functions.invoke('auth-otp', {
         body: {
-          action: 'verify',
           email,
           otp,
-          password
+          password,
+          action: 'verify'
         }
       });
 
-      monitoring.endTiming('auth_verify_otp');
+      console.log('OTP verification response:', { data, error });
 
       if (error) {
         console.error('OTP verification error:', error);
-        monitoring.logError(error, 'otp_verify_error', { email });
-        return { error: error.message || 'Failed to verify code' };
-      }
-
-      if (data?.error) {
-        console.error('OTP verification response error:', data.error);
-        return { error: data.error };
-      }
-
-      // Enhanced success handling with user info
-      if (data?.success && data?.user) {
-        const isNewUser = data.isNewUser || false;
-        const userAccountType = data.accountType || data.user.user_metadata?.account_type;
+        const authError = createAuthenticationError(error.message || 'Failed to verify code');
+        await handleCentralizedError(authError, 'auth_otp_verify', undefined, { email });
         
-        console.log('OTP verification successful:', {
-          email,
-          isNewUser,
-          accountType: userAccountType,
-          userId: data.user.id
-        });
-
-        trackUserAction('otp_verification_success', { 
-          email, 
-          isNewUser,
-          accountType: userAccountType
-        });
-
-        // For existing users, force a session refresh to update auth state
-        if (!isNewUser) {
-          console.log('Refreshing session for existing user...');
-          setTimeout(async () => {
-            try {
-              await supabase.auth.refreshSession();
-              console.log('Session refreshed successfully');
-            } catch (refreshError) {
-              console.error('Error refreshing session:', refreshError);
-            }
-          }, 1000);
+        // Handle rate limiting errors
+        if (error.message?.includes('Too many') || error.message?.includes('blocked')) {
+          return { error: error.message };
         }
-
-        return { 
-          isNewUser, 
-          accountType: userAccountType 
-        };
+        
+        return { error: authError.message };
       }
 
-      return {};
+      if (data.error) {
+        console.error('OTP verification data error:', data.error);
+        const authError = createAuthenticationError(data.error);
+        await handleCentralizedError(authError, 'auth_otp_verify', undefined, { email });
+        
+        // Handle rate limiting and blocking errors
+        if (data.error.includes('Too many') || data.error.includes('blocked')) {
+          return { error: data.error };
+        }
+        
+        return { error: authError.message };
+      }
+
+      // After successful verification, sign in the user
+      console.log('OTP verified, signing in user');
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Post-verification sign in error:', signInError);
+        const authError = createAuthenticationError(signInError.message);
+        await handleCentralizedError(authError, 'auth_post_verification_signin', undefined, { email });
+        return { error: authError.message };
+      }
+
+      console.log('User signed in successfully after OTP verification');
+      monitoring.endTiming('auth_otp_verify');
+      
+      trackUserAction('otp_verified', {
+        email,
+        attempts_remaining: rateLimitResult.attemptsRemaining
+      });
+      
+      return { error: undefined };
     } catch (error) {
-      console.error('Unexpected OTP verification error:', error);
-      monitoring.logError(error as Error, 'otp_verify_unexpected_error', { email });
-      return { error: 'An unexpected error occurred during verification' };
-    } finally {
-      setLoading(false);
+      const authError = createAuthenticationError('An unexpected error occurred during OTP verification');
+      await handleCentralizedError(error as Error, 'auth_otp_verify', undefined, { email });
+      return { error: authError.message };
     }
   };
 
   const resendOTP = async (email: string) => {
     try {
-      setLoading(true);
-      monitoring.startTiming('auth_resend_otp');
-
-      const { data, error } = await supabase.functions.invoke('unified-auth', {
-        body: {
-          action: 'resend',
-          email
-        }
-      });
-
-      monitoring.endTiming('auth_resend_otp');
-
-      if (error) {
-        console.error('OTP resend error:', error);
-        monitoring.logError(error, 'otp_resend_error', { email });
-        return { error: error.message || 'Failed to resend code' };
-      }
-
-      if (data?.error) {
-        console.error('OTP resend response error:', data.error);
-        return { error: data.error };
-      }
-
-      trackUserAction('otp_resend_success', { email });
-
-      return { attemptsLeft: data?.attemptsLeft };
-    } catch (error) {
-      console.error('Unexpected OTP resend error:', error);
-      monitoring.logError(error as Error, 'otp_resend_unexpected_error', { email });
-      return { error: 'An unexpected error occurred during resend' };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetPassword = async (email: string) => {
-    try {
-      setLoading(true);
-      monitoring.startTiming('auth_reset_password');
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      monitoring.endTiming('auth_reset_password');
-
-      if (error) {
-        console.error('Password reset error:', error);
-        monitoring.logError(error, 'password_reset_error', { email });
+      monitoring.startTiming('auth_otp_resend');
+      
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'otp_resend');
+      if (!rateLimitResult.allowed) {
+        const error = createRateLimitError(
+          `Too many OTP resend attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'otp_resend'
+        );
+        await handleCentralizedError(error, 'auth_otp_resend', undefined, { email });
         return { error: error.message };
       }
 
-      trackUserAction('password_reset_sent', { email });
+      // Validate input
+      if (!validateEmail(email)) {
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_otp_resend', undefined, { email });
+        return { error: error.message };
+      }
 
-      return {};
+      console.log('Resending OTP for:', email);
+      
+      const { data, error } = await supabase.functions.invoke('auth-otp', {
+        body: {
+          email,
+          action: 'resend'
+        }
+      });
+
+      console.log('Resend OTP response:', { data, error });
+
+      if (error) {
+        console.error('Resend OTP error:', error);
+        const authError = createAuthenticationError(error.message || 'Failed to resend code');
+        await handleCentralizedError(authError, 'auth_otp_resend', undefined, { email });
+        
+        // Handle rate limiting errors
+        if (error.message?.includes('Too many')) {
+          return { error: error.message };
+        }
+        
+        return { error: authError.message };
+      }
+
+      if (data.error) {
+        console.error('Resend OTP data error:', data.error);
+        const authError = createAuthenticationError(data.error);
+        await handleCentralizedError(authError, 'auth_otp_resend', undefined, { email });
+        
+        // Handle rate limiting errors
+        if (data.error.includes('Too many')) {
+          return { error: data.error };
+        }
+        
+        return { error: authError.message };
+      }
+
+      console.log('OTP resent successfully');
+      monitoring.endTiming('auth_otp_resend');
+      
+      trackUserAction('otp_resent', {
+        email,
+        attempts_left: rateLimitResult.attemptsRemaining
+      });
+      
+      return { 
+        error: undefined, 
+        attemptsLeft: data.attemptsLeft 
+      };
     } catch (error) {
-      console.error('Unexpected password reset error:', error);
-      monitoring.logError(error as Error, 'password_reset_unexpected_error', { email });
-      return { error: 'An unexpected error occurred during password reset' };
-    } finally {
-      setLoading(false);
+      const authError = createAuthenticationError('An unexpected error occurred during OTP resend');
+      await handleCentralizedError(error as Error, 'auth_otp_resend', undefined, { email });
+      return { error: authError.message };
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      monitoring.startTiming('auth_signin');
+      
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'signin');
+      if (!rateLimitResult.allowed) {
+        const error = createRateLimitError(
+          `Too many signin attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'signin'
+        );
+        await handleCentralizedError(error, 'auth_signin', undefined, { email });
+        return { error: error.message };
+      }
+
+      // Validate input
+      if (!validateEmail(email)) {
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_signin', undefined, { email });
+        return { error: error.message };
+      }
+      
+      if (!password) {
+        const error = createAuthenticationError('Password is required');
+        await handleCentralizedError(error, 'auth_signin', undefined, { email });
+        return { error: error.message };
+      }
+
+      console.log('Starting sign in for:', email);
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        console.error('Sign in error:', error);
+        const authError = createAuthenticationError(error.message);
+        await handleCentralizedError(authError, 'auth_signin', undefined, { email });
+        return { error: authError.message };
+      }
+
+      console.log('Sign in successful');
+      monitoring.endTiming('auth_signin');
+      
+      trackUserAction('signin_successful', {
+        email,
+        attempts_remaining: rateLimitResult.attemptsRemaining
+      });
+      
+      return { error: undefined };
+    } catch (error) {
+      const authError = createAuthenticationError('An unexpected error occurred during signin');
+      await handleCentralizedError(error as Error, 'auth_signin', undefined, { email });
+      return { error: authError.message };
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
       monitoring.startTiming('auth_signout');
-
-      const { error } = await supabase.auth.signOut();
-
+      
+      console.log('Signing out user');
+      await supabase.auth.signOut();
+      
       monitoring.endTiming('auth_signout');
-
-      if (error) {
-        console.error('Sign out error:', error);
-        monitoring.logError(error, 'signout_error');
-      } else {
-        trackUserAction('signout_success');
-      }
-
-      // Clear local state
-      setUser(null);
-      setSession(null);
-      setAccountType(null);
+      
+      trackUserAction('signout_successful', {});
+      
     } catch (error) {
-      console.error('Unexpected sign out error:', error);
-      monitoring.logError(error as Error, 'signout_unexpected_error');
-    } finally {
-      setLoading(false);
+      await handleCentralizedError(error as Error, 'auth_signout');
     }
   };
 
-  const value: AuthContextType = {
+  const resetPassword = async (email: string) => {
+    try {
+      monitoring.startTiming('auth_password_reset');
+      
+      // Check rate limiting
+      const rateLimitResult = await checkRateLimit(email, 'password_reset');
+      if (!rateLimitResult.allowed) {
+        const error = createRateLimitError(
+          `Too many password reset attempts. Please try again in ${Math.ceil((rateLimitResult.resetTime.getTime() - Date.now()) / 1000)} seconds.`,
+          'password_reset'
+        );
+        await handleCentralizedError(error, 'auth_password_reset', undefined, { email });
+        return { error: error.message };
+      }
+
+      // Validate input
+      if (!validateEmail(email)) {
+        const error = createAuthenticationError('Invalid email format');
+        await handleCentralizedError(error, 'auth_password_reset', undefined, { email });
+        return { error: error.message };
+      }
+
+      console.log('Resetting password for:', email);
+      
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
+
+      if (error) {
+        console.error('Reset password error:', error);
+        const authError = createAuthenticationError(error.message);
+        await handleCentralizedError(authError, 'auth_password_reset', undefined, { email });
+        return { error: authError.message };
+      }
+
+      console.log('Password reset email sent');
+      monitoring.endTiming('auth_password_reset');
+      
+      trackUserAction('password_reset_requested', {
+        email,
+        attempts_remaining: rateLimitResult.attemptsRemaining
+      });
+      
+      return { error: undefined };
+    } catch (error) {
+      const authError = createAuthenticationError('An unexpected error occurred during password reset');
+      await handleCentralizedError(error as Error, 'auth_password_reset', undefined, { email });
+      return { error: authError.message };
+    }
+  };
+
+  const value = {
     user,
     session,
     loading,
-    accountType,
-    signIn,
     signUp,
+    signIn,
     signOut,
-    resetPassword,
     verifyOTP,
     resendOTP,
-    refreshAccountType,
+    resetPassword
   };
 
   return (

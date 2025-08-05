@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AuthToggle } from '@/components/AuthToggle';
 import { AuthForm } from '@/components/AuthForm';
@@ -11,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useAccountType } from '@/hooks/useAccountType';
 
 const Index = () => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
@@ -21,69 +19,23 @@ const Index = () => {
     email: string;
     password: string;
   } | null>(null);
-  const { toast } = useToast();
-  const { user, signUp, signIn } = useAuth();
-  const { accountType, isUser, isClient, loading: accountTypeLoading } = useAccountType();
+  const {
+    toast
+  } = useToast();
+  const {
+    user,
+    signUp,
+    signIn
+  } = useAuth();
   const navigate = useNavigate();
 
-  // Enhanced redirect logic for authenticated users with retry mechanism
+  // Redirect authenticated users to appropriate page
   useEffect(() => {
-    if (user && !accountTypeLoading) {
-      console.log('User authenticated, checking account type for redirect:', {
-        user_id: user.id,
-        accountType,
-        isUser,
-        isClient,
-        currentDomain: window.location.hostname,
-        userMetadata: user.user_metadata
-      });
-
-      // Implement retry mechanism for account type detection
-      const attemptRedirect = (attempt = 1) => {
-        const maxAttempts = 3;
-        const retryDelay = attempt * 1000; // Increasing delay
-
-        setTimeout(async () => {
-          // Refresh account type if it's still unknown
-          if (!accountType && attempt < maxAttempts) {
-            console.log(`Attempt ${attempt}: Account type still unknown, retrying...`);
-            return attemptRedirect(attempt + 1);
-          }
-
-          // Use metadata as fallback if account type is still not available
-          const finalAccountType = accountType || user.user_metadata?.account_type;
-          const finalIsUser = finalAccountType === 'user';
-          const finalIsClient = finalAccountType === 'client';
-
-          console.log(`Attempt ${attempt}: Final redirect decision:`, {
-            finalAccountType,
-            finalIsUser,
-            finalIsClient
-          });
-
-          if (finalIsUser) {
-            // User accounts should go to user.usergy.ai
-            const userDomain = 'https://user.usergy.ai/profile-completion';
-            console.log('Redirecting user account to:', userDomain);
-            window.location.href = userDomain;
-          } else if (finalIsClient) {
-            // Client accounts go to client.usergy.ai/profile
-            const clientDomain = 'https://client.usergy.ai/profile';
-            console.log('Redirecting client account to:', clientDomain);
-            window.location.href = clientDomain;
-          } else {
-            // Final fallback - redirect to profile completion and let it handle detection
-            console.log('Account type still unknown after retries, redirecting to profile completion for detection');
-            navigate('/profile-completion');
-          }
-        }, retryDelay);
-      };
-
-      // Start the redirect attempt process
-      attemptRedirect();
+    if (user) {
+      console.log('User is authenticated, redirecting to profile completion');
+      navigate('/profile-completion');
     }
-  }, [user, accountType, isUser, isClient, accountTypeLoading, navigate]);
-
+  }, [user, navigate]);
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
     setIsLoading(true);
@@ -155,13 +107,14 @@ const Index = () => {
     
     setIsLoading(false);
   };
-
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     try {
       console.log('Attempting Google OAuth');
       const redirectUrl = `${window.location.origin}/`;
-      const { error } = await supabase.auth.signInWithOAuth({
+      const {
+        error
+      } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl
@@ -185,87 +138,35 @@ const Index = () => {
     }
     setIsLoading(false);
   };
-
-  // Enhanced OTP success handler with account-type-based redirection
-  const handleOTPSuccess = async () => {
-    console.log('OTP verification successful, determining redirect...');
-    
-    try {
-      // Get the current user and their account type
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      if (!currentUser) {
-        console.error('No user found after OTP verification');
-        toast({
-          title: "Authentication Error",
-          description: "Unable to complete authentication. Please try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Check account type from user metadata (most reliable for new users)
-      const userAccountType = currentUser.user_metadata?.account_type;
-      console.log('OTP Success - User account type from metadata:', userAccountType);
-      
-      setShowOTPVerification(false);
-      setPendingSignup(null);
-      
-      toast({
-        title: "Welcome to Usergy!",
-        description: "Your account has been created successfully."
-      });
-
-      // Enhanced redirect logic with account type-specific handling
-      setTimeout(() => {
-        if (userAccountType === 'user') {
-          // Redirect user accounts to user.usergy.ai
-          const userDomain = 'https://user.usergy.ai/profile-completion';
-          console.log('OTP Success: Redirecting user account to:', userDomain);
-          window.location.href = userDomain;
-        } else if (userAccountType === 'client') {
-          // Redirect client accounts to client.usergy.ai/profile
-          const clientDomain = 'https://client.usergy.ai/profile';
-          console.log('OTP Success: Redirecting client account to:', clientDomain);
-          window.location.href = clientDomain;
-        } else {
-          // Fallback - redirect to profile completion
-          console.log('OTP Success: Account type unknown, redirecting to profile completion');
-          navigate('/profile-completion');
-        }
-      }, 1500);
-      
-    } catch (error) {
-      console.error('Error in handleOTPSuccess:', error);
-      // Fallback redirect
-      setTimeout(() => {
-        navigate('/profile-completion');
-      }, 1500);
-    }
+  const handleOTPSuccess = () => {
+    console.log('OTP verification successful');
+    setShowOTPVerification(false);
+    setPendingSignup(null);
+    toast({
+      title: "Welcome to Usergy!",
+      description: "Your account has been created successfully."
+    });
   };
-
   const handleBackToSignup = () => {
     console.log('Going back to signup form');
     setShowOTPVerification(false);
     setPendingSignup(null);
   };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+  return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
       {/* Animated Background Elements */}
       <NetworkNodes />
       
-      <main className="relative z-10 min-h-screen flex items-center justify-center p-4">
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             
             {/* Left Side - Hero Content */}
-            <article className="text-center lg:text-left animate-fade-in">
+            <div className="text-center lg:text-left animate-fade-in">
               {/* Logo */}
-              <header className="mb-8">
+              <div className="mb-8">
                 <div className="inline-flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-primary-start to-primary-end rounded-lg flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
                       <circle cx="6" cy="12" r="3" />
                       <circle cx="18" cy="6" r="3" />
                       <circle cx="18" cy="18" r="3" />
@@ -277,7 +178,7 @@ const Index = () => {
                     Usergy
                   </span>
                 </div>
-              </header>
+              </div>
 
               {/* Hero Headlines */}
               <div className="mb-8 space-y-4">
@@ -287,32 +188,30 @@ const Index = () => {
                     Meets Insight
                   </span>
                 </h1>
-                <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">
-                  Join a community of digital pioneers shaping tomorrow's products. Your expertise matters - help build the future, one product at a time with our AI-powered user insights platform.
-                </p>
+                <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">Join a community of digital pioneers shaping tomorrow's products. Your expertise matter - help build the future, one product at a time.</p>
               </div>
 
               {/* Trust Indicators */}
-              <aside className="hidden lg:block">
+              <div className="hidden lg:block">
                 <div className="flex items-center space-x-8 text-sm text-muted-foreground">
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-success rounded-full animate-pulse" aria-hidden="true"></div>
+                    <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
                     <span>2,500+ Active Explorers</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-start rounded-full animate-pulse" aria-hidden="true"></div>
+                    <div className="w-2 h-2 bg-primary-start rounded-full animate-pulse"></div>
                     <span>150+ Partner Companies</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-end rounded-full animate-pulse" aria-hidden="true"></div>
+                    <div className="w-2 h-2 bg-primary-end rounded-full animate-pulse"></div>
                     <span>Enterprise Grade Security</span>
                   </div>
                 </div>
-              </aside>
-            </article>
+              </div>
+            </div>
 
             {/* Right Side - Auth Form */}
-            <aside className="animate-slide-up">
+            <div className="animate-slide-up">
               <div className="bg-card/80 backdrop-blur-sm usergy-shadow-strong rounded-3xl p-8 lg:p-10 border border-border/50">
                 
                 {/* Form Header */}
@@ -321,10 +220,10 @@ const Index = () => {
                   
                   <div className="mt-6">
                     <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
-                      {showOTPVerification ? 'Verify your email' : authMode === 'signup' ? 'Welcome to where innovation finds its voice' : 'Welcome back to the tech community'}
+                      {showOTPVerification ? 'Verify your email' : authMode === 'signup' ? 'Welcome to where innovation finds its voice' : 'Welcome back to the community'}
                     </h2>
                     <p className="text-muted-foreground">
-                      {showOTPVerification ? 'Enter the verification code we sent to your email' : authMode === 'signup' ? 'Join thousands of digital explorers already making an impact with paid opportunities' : "We're excited to see you again, explorer"}
+                      {showOTPVerification ? 'Enter the verification code we sent to your email' : authMode === 'signup' ? 'Join thousands of digital explorers already making an impact' : "We're excited to see you again, explorer"}
                     </p>
                   </div>
                 </div>
@@ -365,18 +264,16 @@ const Index = () => {
                         </span>}
                     </div>
                     
-                    <nav className="flex justify-center space-x-6 text-xs text-muted-foreground">
+                    <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
                       <a href="#" className="hover:text-foreground transition-colors duration-300">Privacy Policy</a>
                       <a href="#" className="hover:text-foreground transition-colors duration-300">Terms of Service</a>
-                    </nav>
+                    </div>
                   </div>}
               </div>
-            </aside>
+            </div>
           </div>
         </div>
-      </main>
-    </div>
-  );
+      </div>
+    </div>;
 };
-
 export default Index;

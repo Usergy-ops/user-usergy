@@ -1,12 +1,14 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { 
-  validateForAutoSave,
-  validateForSubmission
-} from '@/utils/validation/formValidation';
+  validateProfileData, 
+  validateDeviceData, 
+  validateTechFluencyData, 
+  validateSkillsData, 
+  validateSocialPresenceData 
+} from '@/utils/dataValidation';
 import { ValidationError } from '@/utils/errorHandling';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { handleCentralizedError, createValidationError, createDatabaseError } from '@/utils/centralizedErrorHandling';
@@ -69,59 +71,58 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Enhanced profile completion check with better race condition handling
   const isProfileComplete = React.useMemo(() => {
-    const completionPercentage = profileData?.completion_percentage || 0;
-    const profileCompleted = profileData?.profile_completed || false;
+    const completionPercentage = profileData.completion_percentage || 0;
+    const profileCompleted = profileData.profile_completed || false;
     
     // Profile is complete if either flag is true OR completion percentage is 100%
     return profileCompleted || completionPercentage >= 100;
-  }, [profileData?.completion_percentage, profileData?.profile_completed]);
+  }, [profileData.completion_percentage, profileData.profile_completed]);
 
   console.log('ProfileProvider state:', {
     profileData: {
-      completion_percentage: profileData?.completion_percentage,
-      profile_completed: profileData?.profile_completed,
-      section_4_completed: profileData?.section_4_completed,
-      technical_experience_level: profileData?.technical_experience_level,
-      ai_familiarity_level: profileData?.ai_familiarity_level
+      completion_percentage: profileData.completion_percentage,
+      profile_completed: profileData.profile_completed,
+      section_4_completed: profileData.section_4_completed,
+      technical_experience_level: profileData.technical_experience_level,
+      ai_familiarity_level: profileData.ai_familiarity_level
     },
     techFluencyData: {
-      ai_interests: techFluencyData?.ai_interests,
-      ai_models_used: techFluencyData?.ai_models_used,
-      coding_experience_years: techFluencyData?.coding_experience_years
+      ai_interests: techFluencyData.ai_interests,
+      ai_models_used: techFluencyData.ai_models_used,
+      coding_experience_years: techFluencyData.coding_experience_years
     },
     skillsData: {
-      interests: skillsData?.interests
+      interests: skillsData.interests
     },
     isProfileComplete,
     loading,
-    isUpdating,
-    userAuthenticated: !!user
+    isUpdating
   });
 
   const resumeIncompleteSection = useCallback(() => {
     if (!user) return;
     
     console.log('Resuming incomplete section, checking sections:', {
-      section_1_completed: profileData?.section_1_completed,
-      section_2_completed: profileData?.section_2_completed,
-      section_3_completed: profileData?.section_3_completed,
-      section_4_completed: profileData?.section_4_completed,
-      section_5_completed: profileData?.section_5_completed,
-      section_6_completed: profileData?.section_6_completed
+      section_1_completed: profileData.section_1_completed,
+      section_2_completed: profileData.section_2_completed,
+      section_3_completed: profileData.section_3_completed,
+      section_4_completed: profileData.section_4_completed,
+      section_5_completed: profileData.section_5_completed,
+      section_6_completed: profileData.section_6_completed
     });
     
     // Check which sections are completed and set the current step accordingly
-    if (!profileData?.section_1_completed) {
+    if (!profileData.section_1_completed) {
       setCurrentStep(1);
-    } else if (!profileData?.section_2_completed) {
+    } else if (!profileData.section_2_completed) {
       setCurrentStep(2);
-    } else if (!profileData?.section_3_completed) {
+    } else if (!profileData.section_3_completed) {
       setCurrentStep(3);
-    } else if (!profileData?.section_4_completed) {
+    } else if (!profileData.section_4_completed) {
       setCurrentStep(4);
-    } else if (!profileData?.section_5_completed) {
+    } else if (!profileData.section_5_completed) {
       setCurrentStep(5);
-    } else if (!profileData?.section_6_completed) {
+    } else if (!profileData.section_6_completed) {
       setCurrentStep(6);
     } else {
       setCurrentStep(1); // All sections completed, start from beginning
@@ -140,20 +141,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     console.log('Frontend completion calculation:', {
       percentage,
-      currentStoredPercentage: profileData?.completion_percentage,
-      currentProfileCompleted: profileData?.profile_completed
+      currentStoredPercentage: profileData.completion_percentage,
+      currentProfileCompleted: profileData.profile_completed
     });
     
     // Update completion percentage and profile_completed flag if needed
     if (user && !isUpdating) {
-      const needsUpdate = percentage !== profileData?.completion_percentage || 
-                         (percentage >= 100 && !profileData?.profile_completed);
+      const needsUpdate = percentage !== profileData.completion_percentage || 
+                         (percentage >= 100 && !profileData.profile_completed);
       
       if (needsUpdate) {
         console.log('Updating completion data:', {
-          oldPercentage: profileData?.completion_percentage,
+          oldPercentage: profileData.completion_percentage,
           newPercentage: percentage,
-          oldCompleted: profileData?.profile_completed,
+          oldCompleted: profileData.profile_completed,
           newCompleted: percentage >= 100
         });
         
@@ -238,35 +239,24 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         socialPresence: socialResult.data
       });
 
-      // Set data with null safety
       if (profileResult.data) {
         setProfileData(profileResult.data);
-      } else if (profileResult.error) {
-        console.warn('Profile not found, this should not happen after migration:', profileResult.error);
       }
 
       if (devicesResult.data) {
         setDeviceData(devicesResult.data);
-      } else {
-        setDeviceData({});
       }
 
       if (techResult.data) {
         setTechFluencyData(techResult.data);
-      } else {
-        setTechFluencyData({});
       }
 
       if (skillsResult.data) {
         setSkillsData(skillsResult.data);
-      } else {
-        setSkillsData({});
       }
 
       if (socialResult.data) {
         setSocialPresenceData(socialResult.data);
-      } else {
-        setSocialPresenceData({});
       }
 
       monitoring.endTiming('profile_load');
@@ -309,20 +299,33 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
-      // Use context-aware validation - auto-save for non-submit operations
-      const isAutoSave = !data._isSubmission;
-      
+      // Validate data before updating
       let validationResult;
-      if (isAutoSave) {
-        validationResult = validateForAutoSave(data, section);
-      } else {
-        validationResult = validateForSubmission(data, section);
+      
+      switch (section) {
+        case 'profile':
+          validationResult = validateProfileData(data);
+          break;
+        case 'devices':
+          validationResult = validateDeviceData(data);
+          break;
+        case 'tech_fluency':
+          validationResult = validateTechFluencyData(data);
+          break;
+        case 'skills':
+          validationResult = validateSkillsData(data);
+          break;
+        case 'social_presence':
+          validationResult = validateSocialPresenceData(data);
+          break;
+        default:
+          validationResult = { isValid: true, errors: [] };
       }
 
-      console.log(`Validation result for ${section} (autoSave: ${isAutoSave}):`, validationResult);
+      console.log(`Validation result for ${section}:`, validationResult);
 
-      // Only throw validation errors for the current section during submission
-      if (!validationResult.isValid && !isAutoSave) {
+      if (!validationResult.isValid) {
+        // Handle validation errors properly - errors are now arrays
         const errorMessage = Array.isArray(validationResult.errors) 
           ? validationResult.errors.join(', ')
           : Object.values(validationResult.errors).join(', ');
@@ -332,14 +335,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw error;
       }
 
-      // Remove internal flags before saving
-      const { _isSubmission, ...cleanData } = data;
-      
       let updateResult;
       
       switch (section) {
         case 'profile':
-          const { completion_percentage, ...profileDataToSave } = cleanData;
+          const { completion_percentage, ...profileDataToSave } = data;
           const profileUpdate: ProfileUpdate = profileDataToSave;
           
           updateResult = await supabase
@@ -351,7 +351,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             throw updateResult.error;
           }
           
-          setProfileData(prev => ({ ...prev, ...cleanData }));
+          setProfileData(prev => ({ ...prev, ...data }));
           console.log('Profile updated successfully');
           break;
 
@@ -360,51 +360,121 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('user_devices')
             .upsert({ 
               user_id: user.id, 
-              ...cleanData
+              ...data
             });
           
           if (updateResult.error) {
             throw updateResult.error;
           }
           
-          setDeviceData(prev => ({ ...prev, ...cleanData }));
+          setDeviceData(prev => ({ ...prev, ...data }));
           console.log('Devices updated successfully');
           break;
 
         case 'tech_fluency':
-          updateResult = await supabase
-            .from('user_tech_fluency')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            }, {
-              onConflict: 'user_id'
-            });
-          
-          if (updateResult.error) {
-            throw updateResult.error;
+          // Handle duplicate key constraint for tech_fluency
+          try {
+            updateResult = await supabase
+              .from('user_tech_fluency')
+              .upsert({ 
+                user_id: user.id, 
+                ...data
+              }, {
+                onConflict: 'user_id'
+              });
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setTechFluencyData(prev => ({ ...prev, ...data }));
+            console.log('Tech fluency updated successfully:', data);
+          } catch (upsertError: any) {
+            console.error('Tech fluency upsert error:', upsertError);
+            
+            // If upsert fails, try update first
+            const existingResult = await supabase
+              .from('user_tech_fluency')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (existingResult.data) {
+              // Record exists, update it
+              updateResult = await supabase
+                .from('user_tech_fluency')
+                .update(data)
+                .eq('user_id', user.id);
+            } else {
+              // Record doesn't exist, insert it
+              updateResult = await supabase
+                .from('user_tech_fluency')
+                .insert({ 
+                  user_id: user.id, 
+                  ...data 
+                });
+            }
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setTechFluencyData(prev => ({ ...prev, ...data }));
+            console.log('Tech fluency updated successfully (fallback):', data);
           }
-          
-          setTechFluencyData(prev => ({ ...prev, ...cleanData }));
-          console.log('Tech fluency updated successfully:', cleanData);
           break;
 
         case 'skills':
-          updateResult = await supabase
-            .from('user_skills')
-            .upsert({ 
-              user_id: user.id, 
-              ...cleanData
-            }, {
-              onConflict: 'user_id'
-            });
-          
-          if (updateResult.error) {
-            throw updateResult.error;
+          // Handle duplicate key constraint for skills
+          try {
+            updateResult = await supabase
+              .from('user_skills')
+              .upsert({ 
+                user_id: user.id, 
+                ...data
+              }, {
+                onConflict: 'user_id'
+              });
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setSkillsData(prev => ({ ...prev, ...data }));
+            console.log('Skills updated successfully');
+          } catch (upsertError: any) {
+            console.error('Skills upsert error:', upsertError);
+            
+            // If upsert fails, try update first
+            const existingResult = await supabase
+              .from('user_skills')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (existingResult.data) {
+              // Record exists, update it
+              updateResult = await supabase
+                .from('user_skills')
+                .update(data)
+                .eq('user_id', user.id);
+            } else {
+              // Record doesn't exist, insert it
+              updateResult = await supabase
+                .from('user_skills')
+                .insert({ 
+                  user_id: user.id, 
+                  ...data 
+                });
+            }
+            
+            if (updateResult.error) {
+              throw updateResult.error;
+            }
+            
+            setSkillsData(prev => ({ ...prev, ...data }));
+            console.log('Skills updated successfully (fallback)');
           }
-          
-          setSkillsData(prev => ({ ...prev, ...cleanData }));
-          console.log('Skills updated successfully');
           break;
 
         case 'social_presence':
@@ -412,14 +482,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .from('consolidated_social_presence')
             .upsert({ 
               user_id: user.id, 
-              ...cleanData
+              ...data
             });
           
           if (updateResult.error) {
             throw updateResult.error;
           }
           
-          setSocialPresenceData(prev => ({ ...prev, ...cleanData }));
+          setSocialPresenceData(prev => ({ ...prev, ...data }));
           console.log('Social presence updated successfully');
           break;
       }
@@ -428,18 +498,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       trackUserAction('profile_updated', {
         section,
-        data_keys: Object.keys(cleanData),
-        user_id: user.id,
-        is_auto_save: isAutoSave
+        data_keys: Object.keys(data),
+        user_id: user.id
       });
 
     } catch (error) {
       console.error(`Error updating ${section}:`, error);
-      // Only show errors for submissions, not auto-save
-      if (!data._isSubmission) {
-        console.log('Suppressing auto-save error from UI');
-        return; // Don't show error for auto-save
-      }
       await handleCentralizedError(error as Error, `profile_update_${section}`, user.id);
       handleError(error, `ProfileContext.updateProfileData.${section}`);
       throw error;

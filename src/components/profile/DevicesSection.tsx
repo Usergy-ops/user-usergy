@@ -24,13 +24,13 @@ export const DevicesSection: React.FC = () => {
 
   const { handleSubmit, setValue, watch } = useForm<DevicesFormData>({
     defaultValues: {
-      operating_systems: deviceData?.operating_systems || [],
-      devices_owned: deviceData?.devices_owned || [],
-      mobile_manufacturers: deviceData?.mobile_manufacturers || [],
-      desktop_manufacturers: deviceData?.desktop_manufacturers || [],
-      email_clients: deviceData?.email_clients || [],
-      streaming_subscriptions: deviceData?.streaming_subscriptions || [],
-      music_subscriptions: deviceData?.music_subscriptions || [],
+      operating_systems: deviceData.operating_systems || [],
+      devices_owned: deviceData.devices_owned || [],
+      mobile_manufacturers: deviceData.mobile_manufacturers || [],
+      desktop_manufacturers: deviceData.desktop_manufacturers || [],
+      email_clients: deviceData.email_clients || [],
+      streaming_subscriptions: deviceData.streaming_subscriptions || [],
+      music_subscriptions: deviceData.music_subscriptions || [],
     }
   });
 
@@ -65,27 +65,16 @@ export const DevicesSection: React.FC = () => {
   const isSectionComplete = () => {
     const formData = watch();
     return !!(
-      formData?.operating_systems?.length &&
-      formData?.devices_owned?.length &&
-      formData?.mobile_manufacturers?.length &&
-      formData?.email_clients?.length
+      formData.operating_systems?.length &&
+      formData.devices_owned?.length &&
+      formData.mobile_manufacturers?.length &&
+      formData.email_clients?.length
     );
   };
 
   const onSubmit = async (data: DevicesFormData) => {
     try {
-      // Ensure we have valid data before submitting
-      const cleanData = {
-        operating_systems: data.operating_systems || [],
-        devices_owned: data.devices_owned || [],
-        mobile_manufacturers: data.mobile_manufacturers || [],
-        desktop_manufacturers: data.desktop_manufacturers || [],
-        email_clients: data.email_clients || [],
-        streaming_subscriptions: data.streaming_subscriptions || [],
-        music_subscriptions: data.music_subscriptions || [],
-      };
-
-      await updateProfileData('devices', cleanData);
+      await updateProfileData('devices', data);
       await updateProfileData('profile', { section_2_completed: true });
       
       toast({
@@ -95,7 +84,6 @@ export const DevicesSection: React.FC = () => {
 
       setCurrentStep(currentStep + 1);
     } catch (error) {
-      console.error('Error saving device data:', error);
       toast({
         title: "Error saving preferences",
         description: "Please try again.",
@@ -159,7 +147,7 @@ export const DevicesSection: React.FC = () => {
           Your Digital World
         </h3>
         <p className="text-muted-foreground">
-          Help us understand your tech ecosystem for better project matching
+          Help us understand your tech ecosystem for better product matching
         </p>
       </div>
 
@@ -177,7 +165,7 @@ export const DevicesSection: React.FC = () => {
                 <div key={os.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <Checkbox
                     id={`os-${os.value}`}
-                    checked={watch('operating_systems')?.includes(os.value) || false}
+                    checked={watch('operating_systems')?.includes(os.value)}
                     onCheckedChange={(checked) => 
                       handleCheckboxChange('operating_systems', os.value, checked as boolean)
                     }
@@ -204,7 +192,7 @@ export const DevicesSection: React.FC = () => {
                 <div key={device.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <Checkbox
                     id={`device-${device.value}`}
-                    checked={watch('devices_owned')?.includes(device.value) || false}
+                    checked={watch('devices_owned')?.includes(device.value)}
                     onCheckedChange={(checked) => 
                       handleCheckboxChange('devices_owned', device.value, checked as boolean)
                     }
@@ -229,7 +217,7 @@ export const DevicesSection: React.FC = () => {
               <div key={brand} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`mobile-${brand}`}
-                  checked={watch('mobile_manufacturers')?.includes(brand) || false}
+                  checked={watch('mobile_manufacturers')?.includes(brand)}
                   onCheckedChange={(checked) => 
                     handleCheckboxChange('mobile_manufacturers', brand, checked as boolean)
                   }
@@ -253,7 +241,7 @@ export const DevicesSection: React.FC = () => {
               <div key={brand} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`desktop-${brand}`}
-                  checked={watch('desktop_manufacturers')?.includes(brand) || false}
+                  checked={watch('desktop_manufacturers')?.includes(brand)}
                   onCheckedChange={(checked) => 
                     handleCheckboxChange('desktop_manufacturers', brand, checked as boolean)
                   }
@@ -277,7 +265,7 @@ export const DevicesSection: React.FC = () => {
               <div key={client} className="flex items-center space-x-2 p-2 border rounded hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`email-${client}`}
-                  checked={watch('email_clients')?.includes(client) || false}
+                  checked={watch('email_clients')?.includes(client)}
                   onCheckedChange={(checked) => 
                     handleCheckboxChange('email_clients', client, checked as boolean)
                   }
@@ -304,7 +292,7 @@ export const DevicesSection: React.FC = () => {
                 <div key={service} className="flex items-center space-x-2">
                   <Checkbox
                     id={`streaming-${service}`}
-                    checked={watch('streaming_subscriptions')?.includes(service) || false}
+                    checked={watch('streaming_subscriptions')?.includes(service)}
                     onCheckedChange={(checked) => 
                       handleCheckboxChange('streaming_subscriptions', service, checked as boolean)
                     }
@@ -328,7 +316,7 @@ export const DevicesSection: React.FC = () => {
                 <div key={service} className="flex items-center space-x-2">
                   <Checkbox
                     id={`music-${service}`}
-                    checked={watch('music_subscriptions')?.includes(service) || false}
+                    checked={watch('music_subscriptions')?.includes(service)}
                     onCheckedChange={(checked) => 
                       handleCheckboxChange('music_subscriptions', service, checked as boolean)
                     }

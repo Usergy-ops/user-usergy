@@ -14,81 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      account_types: {
-        Row: {
-          account_type: string
-          auth_user_id: string | null
-          created_at: string | null
-          id: string
-        }
-        Insert: {
-          account_type: string
-          auth_user_id?: string | null
-          created_at?: string | null
-          id?: string
-        }
-        Update: {
-          account_type?: string
-          auth_user_id?: string | null
-          created_at?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "account_types_auth_user_id_fkey"
-            columns: ["auth_user_id"]
-            isOneToOne: true
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "account_types_auth_user_id_fkey"
-            columns: ["auth_user_id"]
-            isOneToOne: true
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      auth_otp_verifications: {
-        Row: {
-          account_type: string
-          created_at: string | null
-          email: string
-          expires_at: string
-          id: string
-          metadata: Json | null
-          otp_code: string
-          resend_attempts: number | null
-          source_url: string
-          verified_at: string | null
-        }
-        Insert: {
-          account_type: string
-          created_at?: string | null
-          email: string
-          expires_at: string
-          id?: string
-          metadata?: Json | null
-          otp_code: string
-          resend_attempts?: number | null
-          source_url: string
-          verified_at?: string | null
-        }
-        Update: {
-          account_type?: string
-          created_at?: string | null
-          email?: string
-          expires_at?: string
-          id?: string
-          metadata?: Json | null
-          otp_code?: string
-          resend_attempts?: number | null
-          source_url?: string
-          verified_at?: string | null
-        }
-        Relationships: []
-      }
       consolidated_social_presence: {
         Row: {
           additional_links: string[] | null
@@ -128,54 +53,6 @@ export type Database = {
           twitter_url?: string | null
           updated_at?: string | null
           user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "consolidated_social_presence_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consolidated_social_presence_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      email_send_logs: {
-        Row: {
-          created_at: string | null
-          email: string
-          email_type: string
-          error_message: string | null
-          id: string
-          metadata: Json | null
-          resend_response: Json | null
-          status: string
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          email_type: string
-          error_message?: string | null
-          id?: string
-          metadata?: Json | null
-          resend_response?: Json | null
-          status: string
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          email_type?: string
-          error_message?: string | null
-          id?: string
-          metadata?: Json | null
-          resend_response?: Json | null
-          status?: string
         }
         Relationships: []
       }
@@ -252,22 +129,7 @@ export type Database = {
           resolved?: boolean | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "error_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "error_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -393,22 +255,7 @@ export type Database = {
           user_id?: string
           work_role?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       rate_limits: {
         Row: {
@@ -488,17 +335,49 @@ export type Database = {
             foreignKeyName: "user_devices_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_devices_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
+      }
+      user_otp_verification: {
+        Row: {
+          attempts: number | null
+          blocked_until: string | null
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          ip_address: unknown | null
+          otp_code: string
+          user_agent: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          ip_address?: unknown | null
+          otp_code: string
+          user_agent?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          otp_code?: string
+          user_agent?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
       }
       user_skills: {
         Row: {
@@ -533,15 +412,8 @@ export type Database = {
             foreignKeyName: "user_skills_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_skills_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -616,67 +488,21 @@ export type Database = {
             foreignKeyName: "user_tech_fluency_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "auth_monitoring"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_tech_fluency_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
     }
     Views: {
-      auth_monitoring: {
-        Row: {
-          account_type: string | null
-          auth_provider: string | null
-          created_at: string | null
-          email: string | null
-          id: string | null
-          source_url: string | null
-        }
-        Relationships: []
-      }
-      user_profiles: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          id: string | null
-          last_sign_in_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email?: string | null
-          id?: string | null
-          last_sign_in_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string | null
-          id?: string | null
-          last_sign_in_at?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       calculate_profile_completion: {
         Args: { user_uuid: string }
         Returns: number
       }
-      check_email_exists_for_account_type: {
-        Args: { email_param: string; account_type_param: string }
-        Returns: boolean
-      }
       cleanup_expired_otp: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_unified_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -695,81 +521,6 @@ export type Database = {
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
-      }
-      ensure_client_account: {
-        Args: {
-          user_id_param: string
-          company_name_param?: string
-          first_name_param?: string
-          last_name_param?: string
-        }
-        Returns: Json
-      }
-      ensure_client_account_robust: {
-        Args: {
-          user_id_param: string
-          company_name_param?: string
-          first_name_param?: string
-          last_name_param?: string
-        }
-        Returns: Json
-      }
-      ensure_profile_exists: {
-        Args: { user_uuid: string; user_email: string; user_full_name?: string }
-        Returns: boolean
-      }
-      fix_account_type_mismatches: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      fix_incorrect_account_types: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_user_debug_info: {
-        Args: { user_id_param: string }
-        Returns: Json
-      }
-      is_client_account: {
-        Args: { user_id_param: string }
-        Returns: boolean
-      }
-      is_profile_complete: {
-        Args: { user_id_param: string }
-        Returns: boolean
-      }
-      manually_assign_account_type: {
-        Args: { user_id_param: string; account_type_param: string }
-        Returns: Json
-      }
-      monitor_account_type_coverage: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      save_complete_client_profile: {
-        Args: {
-          user_id_param: string
-          company_name_param: string
-          full_name_param: string
-          company_website_param?: string
-          industry_param?: string
-          company_size_param?: string
-          contact_role_param?: string
-          contact_phone_param?: string
-          company_country_param?: string
-          company_city_param?: string
-          company_timezone_param?: string
-          company_logo_url_param?: string
-        }
-        Returns: Json
-      }
-      sync_client_workflow_integration: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      test_email_configuration: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
       }
       validate_password_requirements: {
         Args: { password_hash: string }

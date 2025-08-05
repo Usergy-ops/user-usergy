@@ -101,114 +101,95 @@ export const EnhancedOTPVerification: React.FC<EnhancedOTPVerificationProps> = (
 
     setIsLoading(true);
     
-    try {
-      const { error } = await verifyOTP(email, otpCode, password);
-      
-      if (error) {
-        // Enhanced error handling
-        if (error.includes('Too many') || error.includes('blocked')) {
-          setIsBlocked(true);
-          toast({
-            title: "Security Notice",
-            description: error,
-            variant: "destructive"
-          });
-        } else if (error.includes('expired')) {
-          setTimeRemaining(0);
-          toast({
-            title: "Code Expired",
-            description: "Please request a new verification code.",
-            variant: "destructive"
-          });
-        } else if (error.includes('invalid')) {
-          toast({
-            title: "Invalid Code",
-            description: "Please check your code and try again.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Verification failed",
-            description: error,
-            variant: "destructive"
-          });
-        }
-        
-        // Clear OTP on error
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+    const { error } = await verifyOTP(email, otpCode, password);
+    
+    if (error) {
+      // Enhanced error handling
+      if (error.includes('Too many') || error.includes('blocked')) {
+        setIsBlocked(true);
+        toast({
+          title: "Security Notice",
+          description: error,
+          variant: "destructive"
+        });
+      } else if (error.includes('expired')) {
+        setTimeRemaining(0);
+        toast({
+          title: "Code Expired",
+          description: "Please request a new verification code.",
+          variant: "destructive"
+        });
+      } else if (error.includes('invalid')) {
+        toast({
+          title: "Invalid Code",
+          description: "Please check your code and try again.",
+          variant: "destructive"
+        });
       } else {
         toast({
-          title: "Welcome to Usergy!",
-          description: "Your account has been created successfully."
+          title: "Verification failed",
+          description: error,
+          variant: "destructive"
         });
-        onSuccess();
       }
-    } catch (error) {
-      console.error('Unexpected verification error:', error);
+      
+      // Clear OTP on error
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } else {
       toast({
-        title: "Verification Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        title: "Welcome to Usergy!",
+        description: "Your account has been created successfully."
       });
-    } finally {
-      setIsLoading(false);
+      onSuccess();
     }
+    
+    setIsLoading(false);
   };
 
   const handleResendOTP = async () => {
     if (resendCooldown > 0 || isBlocked) return;
 
     setIsLoading(true);
+    const { error, attemptsLeft: newAttemptsLeft } = await resendOTP(email);
     
-    try {
-      const { error, attemptsLeft: newAttemptsLeft } = await resendOTP(email);
-      
-      if (error) {
-        if (error.includes('Too many')) {
-          setIsBlocked(true);
-          toast({
-            title: "Security Notice",
-            description: error,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Failed to resend code",
-            description: error,
-            variant: "destructive"
-          });
-        }
+    if (error) {
+      if (error.includes('Too many')) {
+        setIsBlocked(true);
+        toast({
+          title: "Security Notice",
+          description: error,
+          variant: "destructive"
+        });
       } else {
         toast({
-          title: "New code sent!",
-          description: "Check your inbox for the verification code."
+          title: "Failed to resend code",
+          description: error,
+          variant: "destructive"
         });
-        setResendCooldown(60);
-        setAttemptsLeft(newAttemptsLeft || null);
-        setIsBlocked(false);
-        setTimeRemaining(600); // Reset timer
-        // Clear current OTP
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
       }
-    } catch (error) {
-      console.error('Unexpected resend error:', error);
+    } else {
       toast({
-        title: "Resend Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        title: "New code sent!",
+        description: "Check your inbox for the verification code."
       });
-    } finally {
-      setIsLoading(false);
+      setResendCooldown(60);
+      setAttemptsLeft(newAttemptsLeft || null);
+      setIsBlocked(false);
+      setTimeRemaining(600); // Reset timer
+      // Clear current OTP
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     }
+    
+    setIsLoading(false);
   };
 
   const canResend = resendCooldown === 0 && !isBlocked && !isLoading;
   const isExpired = timeRemaining <= 0;
 
   return (
-    <div className="space-y-8 max-w-md mx-auto">
+    <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
         <button
@@ -235,30 +216,28 @@ export const EnhancedOTPVerification: React.FC<EnhancedOTPVerificationProps> = (
         </p>
       </div>
 
-      {/* Timer and Status */}
-      <div className="space-y-4">
-        {!isExpired && (
-          <div className="flex items-center justify-center space-x-2 text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm">Code expires in {formatTime(timeRemaining)}</span>
-          </div>
-        )}
+      {/* Timer */}
+      {!isExpired && (
+        <div className="flex items-center justify-center space-x-2 text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span className="text-sm">Code expires in {formatTime(timeRemaining)}</span>
+        </div>
+      )}
 
-        {/* Security Notice */}
-        {(isBlocked || isExpired) && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <div className="flex items-center space-x-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              <p className="text-sm font-medium">
-                {isBlocked 
-                  ? "Account temporarily secured due to multiple failed attempts. Please try again later."
-                  : "Verification code has expired. Please request a new one."
-                }
-              </p>
-            </div>
+      {/* Security Notice */}
+      {(isBlocked || isExpired) && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 animate-fade-in">
+          <div className="flex items-center space-x-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <p className="text-sm font-medium">
+              {isBlocked 
+                ? "Account temporarily secured due to multiple failed attempts. Please try again later."
+                : "Verification code has expired. Please request a new one."
+              }
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* OTP Input */}
       <div className="flex justify-center space-x-3">

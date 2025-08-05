@@ -40,7 +40,7 @@ const DashboardHero: React.FC<DashboardHeroProps> = ({ userName }) => {
       <div className="relative z-10 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Welcome to your Explorer Dashboard, <span className="bg-gradient-to-r from-[#00C6FB] to-[#005BEA] bg-clip-text text-transparent">{userName}</span>!
+            Welcome to your Explorer Dashboard, {userName}!
           </h1>
           <p className="text-muted-foreground">
             Discover new missions, track your progress, and earn rewards.

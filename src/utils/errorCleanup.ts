@@ -74,7 +74,7 @@ class ErrorCleanupService {
   private async cleanupOTPRecords(cutoff: Date): Promise<void> {
     try {
       const { error } = await supabase
-        .from('auth_otp_verifications')
+        .from('user_otp_verification')
         .delete()
         .or(`expires_at.lt.${new Date().toISOString()},created_at.lt.${cutoff.toISOString()}`);
         
@@ -114,10 +114,10 @@ class ErrorCleanupService {
     try {
       // Clean up failed OTP attempts
       await supabase
-        .from('auth_otp_verifications')
+        .from('user_otp_verification')
         .delete()
         .eq('email', email)
-        .is('verified_at', null);
+        .neq('verified_at', null);
         
       // Clean up rate limit records for this user
       await Promise.all([

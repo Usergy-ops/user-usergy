@@ -70,15 +70,13 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     setIsLoading(true);
     
     try {
-      const { error, isNewUser, accountType } = await verifyOTP(email, otpCode, password);
+      const { error } = await verifyOTP(email, otpCode, password);
       
       if (error) {
-        console.error('OTP verification failed:', error);
-        
         await handleErrorWithRecovery(
           new Error(error),
           'otp_verification',
-          { email, attempts_left: attemptsLeft, isNewUser, accountType },
+          { email, attempts_left: attemptsLeft },
           () => {
             setOtp(['', '', '', '', '', '']);
             inputRefs.current[0]?.focus();
@@ -97,15 +95,13 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
-        console.log('OTP verification successful:', { isNewUser, accountType });
         onSuccess();
       }
     } catch (error) {
-      console.error('Unexpected OTP verification error:', error);
       await handleError(error, 'otp_verification', { email });
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   const handleResendOTP = async () => {
@@ -132,9 +128,9 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       }
     } catch (error) {
       await handleError(error, 'otp_resend', { email });
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   return (

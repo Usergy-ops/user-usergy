@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -10,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { validateForAutoSave, validateForSubmission } from '@/utils/validation/formValidation';
 import { Brain, Code, Zap, Save, AlertCircle } from 'lucide-react';
 
 interface TechFluencyFormData {
@@ -160,7 +158,7 @@ export const EnhancedTechFluencySection: React.FC = () => {
     };
   }, [clearLocalStorage]);
 
-  // Auto-save on form changes with proper validation
+  // Auto-save on form changes
   useEffect(() => {
     if (!user?.id) return;
 
@@ -168,7 +166,7 @@ export const EnhancedTechFluencySection: React.FC = () => {
       if (data && Object.keys(data).length > 0) {
         saveToLocalStorage(data as TechFluencyFormData);
         
-        // Auto-save to database with debounce and proper validation
+        // Auto-save to database with debounce
         const timeoutId = setTimeout(async () => {
           try {
             setAutoSaveStatus('saving');
@@ -192,35 +190,19 @@ export const EnhancedTechFluencySection: React.FC = () => {
     console.log('Auto-saving to database:', data);
     
     try {
-      // Validate data for auto-save (lenient validation)
-      const profileValidation = validateForAutoSave({
+      // Update profile with basic tech levels
+      await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
         ai_familiarity_level: data.ai_familiarity_level,
-      }, 'profile');
+      });
 
-      const techValidation = validateForAutoSave({
+      // Update tech fluency details
+      await updateProfileData('tech_fluency', {
         ai_interests: data.ai_interests || [],
         ai_models_used: data.ai_models_used || [],
         programming_languages: data.programming_languages || [],
         coding_experience_years: data.coding_experience_years || 0,
-      }, 'tech_fluency');
-
-      // Only save if validation passes (format/type checks)
-      if (profileValidation.isValid) {
-        await updateProfileData('profile', {
-          technical_experience_level: data.technical_experience_level,
-          ai_familiarity_level: data.ai_familiarity_level,
-        });
-      }
-
-      if (techValidation.isValid) {
-        await updateProfileData('tech_fluency', {
-          ai_interests: data.ai_interests || [],
-          ai_models_used: data.ai_models_used || [],
-          programming_languages: data.programming_languages || [],
-          coding_experience_years: data.coding_experience_years || 0,
-        });
-      }
+      });
 
       setLastSavedData(data);
       console.log('Auto-save successful');
@@ -246,39 +228,35 @@ export const EnhancedTechFluencySection: React.FC = () => {
     try {
       setIsSubmitting(true);
       
-      // Validate for final submission (strict validation)
-      const profileValidation = validateForSubmission({
-        technical_experience_level: data.technical_experience_level,
-        ai_familiarity_level: data.ai_familiarity_level,
-      }, 'profile');
-
-      const techValidation = validateForSubmission({
-        ai_interests: data.ai_interests || [],
-        ai_models_used: data.ai_models_used || [],
-        programming_languages: data.programming_languages || [],
-        coding_experience_years: data.coding_experience_years || 0,
-      }, 'tech_fluency');
-
-      // Check validation results
-      if (!profileValidation.isValid) {
+      // Validate required fields
+      if (!data.technical_experience_level || !data.ai_familiarity_level) {
         toast({
-          title: "Validation Error",
-          description: profileValidation.errors.join(', '),
+          title: "Missing required fields",
+          description: "Please fill in all required fields.",
           variant: "destructive"
         });
         return;
       }
 
-      if (!techValidation.isValid) {
+      if (!data.ai_interests || data.ai_interests.length === 0) {
         toast({
-          title: "Validation Error",
-          description: techValidation.errors.join(', '),
+          title: "Missing AI interests",
+          description: "Please select at least one AI interest.",
           variant: "destructive"
         });
         return;
       }
 
-      // Update profile with basic tech levels and mark section as complete
+      if (!data.ai_models_used || data.ai_models_used.length === 0) {
+        toast({
+          title: "Missing AI models",
+          description: "Please select at least one AI model you've used.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update profile with basic tech levels
       await updateProfileData('profile', {
         technical_experience_level: data.technical_experience_level,
         ai_familiarity_level: data.ai_familiarity_level,
@@ -486,7 +464,7 @@ export const EnhancedTechFluencySection: React.FC = () => {
           </div>
         </div>
 
-        {/* Programming Languages - OPTIONAL */}
+        {/* Programming Languages */}
         <div className="space-y-4">
           <Label className="text-lg font-medium">Programming Languages (Optional)</Label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -507,10 +485,10 @@ export const EnhancedTechFluencySection: React.FC = () => {
           </div>
         </div>
 
-        {/* Coding Experience Years - OPTIONAL */}
+        {/* Coding Experience Years */}
         <div className="space-y-4">
           <Label className="text-lg font-medium">
-            Years of Coding Experience: {watch('coding_experience_years') || 0} (Optional)
+            Years of Coding Experience: {watch('coding_experience_years') || 0}
           </Label>
           <Slider
             value={[watch('coding_experience_years') || 0]}

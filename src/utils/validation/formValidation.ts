@@ -1,132 +1,104 @@
 
-import { ValidationResult, ValidationSchema } from './types';
-import { sanitizeForDatabase } from './inputValidation';
-import { monitoring } from '../monitoring';
+/**
+ * Form-specific validation utilities that handle auto-save vs final submission contexts
+ */
 
-export const validateForAutoSave = (
-  data: Record<string, any>,
-  section: string
-): ValidationResult => {
+import { ValidationResult } from './types';
+
+export const validateForAutoSave = (data: any, dataType: string): ValidationResult => {
   const errors: string[] = [];
-  const fieldErrors: Record<string, string[]> = {};
-  let sanitizedData: Record<string, any> = {};
-
-  try {
-    // Sanitize all input data
-    sanitizedData = sanitizeForDatabase(data);
-    
-    // Auto-save validation is more lenient - only check critical fields
-    const criticalFields: Record<string, string[]> = {
-      'basicInfo': ['email'],
-      'contactInfo': [],
-      'workInfo': [],
-      'technicalInfo': [],
-      'socialPresence': [],
-      'preferences': []
-    };
-    
-    const fieldsToCheck = criticalFields[section] || [];
-    
-    fieldsToCheck.forEach(field => {
-      if (!sanitizedData[field]) {
-        const error = `${field} is required`;
-        errors.push(error);
-        fieldErrors[field] = [error];
+  
+  // For auto-save, we only validate format/type issues, not required fields
+  switch (dataType) {
+    case 'profile':
+      // Only validate format issues during auto-save
+      if (data.full_name && data.full_name.trim() !== '' && (data.full_name.trim().length < 2 || data.full_name.trim().length > 100)) {
+        errors.push('Full name must be between 2 and 100 characters');
       }
-    });
-    
-    monitoring.recordMetric('form_validation_auto_save', 1, {
-      section,
-      valid: errors.length === 0 ? 'true' : 'false',
-      error_count: errors.length.toString()
-    });
-  } catch (error) {
-    console.error('Auto-save validation error:', error);
-    errors.push('Validation error occurred');
+      
+      if (data.email && data.email.trim() !== '' && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
+        errors.push('Invalid email format');
+      }
+      break;
+      
+    case 'tech_fluency':
+      // For auto-save, just validate types but allow empty arrays
+      if (data.ai_interests && !Array.isArray(data.ai_interests)) {
+        errors.push('AI interests must be an array');
+      }
+      if (data.ai_models_used && !Array.isArray(data.ai_models_used)) {
+        errors.push('AI models used must be an array');
+      }
+      if (data.programming_languages && !Array.isArray(data.programming_languages)) {
+        errors.push('Programming languages must be an array');
+      }
+      break;
+      
+    case 'skills':
+      // For auto-save, just validate types but allow empty arrays
+      if (data.interests && !Array.isArray(data.interests)) {
+        errors.push('Interests must be an array');
+      }
+      if (data.product_categories && !Array.isArray(data.product_categories)) {
+        errors.push('Product categories must be an array');
+      }
+      break;
   }
-
-  const totalFields = Object.keys(data).length;
-  const invalidFields = Object.keys(fieldErrors).length;
-
+  
   return {
     isValid: errors.length === 0,
     errors,
-    fieldErrors,
-    sanitizedData,
-    summary: {
-      totalFields,
-      validFields: totalFields - invalidFields,
-      invalidFields,
-      warningFields: 0
-    }
+    sanitizedData: data
   };
 };
 
-export const validateForSubmission = (
-  data: Record<string, any>,
-  section: string
-): ValidationResult => {
+export const validateForSubmission = (data: any, dataType: string): ValidationResult => {
   const errors: string[] = [];
-  const fieldErrors: Record<string, string[]> = {};
-  let sanitizedData: Record<string, any> = {};
-
-  try {
-    // Sanitize all input data
-    sanitizedData = sanitizeForDatabase(data);
-    
-    // Submission validation is strict - check all required fields
-    const requiredFields: Record<string, string[]> = {
-      'basicInfo': ['email', 'full_name', 'country', 'timezone'],
-      'contactInfo': ['phone', 'address'],
-      'workInfo': ['company', 'position'],
-      'technicalInfo': ['experience_level'],
-      'socialPresence': [],
-      'preferences': ['notification_preferences']
-    };
-    
-    const fieldsToCheck = requiredFields[section] || [];
-    
-    fieldsToCheck.forEach(field => {
-      if (!sanitizedData[field]) {
-        const error = `${field.replace(/_/g, ' ')} is required`;
-        errors.push(error);
-        fieldErrors[field] = [error];
+  
+  // For final submission, validate all requirements
+  switch (dataType) {
+    case 'profile':
+      if (!data.full_name || data.full_name.trim() === '') {
+        errors.push('Full name is required');
+      } else if (data.full_name.trim().length < 2 || data.full_name.trim().length > 100) {
+        errors.push('Full name must be between 2 and 100 characters');
       }
-    });
-    
-    // Additional validation logic based on section
-    if (section === 'basicInfo' && sanitizedData.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(sanitizedData.email)) {
-        const error = 'Invalid email format';
-        errors.push(error);
-        fieldErrors.email = [error];
+      
+      if (!data.email || data.email.trim() === '') {
+        errors.push('Email is required');
+      } else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
+        errors.push('Invalid email format');
       }
-    }
-    
-    monitoring.recordMetric('form_validation_submission', 1, {
-      section,
-      valid: errors.length === 0 ? 'true' : 'false',
-      error_count: errors.length.toString()
-    });
-  } catch (error) {
-    console.error('Submission validation error:', error);
-    errors.push('Validation error occurred');
+      break;
+      
+    case 'tech_fluency':
+      if (!data.technical_experience_level) {
+        errors.push('Technical experience level is required');
+      }
+      if (!data.ai_familiarity_level) {
+        errors.push('AI familiarity level is required');
+      }
+      if (!data.ai_interests || !Array.isArray(data.ai_interests) || data.ai_interests.length === 0) {
+        errors.push('At least one AI interest is required');
+      }
+      if (!data.ai_models_used || !Array.isArray(data.ai_models_used) || data.ai_models_used.length === 0) {
+        errors.push('At least one AI model is required');
+      }
+      break;
+      
+    case 'skills':
+      if (!data.interests || !Array.isArray(data.interests) || data.interests.length === 0) {
+        errors.push('At least one interest is required');
+      }
+      if (!data.languages_spoken || !Array.isArray(data.languages_spoken) || data.languages_spoken.length === 0) {
+        errors.push('At least one language is required');
+      }
+      break;
   }
-
-  const totalFields = Object.keys(data).length;
-  const invalidFields = Object.keys(fieldErrors).length;
-
+  
   return {
     isValid: errors.length === 0,
     errors,
-    fieldErrors,
-    sanitizedData,
-    summary: {
-      totalFields,
-      validFields: totalFields - invalidFields,
-      invalidFields,
-      warningFields: 0
-    }
+    sanitizedData: data
   };
 };

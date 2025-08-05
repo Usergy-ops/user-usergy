@@ -1,97 +1,86 @@
-
 import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/contexts/AuthContext';
-import { EnhancedGoogleAuth } from '@/components/auth/EnhancedGoogleAuth';
-import { EnhancedOTPVerification } from '@/components/auth/EnhancedOTPVerification';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, User, Info } from 'lucide-react';
-import { monitoring, trackUserAction } from '@/utils/monitoring';
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { validateEmail, validatePassword, getPasswordStrength } from '@/utils/security';
+import { GoogleAuth } from './GoogleAuth';
 
 interface EnhancedAuthFormProps {
   mode: 'signin' | 'signup';
-  onModeChange: (mode: 'signin' | 'signup') => void;
+  onToggleMode: () => void;
+  onSuccess?: () => void;
 }
 
-export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onModeChange }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
-  const [showOTP, setShowOTP] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState<number | undefined>();
-  
-  const { signIn, signUp, resetPassword } = useAuth();
+export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({
+  mode,
+  onToggleMode,
+  onSuccess
+}) => {
+  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [passwordStrength, setPasswordStrength] = useState<{ score: number; feedback: string }>({ score: 0, feedback: '' });
 
-  // Enhanced context detection for account type
-  const detectAccountTypeContext = () => {
-    const currentUrl = window.location.href;
-    const currentHost = window.location.host;
-    const referrerUrl = document.referrer || currentUrl;
-    const urlParams = new URLSearchParams(window.location.search);
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
     
-    // Determine account type with enhanced detection logic
-    let accountType = 'client'; // Default fallback
-    let signupSource = 'enhanced_auth_form';
-    
-    // Check URL parameters first (highest priority)
-    if (urlParams.get('type') === 'user' || urlParams.get('accountType') === 'user') {
-      accountType = 'user';
-      signupSource = 'enhanced_user_signup';
-    } else if (urlParams.get('type') === 'client' || urlParams.get('accountType') === 'client') {
-      accountType = 'client';
-      signupSource = 'enhanced_client_signup';
-    }
-    // Check domain/host (second priority)
-    else if (currentHost.includes('user.usergy.ai')) {
-      accountType = 'user';
-      signupSource = 'enhanced_user_signup';
-    } else if (currentHost.includes('client.usergy.ai')) {
-      accountType = 'client';
-      signupSource = 'enhanced_client_signup';
-    }
-    // Check URL paths (third priority)
-    else if (currentUrl.includes('/user') || referrerUrl.includes('user.usergy.ai')) {
-      accountType = 'user';
-      signupSource = 'enhanced_user_signup';
-    } else if (currentUrl.includes('/client') || referrerUrl.includes('client.usergy.ai')) {
-      accountType = 'client';
-      signupSource = 'enhanced_client_signup';
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
     }
     
-    console.log('Enhanced Auth Form - Context detection:', {
-      currentUrl,
-      currentHost,
-      referrerUrl,
-      urlParams: Object.fromEntries(urlParams),
-      detectedAccountType: accountType,
-      signupSource,
-      mode
-    });
-    
-    return { account_type: accountType, signup_source: signupSource };
+    // Real-time password strength checking
+    if (field === 'password') {
+      const strength = getPasswordStrength(value);
+      setPasswordStrength(strength);
+    }
   };
 
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: Record<string, string> = {};
     
-    if (!email) {
+    // Email validation
+    if (!formData.email) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!validateEmail(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
     
-    if (!password) {
+    // Password validation
+    if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (mode === 'signup' && password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
+    } else if (mode === 'signup') {
+      const passwordValidation = validatePassword(formData.password);
+      if (!passwordValidation.isValid) {
+        newErrors.password = passwordValidation.errors[0];
+      }
+    }
+    
+    // Confirm password validation (signup only)
+    if (mode === 'signup') {
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
     }
     
     setErrors(newErrors);
@@ -101,325 +90,252 @@ export const EnhancedAuthForm: React.FC<EnhancedAuthFormProps> = ({ mode, onMode
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    setErrors({});
-    
-    try {
-      monitoring.startTiming(`enhanced_auth_form_${mode}`);
-      
-      if (mode === 'signin') {
-        const result = await signIn(email, password);
-        
-        if (result.error) {
-          setErrors({ general: result.error });
-          toast({
-            title: "Sign In Failed",
-            description: result.error,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Welcome back!",
-            description: "You have successfully signed in.",
-          });
-          trackUserAction(`enhanced_signin_success`, { email });
-        }
-      } else {
-        // Get account type context for signup
-        const context = detectAccountTypeContext();
-        
-        const result = await signUp(email, password, {
-          signup_source: context.signup_source,
-          account_type: context.account_type
-        });
-        
-        if (result.error) {
-          if (result.error.includes('already registered')) {
-            setErrors({ general: 'This email is already registered. Please sign in instead.' });
-            toast({
-              title: "Account exists",
-              description: "This email is already registered. Please sign in instead.",
-              variant: "destructive"
-            });
-          } else {
-            setErrors({ general: result.error });
-            toast({
-              title: "Sign Up Failed",
-              description: result.error,
-              variant: "destructive"
-            });
-          }
-        } else {
-          setShowOTP(true);
-          setAttemptsLeft(result.attemptsLeft);
-          toast({
-            title: "Verification Required",
-            description: "Please check your email and enter the verification code.",
-          });
-          trackUserAction(`enhanced_signup_otp_sent`, { 
-            email, 
-            account_type: context.account_type,
-            signup_source: context.signup_source
-          });
-        }
-      }
-      
-      monitoring.endTiming(`enhanced_auth_form_${mode}`);
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setErrors({ general: errorMessage });
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePasswordReset = async () => {
-    if (!email) {
-      setErrors({ email: 'Please enter your email address first' });
+    if (!validateForm()) {
       return;
     }
     
-    setIsLoading(true);
+    setIsSubmitting(true);
     
     try {
-      const result = await resetPassword(email);
+      let result;
+      
+      if (mode === 'signup') {
+        result = await signUp(formData.email, formData.password);
+      } else {
+        result = await signIn(formData.email, formData.password);
+      }
       
       if (result.error) {
         toast({
-          title: "Reset Failed",
+          title: mode === 'signup' ? "Sign Up Failed" : "Sign In Failed",
           description: result.error,
           variant: "destructive"
         });
+        return;
+      }
+      
+      // Success handling
+      if (mode === 'signup') {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a verification code to complete your signup.",
+        });
       } else {
         toast({
-          title: "Reset Link Sent",
-          description: "Please check your email for password reset instructions.",
+          title: "Welcome back!",
+          description: "You've been signed in successfully.",
         });
       }
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+      
     } catch (error) {
+      console.error('Auth error:', error);
       toast({
-        title: "Error",
-        description: "Failed to send password reset email",
+        title: "Authentication Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleOTPSuccess = () => {
-    setShowOTP(false);
-    toast({
-      title: "Account Verified!",
-      description: "Your account has been successfully verified.",
-    });
+  const getPasswordStrengthColor = (score: number) => {
+    if (score <= 2) return 'bg-red-500';
+    if (score <= 4) return 'bg-yellow-500';
+    if (score <= 6) return 'bg-blue-500';
+    return 'bg-green-500';
   };
-
-  const handleOTPError = (error: string) => {
-    toast({
-      title: "Verification Failed",
-      description: error,
-      variant: "destructive"
-    });
-  };
-
-  if (showOTP) {
-    return (
-      <EnhancedOTPVerification
-        email={email}
-        password={password}
-        onBack={() => setShowOTP(false)}
-        onSuccess={handleOTPSuccess}
-      />
-    );
-  }
-
-  // Show account type detection info for debugging
-  const context = detectAccountTypeContext();
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-2">
           {mode === 'signin' ? 'Welcome back' : 'Create your account'}
-        </CardTitle>
+        </h2>
         <p className="text-muted-foreground">
           {mode === 'signin' 
-            ? 'Sign in to your account to continue' 
-            : 'Sign up to get started with Usergy'
+            ? 'Enter your credentials to access your account' 
+            : 'Get started with your Explorer journey'
           }
         </p>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {/* Account Type Detection Info (for debugging) */}
-        {mode === 'signup' && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Account type detected: <strong>{context.account_type}</strong>
-              {context.account_type === 'user' && ' (Usergy Team Member)'}
-              {context.account_type === 'client' && ' (Client Account)'}
-            </AlertDescription>
-          </Alert>
-        )}
+      </div>
 
-        {/* Enhanced Google Auth */}
-        <EnhancedGoogleAuth 
-          mode={mode}
-          onSuccess={() => {
-            toast({
-              title: mode === 'signin' ? "Welcome back!" : "Account created!",
-              description: mode === 'signin' ? "You have successfully signed in." : "Please complete your profile.",
-            });
-          }}
-          onError={(error) => {
-            toast({
-              title: "Authentication Error",
-              description: error,
-              variant: "destructive"
-            });
-          }}
-          disabled={isLoading}
-        />
-        
-        <div className="relative">
-          <Separator />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="px-2 text-xs text-muted-foreground bg-background">
-              Or continue with email
-            </span>
-          </div>
+      <GoogleAuth 
+        mode={mode} 
+        onSuccess={onSuccess}
+        onError={(error) => {
+          toast({
+            title: "Google Authentication Failed",
+            description: error,
+            variant: "destructive"
+          });
+        }}
+      />
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
         </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or continue with email
+          </span>
+        </div>
+      </div>
 
-        {/* General Error Alert */}
-        {errors.general && (
-          <Alert variant="destructive">
-            <AlertDescription>{errors.general}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Enhanced Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Email
-            </Label>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Email Field */}
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium">
+            Email Address
+          </Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               id="email"
               type="email"
               placeholder="Enter your email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (errors.email) setErrors({ ...errors, email: undefined });
-              }}
-              className={errors.email ? 'border-destructive' : ''}
-              disabled={isLoading}
-              required
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+              disabled={isSubmitting}
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email}</p>
+            {formData.email && !errors.email && validateEmail(formData.email) && (
+              <CheckCircle className="absolute right-3 top-3 h-4 w-4 text-green-500" />
             )}
           </div>
+          {errors.email && (
+            <p className="text-sm text-destructive flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              {errors.email}
+            </p>
+          )}
+        </div>
 
+        {/* Password Field */}
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-sm font-medium">
+            Password {mode === 'signup' && '(12+ characters)'}
+          </Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder={mode === 'signup' ? "Set your password" : "Enter your password"}
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
+              disabled={isSubmitting}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-sm text-destructive flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              {errors.password}
+            </p>
+          )}
+          
+          {/* Password Strength Indicator (signup only) */}
+          {mode === 'signup' && formData.password && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Password strength</span>
+                <span className="text-xs text-muted-foreground">
+                  {passwordStrength.score}/8
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor(passwordStrength.score)}`}
+                  style={{ width: `${(passwordStrength.score / 8) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {passwordStrength.feedback}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Confirm Password Field (signup only) */}
+        {mode === 'signup' && (
           <div className="space-y-2">
-            <Label htmlFor="password" className="flex items-center gap-2">
-              <Lock className="w-4 h-4" />
-              Password
+            <Label htmlFor="confirmPassword" className="text-sm font-medium">
+              Confirm Password
             </Label>
             <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors.password) setErrors({ ...errors, password: undefined });
-                }}
-                className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
-                disabled={isLoading}
-                required
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm your password"
+                value={formData.confirmPassword}
+                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                disabled={isSubmitting}
               />
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
               >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </Button>
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                <CheckCircle className="absolute right-10 top-3 h-4 w-4 text-green-500" />
+              )}
             </div>
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password}</p>
+            {errors.confirmPassword && (
+              <p className="text-sm text-destructive flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {errors.confirmPassword}
+              </p>
             )}
-          </div>
-
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>{mode === 'signin' ? 'Signing in...' : 'Creating account...'}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
-              </div>
-            )}
-          </Button>
-        </form>
-
-        {/* Additional Actions */}
-        {mode === 'signin' && (
-          <div className="text-center">
-            <Button
-              variant="link"
-              onClick={handlePasswordReset}
-              disabled={isLoading}
-              className="text-sm"
-            >
-              Forgot your password?
-            </Button>
           </div>
         )}
 
-        {/* Mode Toggle */}
-        <div className="text-center text-sm">
-          <span className="text-muted-foreground">
-            {mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
-          </span>
-          <Button
-            variant="link"
-            onClick={() => onModeChange(mode === 'signin' ? 'signup' : 'signin')}
-            disabled={isLoading}
-            className="p-0 h-auto text-sm"
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-gradient-to-r from-primary-start to-primary-end hover:opacity-90"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {mode === 'signin' ? 'Signing in...' : 'Creating account...'}
+            </>
+          ) : (
+            mode === 'signin' ? 'Sign In' : 'Create Account'
+          )}
+        </Button>
+      </form>
+
+      {/* Toggle Mode */}
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          {mode === 'signin' ? "Don't have an account?" : "Already have an account?"}
+          <button
+            type="button"
+            onClick={onToggleMode}
+            className="ml-1 text-primary hover:underline font-medium"
           >
             {mode === 'signin' ? 'Sign up' : 'Sign in'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          </button>
+        </p>
+      </div>
+    </div>
   );
 };
-

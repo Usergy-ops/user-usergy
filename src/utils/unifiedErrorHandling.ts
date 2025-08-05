@@ -245,14 +245,14 @@ export class UnifiedErrorHandler {
     }
   }
 
-  // Clean up failed OTP records - using correct table name
+  // Clean up failed OTP records
   private async cleanupFailedOTP(userId?: string, metadata?: Record<string, any>): Promise<void> {
     if (!metadata?.email) return;
     
     try {
-      // Delete expired or failed OTP records from the correct table
+      // Delete expired or failed OTP records
       await supabase
-        .from('auth_otp_verifications')
+        .from('user_otp_verification')
         .delete()
         .eq('email', metadata.email)
         .or('expires_at.lt.now(),attempts.gte.3');
