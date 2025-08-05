@@ -1,107 +1,67 @@
 
 /**
- * Enhanced security utilities for input validation and sanitization
+ * Security utilities for input validation and sanitization
  */
 
-// Email validation regex
-const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+export interface PasswordValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
 
-// Strong password requirements
-const PASSWORD_MIN_LENGTH = 12;
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
-
-// Common password patterns to reject
-const WEAK_PASSWORD_PATTERNS = [
-  /^password/i,
-  /^123456/,
-  /^qwerty/i,
-  /^admin/i,
-  /^welcome/i,
-  /^letmein/i,
-  /^monkey/i,
-  /^dragon/i,
-  /^master/i,
-  /^test/i
-];
-
-// Sequential patterns to reject
-const SEQUENTIAL_PATTERNS = [
-  /012345/,
-  /123456/,
-  /234567/,
-  /345678/,
-  /456789/,
-  /567890/,
-  /abcdef/i,
-  /bcdefg/i,
-  /cdefgh/i,
-  /defghi/i,
-  /efghij/i,
-  /fghijk/i,
-  /ghijkl/i,
-  /hijklm/i,
-  /ijklmn/i,
-  /jklmno/i,
-  /klmnop/i,
-  /lmnopq/i,
-  /mnopqr/i,
-  /nopqrs/i,
-  /opqrst/i,
-  /pqrstu/i,
-  /qrstuv/i,
-  /rstuvw/i,
-  /stuvwx/i,
-  /tuvwxy/i,
-  /uvwxyz/i
-];
-
+// Email validation using a comprehensive regex
 export const validateEmail = (email: string): boolean => {
-  if (!email || typeof email !== 'string') return false;
-  return EMAIL_REGEX.test(email.trim());
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  return emailRegex.test(email);
 };
 
-export const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+// Password validation with comprehensive rules
+export const validatePassword = (password: string): PasswordValidationResult => {
   const errors: string[] = [];
   
   if (!password || typeof password !== 'string') {
-    errors.push('Password is required');
-    return { isValid: false, errors };
+    return { isValid: false, errors: ['Password is required'] };
   }
   
-  if (password.length < PASSWORD_MIN_LENGTH) {
-    errors.push(`Password must be at least ${PASSWORD_MIN_LENGTH} characters long`);
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
   }
   
-  if (!PASSWORD_REGEX.test(password)) {
-    errors.push('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)');
+  if (password.length > 128) {
+    errors.push('Password must be less than 128 characters');
   }
   
-  // Check for weak password patterns
-  for (const pattern of WEAK_PASSWORD_PATTERNS) {
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  
+  if (!/\d/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
+  
+  // Check for common patterns
+  const commonPatterns = [
+    /(.)\1{2,}/, // Three or more repeated characters
+    /123456|654321|abcdef|qwerty/i, // Common sequences
+    /password|admin|login|user/i // Common words
+  ];
+  
+  for (const pattern of commonPatterns) {
     if (pattern.test(password)) {
-      errors.push('Password contains common weak patterns. Please choose a more secure password.');
+      errors.push('Password contains common patterns and is not secure');
       break;
     }
-  }
-  
-  // Check for sequential patterns
-  for (const pattern of SEQUENTIAL_PATTERNS) {
-    if (pattern.test(password)) {
-      errors.push('Password contains sequential characters. Please choose a more secure password.');
-      break;
-    }
-  }
-  
-  // Check for repeated characters (3 or more in a row)
-  if (/(.)\1{2,}/.test(password)) {
-    errors.push('Password contains too many repeated characters in a row.');
-  }
-  
-  // Check password entropy (basic check)
-  const uniqueChars = new Set(password).size;
-  const entropyRatio = uniqueChars / password.length;
-  if (entropyRatio < 0.6) {
-    errors.push('Password lacks sufficient character variety. Please use a more diverse mix of characters.');
   }
   
   return {
@@ -110,91 +70,75 @@ export const validatePassword = (password: string): { isValid: boolean; errors: 
   };
 };
 
-export const sanitizeInput = (input: string): string => {
-  if (!input || typeof input !== 'string') return '';
+// Sanitize HTML input to prevent XSS
+export const sanitizeHtml = (input: string): string => {
+  if (!input || typeof input !== 'string') {
+    return '';
+  }
   
-  // Remove potentially dangerous characters and normalize
   return input
-    .replace(/[<>'"&]/g, '') // Remove HTML/XSS characters
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim(); // Remove leading/trailing whitespace
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
 };
 
-export const validateAge = (age: number): boolean => {
-  return Number.isInteger(age) && age >= 13 && age <= 120;
-};
-
-export const validateCompletionPercentage = (percentage: number): boolean => {
-  return Number.isInteger(percentage) && percentage >= 0 && percentage <= 100;
-};
-
-export const validateCodingExperience = (years: number): boolean => {
-  return Number.isInteger(years) && years >= 0 && years <= 50;
-};
-
-export const validateURL = (url: string): boolean => {
-  if (!url || typeof url !== 'string') return false;
+// Validate and sanitize URL
+export const validateAndSanitizeUrl = (url: string): { isValid: boolean; sanitizedUrl?: string } => {
+  if (!url || typeof url !== 'string') {
+    return { isValid: false };
+  }
   
   try {
-    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
-    const urlObj = new URL(normalizedUrl);
-    return ['http:', 'https:'].includes(urlObj.protocol);
+    const urlObj = new URL(url);
+    
+    // Only allow http and https protocols
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      return { isValid: false };
+    }
+    
+    return { 
+      isValid: true, 
+      sanitizedUrl: urlObj.toString() 
+    };
   } catch {
-    return false;
+    return { isValid: false };
   }
 };
 
-export const normalizeURL = (url: string): string => {
-  if (!url || typeof url !== 'string') return '';
+// Validate phone number (basic international format)
+export const validatePhoneNumber = (phone: string): boolean => {
+  if (!phone || typeof phone !== 'string') {
+    return false;
+  }
   
-  const trimmed = url.trim();
-  if (!trimmed) return '';
+  // Remove all non-digit characters for validation
+  const cleanPhone = phone.replace(/\D/g, '');
   
-  return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+  // Check if it's between 10 and 15 digits (international standard)
+  return cleanPhone.length >= 10 && cleanPhone.length <= 15;
 };
 
-// Password strength scoring
-export const getPasswordStrength = (password: string): { score: number; feedback: string } => {
-  if (!password) return { score: 0, feedback: 'Password is required' };
-  
-  let score = 0;
-  const feedback: string[] = [];
-  
-  // Length scoring
-  if (password.length >= 12) score += 2;
-  else if (password.length >= 8) score += 1;
-  else feedback.push('Use at least 12 characters');
-  
-  // Character variety scoring
-  if (/[a-z]/.test(password)) score += 1;
-  else feedback.push('Add lowercase letters');
-  
-  if (/[A-Z]/.test(password)) score += 1;
-  else feedback.push('Add uppercase letters');
-  
-  if (/\d/.test(password)) score += 1;
-  else feedback.push('Add numbers');
-  
-  if (/[@$!%*?&]/.test(password)) score += 1;
-  else feedback.push('Add special characters');
-  
-  // Bonus points for additional complexity
-  if (password.length >= 16) score += 1;
-  if (/[^A-Za-z0-9@$!%*?&]/.test(password)) score += 1; // Additional special chars
-  
-  // Deduct points for common patterns
-  if (WEAK_PASSWORD_PATTERNS.some(pattern => pattern.test(password))) score -= 2;
-  if (SEQUENTIAL_PATTERNS.some(pattern => pattern.test(password))) score -= 1;
-  if (/(.)\1{2,}/.test(password)) score -= 1;
-  
-  score = Math.max(0, Math.min(8, score)); // Clamp between 0-8
-  
-  const strengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
-  const strengthIndex = Math.floor(score / 2);
-  const strengthLabel = strengthLabels[strengthIndex] || 'Very Weak';
-  
-  return {
-    score,
-    feedback: feedback.length > 0 ? feedback.join(', ') : `Password strength: ${strengthLabel}`
-  };
+// Rate limiting helpers
+export const createSecureIdentifier = (ip: string, userAgent?: string): string => {
+  const base = `${ip}_${userAgent || 'unknown'}`;
+  // Simple hash to avoid storing raw IP addresses
+  return btoa(base).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+};
+
+// Input length validation
+export const validateInputLength = (input: string, maxLength: number = 1000): boolean => {
+  return input && typeof input === 'string' && input.length <= maxLength;
+};
+
+// Validate age
+export const validateAge = (age: number): boolean => {
+  return typeof age === 'number' && age >= 13 && age <= 120 && Number.isInteger(age);
+};
+
+// Validate array input
+export const validateArrayInput = (input: any, maxItems: number = 50): boolean => {
+  return Array.isArray(input) && input.length <= maxItems;
 };
