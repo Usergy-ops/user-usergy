@@ -95,6 +95,18 @@ class MonitoringService {
     enhancedTrackError(error, context, errorMetadata);
   }
 
+  // Warning logging method
+  warn(message: string, context: string, metadata?: Record<string, any>): void {
+    console.warn(`[${context}] Warning: ${message}`, metadata);
+    
+    // Record warning as a metric
+    this.recordMetric('warning', 1, {
+      context,
+      message_length: message.length.toString(),
+      has_metadata: metadata ? 'true' : 'false'
+    });
+  }
+
   // User action tracking
   trackUserAction(action: string, metadata?: Record<string, any>): void {
     const actionMetadata = {
