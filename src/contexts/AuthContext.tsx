@@ -40,7 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (event, session) => {
         if (!mounted) return;
         
-        console.log('Auth state change:', { event, session: !!session, user: !!session?.user });
+        console.log('Auth state change:', { 
+          event, 
+          session: !!session, 
+          user: !!session?.user,
+          provider: session?.user?.app_metadata?.provider 
+        });
         
         // Always set both session and user together
         setSession(session);
@@ -57,7 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           trackUserAction('user_signed_in', {
             user_id: session.user.id,
             email: session.user.email,
-            provider: session.user.app_metadata?.provider || 'email'
+            provider: session.user.app_metadata?.provider || 'email',
+            oauth_signup: !!session.user.app_metadata?.provider
           });
         } else if (event === 'SIGNED_OUT') {
           trackUserAction('user_signed_out', {});
@@ -81,7 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (mounted) {
-          console.log('Initial session loaded:', { session: !!session, user: !!session?.user });
+          console.log('Initial session loaded:', { 
+            session: !!session, 
+            user: !!session?.user,
+            provider: session?.user?.app_metadata?.provider 
+          });
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);

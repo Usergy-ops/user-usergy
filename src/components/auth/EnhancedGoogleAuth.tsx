@@ -34,6 +34,8 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       const baseUrl = window.location.origin;
       const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
       
+      console.log('Starting Enhanced Google OAuth with:', { mode, redirectTo, baseUrl });
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -62,6 +64,8 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
           userMessage = 'Network error. Please check your connection and try again.';
         } else if (error.message.includes('cancelled')) {
           userMessage = 'Authentication was cancelled. Please try again.';
+        } else if (error.message.includes('redirect')) {
+          userMessage = 'OAuth redirect error. Please contact support if this persists.';
         }
         
         toast({
@@ -84,12 +88,23 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         mode
       });
       
+      console.log('Enhanced Google OAuth initiated successfully');
+      
       // Show success message for signup
       if (mode === 'signup') {
         toast({
           title: "Account Created!",
-          description: "Welcome to Usergy! Please complete your profile.",
+          description: "Welcome to Usergy! Redirecting you to complete your profile.",
         });
+      } else {
+        toast({
+          title: "Welcome Back!",
+          description: "Successfully signed in with Google.",
+        });
+      }
+      
+      if (onSuccess) {
+        onSuccess();
       }
       
     } catch (error) {
@@ -103,7 +118,7 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       
       toast({
         title: "Authentication Error",
-        description: errorMessage,
+        description: "Unable to connect to Google. Please try again or contact support.",
         variant: "destructive"
       });
       

@@ -30,9 +30,9 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     try {
       monitoring.startTiming(`google_auth_${mode}`);
       
-      // Enhanced redirect URL construction - CRITICAL FIX
+      // Enhanced redirect URL construction
       const baseUrl = window.location.origin;
-      const redirectTo = `${baseUrl}/dashboard`; // Always redirect to dashboard after OAuth
+      const redirectTo = `${baseUrl}/dashboard`;
       
       console.log('Starting Google OAuth with:', { mode, redirectTo, baseUrl });
       
@@ -99,6 +99,10 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         title: mode === 'signup' ? "Account Creation Started" : "Sign In Started",
         description: "Redirecting to Google for authentication...",
       });
+      
+      if (onSuccess) {
+        onSuccess();
+      }
       
     } catch (error) {
       monitoring.logError(error as Error, `google_auth_${mode}_error`, {
