@@ -43,18 +43,20 @@ public_bucket = "profile-pictures"
 enabled = true
 port = 54328
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["https://lnsyrmpucmllakuuiixe.lovableproject.com"]
+additional_redirect_urls = ["https://lnsyrmpucmllakuuiixe.lovableproject.com", "http://localhost:5173/auth/callback", "https://lnsyrmpucmllakuuiixe.lovableproject.com/auth/callback"]
 jwt_expiry = 3600
 refresh_token_rotation_enabled = true
-security_update_password_require_reauthentication = true
+security_update_password_require_reauthentication = false
 
 [auth.email]
 enable_signup = true
-double_confirm_changes = true
-enable_confirmations = false
+double_confirm_changes = false
+enable_confirmations = true
 
-[[auth.email.custom_smtp]]
-enabled = false
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
 
 [functions.auth-otp]
 verify_jwt = false
