@@ -97,7 +97,7 @@ export const useErrorHandler = () => {
   ) => {
     const unifiedError = await handleError(error, context, metadata);
     
-    // Only show recovery if we haven't exceeded error limit
+    // Only show recovery if we haven't exceeded error limit and the error exists and is recoverable
     if (errorCount.current <= 3 && unifiedError?.recoverable && recoveryCallback) {
       // Show recovery option after a delay
       setTimeout(() => {

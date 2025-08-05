@@ -17,10 +17,12 @@ export interface ErrorContext {
 
 // Define a unified error interface that extends the standard Error
 export interface UnifiedError extends Error {
+  id?: string;
   code?: string;
   severity?: 'low' | 'medium' | 'high' | 'critical';
   context?: ErrorContext;
   retryable?: boolean;
+  recoverable?: boolean;
   timestamp?: Date;
 }
 
@@ -56,34 +58,38 @@ class UnifiedErrorHandler {
     // Intercept unhandled errors
     if (typeof window !== 'undefined') {
       window.addEventListener('error', (event) => {
-        this.handleError(new Error(event.message), {
-          component: 'global_error_handler',
-          action: 'unhandled_error',
-          metadata: {
-            filename: event.filename,
-            lineno: event.lineno,
-            colno: event.colno
-          }
+        this.handleError(new Error(event.message), 'global_error_handler', undefined, {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
         });
       });
 
       window.addEventListener('unhandledrejection', (event) => {
-        this.handleError(new Error(event.reason), {
-          component: 'global_error_handler',
-          action: 'unhandled_promise_rejection'
-        });
+        this.handleError(new Error(event.reason), 'global_error_handler');
       });
     }
   }
 
-  async handleError(error: Error | UnifiedError, context: ErrorContext = {}): Promise<void> {
+  async handleError(
+    error: Error | UnifiedError, 
+    context: string = 'unknown_context', 
+    userId?: string, 
+    metadata?: Record<string, any>
+  ): Promise<UnifiedError> {
     try {
-      const unifiedError: UnifiedError = this.normalizeError(error, context);
+      const errorContext: ErrorContext = {
+        userId,
+        component: context,
+        metadata
+      };
+
+      const unifiedError: UnifiedError = this.normalizeError(error, errorContext);
       
       // Add to processing queue for batch processing
       this.errorQueue.push({
         error: unifiedError,
-        context,
+        context: errorContext,
         timestamp: new Date()
       });
 
@@ -93,20 +99,36 @@ class UnifiedErrorHandler {
       }
 
       // Log to monitoring system
-      monitoring.logError(unifiedError, context.component || 'unknown', {
-        ...context.metadata,
+      monitoring.logError(unifiedError, context, {
+        ...metadata,
         severity: unifiedError.severity,
         retryable: unifiedError.retryable
       });
 
+      return unifiedError;
+
     } catch (processingError) {
       console.error('Error in unified error handler:', processingError);
       console.error('Original error:', error);
+      
+      // Return a basic unified error on failure
+      return {
+        ...error,
+        id: `error_${Date.now()}`,
+        severity: 'medium' as const,
+        retryable: false,
+        recoverable: false,
+        timestamp: new Date()
+      } as UnifiedError;
     }
   }
 
   private normalizeError(error: Error | UnifiedError, context: ErrorContext): UnifiedError {
     const unifiedError = error as UnifiedError;
+    
+    if (!unifiedError.id) {
+      unifiedError.id = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
     
     if (!unifiedError.severity) {
       unifiedError.severity = this.determineSeverity(error, context);
@@ -126,6 +148,10 @@ class UnifiedErrorHandler {
     
     if (unifiedError.retryable === undefined) {
       unifiedError.retryable = this.isRetryable(error, context);
+    }
+
+    if (unifiedError.recoverable === undefined) {
+      unifiedError.recoverable = this.isRecoverable(error, context);
     }
     
     return unifiedError;
@@ -179,6 +205,25 @@ class UnifiedErrorHandler {
     return false;
   }
 
+  private isRecoverable(error: Error, context: ErrorContext): boolean {
+    // Network errors are usually recoverable
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      return true;
+    }
+    
+    // Some validation errors can be recovered from
+    if (error.message.includes('validation')) {
+      return true;
+    }
+    
+    // Critical system errors are not recoverable
+    if (context.component === 'global_error_handler') {
+      return false;
+    }
+    
+    return true;
+  }
+
   private async processErrorQueue(): Promise<void> {
     if (this.errorQueue.length === 0) return;
 
@@ -225,53 +270,34 @@ class UnifiedErrorHandler {
   }
 
   // Specialized error handlers
-  async handleAuthError(error: Error, userId?: string, action?: string): Promise<void> {
-    await this.handleError(error, {
-      userId,
-      component: 'auth_system',
+  async handleAuthError(error: Error, userId?: string, action?: string): Promise<UnifiedError> {
+    return await this.handleError(error, 'auth_system', userId, {
+      auth_error: true,
       action: action || 'auth_error',
-      metadata: {
-        auth_error: true,
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
-      }
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
     });
   }
 
-  async handleValidationError(error: Error, field: string, userId?: string): Promise<void> {
-    await this.handleError(error, {
-      userId,
-      component: 'form_validation',
-      action: 'validation_error',
-      metadata: {
-        field,
-        validation_error: true
-      }
+  async handleValidationError(error: Error, field: string, userId?: string): Promise<UnifiedError> {
+    return await this.handleError(error, 'form_validation', userId, {
+      field,
+      validation_error: true
     });
   }
 
-  async handleNetworkError(error: Error, endpoint: string, userId?: string): Promise<void> {
-    await this.handleError(error, {
-      userId,
-      component: 'network_client',
-      action: 'network_error',
-      metadata: {
-        endpoint,
-        network_error: true,
-        timestamp: new Date().toISOString()
-      }
+  async handleNetworkError(error: Error, endpoint: string, userId?: string): Promise<UnifiedError> {
+    return await this.handleError(error, 'network_client', userId, {
+      endpoint,
+      network_error: true,
+      timestamp: new Date().toISOString()
     });
   }
 
-  async handleDatabaseError(error: Error, table: string, operation: string, userId?: string): Promise<void> {
-    await this.handleError(error, {
-      userId,
-      component: 'database_client',
-      action: 'database_error',
-      metadata: {
-        table,
-        operation,
-        database_error: true
-      }
+  async handleDatabaseError(error: Error, table: string, operation: string, userId?: string): Promise<UnifiedError> {
+    return await this.handleError(error, 'database_client', userId, {
+      table,
+      operation,
+      database_error: true
     });
   }
 

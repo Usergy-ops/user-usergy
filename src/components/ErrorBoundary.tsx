@@ -1,4 +1,3 @@
-
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.setState({ errorInfo });
 
     try {
-      // Use unified error handler
+      // Use unified error handler with correct signature
       const unifiedError = await unifiedErrorHandler.handleError(
         error,
         'error_boundary',

@@ -149,6 +149,7 @@ export class EnhancedRateLimitEngine {
           allowed: false,
           blocked: true,
           remaining: 0,
+          attemptsRemaining: 0,
           resetTime: new Date(existing.blocked_until),
           retryAfter: Math.ceil((new Date(existing.blocked_until).getTime() - now.getTime()) / 1000)
         };
@@ -235,6 +236,7 @@ export class EnhancedRateLimitEngine {
         allowed: !isBlocked,
         blocked: isBlocked,
         remaining,
+        attemptsRemaining: remaining,
         resetTime,
         retryAfter
       };
@@ -253,6 +255,7 @@ export class EnhancedRateLimitEngine {
         allowed: true,
         blocked: false,
         remaining: config.maxAttempts,
+        attemptsRemaining: config.maxAttempts,
         resetTime: new Date(Date.now() + (config.windowMinutes * 60 * 1000)),
         retryAfter: 0
       };
