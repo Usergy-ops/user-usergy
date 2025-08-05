@@ -44,7 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           event, 
           session: !!session, 
           user: !!session?.user,
-          provider: session?.user?.app_metadata?.provider || session?.user?.user_metadata?.provider
+          provider: session?.user?.app_metadata?.provider || session?.user?.user_metadata?.provider,
+          email_confirmed: !!session?.user?.email_confirmed_at,
+          is_oauth: !!(session?.user?.app_metadata?.provider || session?.user?.user_metadata?.provider)
         });
         
         // Always set both session and user together
@@ -57,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         }
         
-        // Track auth events for monitoring with enhanced OAuth detection
+        // Enhanced OAuth user detection and tracking
         if (event === 'SIGNED_IN' && session?.user) {
           const isOauthUser = !!(
             session.user.app_metadata?.provider || 
@@ -65,13 +67,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             session.user.user_metadata?.iss
           );
           
+          const provider = session.user.app_metadata?.provider || 
+                          session.user.user_metadata?.provider || 
+                          'email';
+          
+          // Special handling for Google OAuth users
+          if (provider === 'google' || session.user.user_metadata?.iss?.includes('google')) {
+            console.log('Google OAuth user signed in:', {
+              user_id: session.user.id,
+              email: session.user.email,
+              email_confirmed: !!session.user.email_confirmed_at,
+              provider,
+              signup_source: session.user.raw_user_meta_data?.signup_source
+            });
+          }
+          
           trackUserAction('user_signed_in', {
             user_id: session.user.id,
             email: session.user.email,
-            provider: session.user.app_metadata?.provider || session.user.user_metadata?.provider || 'email',
+            provider,
             oauth_signup: isOauthUser,
             is_oauth_user: isOauthUser,
-            auth_event: event
+            auth_event: event,
+            email_confirmed: !!session.user.email_confirmed_at
           });
         } else if (event === 'SIGNED_OUT') {
           trackUserAction('user_signed_out', {
@@ -107,7 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             session: !!session, 
             user: !!session?.user,
             provider: session?.user?.app_metadata?.provider || session?.user?.user_metadata?.provider,
-            is_oauth_user: isOauthUser
+            is_oauth_user: isOauthUser,
+            email_confirmed: !!session?.user?.email_confirmed_at
           });
           
           setSession(session);

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Chrome, Loader2, Shield } from 'lucide-react';
+import { Chrome, Loader2, Shield, RefreshCw } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
 
 interface GoogleAuthProps {
@@ -20,40 +20,63 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
   disabled = false 
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
-  const handleGoogleAuth = async () => {
+  const getRedirectUrl = () => {
+    const baseUrl = window.location.origin;
+    // Use dedicated callback route for OAuth
+    return `${baseUrl}/auth/callback`;
+  };
+
+  const handleGoogleAuth = async (isRetry = false) => {
     if (disabled || isLoading) return;
     
     setIsLoading(true);
     
     try {
-      monitoring.startTiming(`google_auth_${mode}`);
+      monitoring.startTiming(`google_auth_${mode}_${isRetry ? 'retry' : 'initial'}`);
       
-      // Enhanced redirect URL construction with proper OAuth handling
-      const baseUrl = window.location.origin;
-      const redirectTo = mode === 'signup' 
-        ? `${baseUrl}/profile-completion` 
-        : `${baseUrl}/dashboard`;
+      const redirectTo = getRedirectUrl();
       
-      console.log('Starting Google OAuth with:', { mode, redirectTo, baseUrl });
+      console.log('Starting Google OAuth with:', { 
+        mode, 
+        redirectTo, 
+        baseUrl: window.location.origin,
+        isRetry,
+        retryCount
+      });
       
-      // Enhanced OAuth configuration with proper signup metadata
+      // Enhanced OAuth configuration with improved error recovery
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: mode === 'signup' ? 'consent' : 'select_account',
+            prompt: mode === 'signup' ? 'consent' : isRetry ? 'consent' : 'select_account',
+            hd: undefined, // Allow any domain
+            ...(isRetry && { approval_prompt: 'force' }) // Force approval on retry
           },
           skipBrowserRedirect: false,
-          // Add signup context for backend trigger detection
+          // Enhanced metadata for better OAuth detection
           ...(mode === 'signup' && {
             data: {
               account_type: 'client',
               signup_source: 'google_oauth_signup',
-              source_url: baseUrl
+              source_url: window.location.origin,
+              oauth_provider: 'google',
+              signup_intent: true,
+              oauth_signup: true,
+              retry_attempt: isRetry ? retryCount + 1 : 1
+            }
+          }),
+          // For signin, still add some metadata
+          ...(mode === 'signin' && {
+            data: {
+              signin_source: 'google_oauth_signin',
+              oauth_provider: 'google',
+              retry_attempt: isRetry ? retryCount + 1 : 1
             }
           })
         }
@@ -64,63 +87,57 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         monitoring.logError(error, `google_auth_${mode}_error`, {
           error_code: error.message,
           redirect_to: redirectTo,
-          base_url: baseUrl,
-          mode
+          mode,
+          is_retry: isRetry,
+          retry_count: retryCount
         });
         
-        // Enhanced error messaging with OAuth-specific handling
-        let userMessage = `Failed to ${mode} with Google`;
-        
-        if (error.message.includes('popup')) {
-          userMessage = 'Popup was blocked. Please allow popups and try again.';
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
-          userMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('cancelled') || error.message.includes('closed')) {
-          userMessage = 'Authentication was cancelled. Please try again.';
-        } else if (error.message.includes('redirect')) {
-          userMessage = 'OAuth redirect error. Please contact support if this persists.';
-        } else if (error.message.includes('invalid_request')) {
-          userMessage = 'OAuth configuration error. Please contact support.';
-        } else if (error.message.includes('unauthorized')) {
-          userMessage = 'OAuth authorization failed. Please try again.';
-        }
+        // Enhanced error handling with specific recovery strategies
+        const errorMessage = getErrorMessage(error.message, isRetry);
         
         toast({
           title: "Authentication Error",
-          description: userMessage,
-          variant: "destructive"
+          description: errorMessage,
+          variant: "destructive",
+          action: shouldShowRetry(error.message, retryCount) ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handleRetry()}
+              disabled={isLoading}
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Retry
+            </Button>
+          ) : undefined
         });
         
         if (onError) {
-          onError(userMessage);
+          onError(errorMessage);
         }
         return;
       }
 
-      monitoring.endTiming(`google_auth_${mode}`);
+      monitoring.endTiming(`google_auth_${mode}_${isRetry ? 'retry' : 'initial'}`);
       
       trackUserAction(`google_auth_${mode}_initiated`, {
         provider: 'google',
         redirect_to: redirectTo,
         mode,
         success: true,
-        oauth_signup: mode === 'signup'
+        oauth_signup: mode === 'signup',
+        is_retry: isRetry,
+        retry_count: isRetry ? retryCount + 1 : 1
       });
       
       console.log('Google OAuth initiated successfully');
       
-      // Show appropriate success message based on mode
-      if (mode === 'signup') {
-        toast({
-          title: "Account Creation Started",
-          description: "Redirecting to Google for signup. You'll be taken to complete your profile afterwards.",
-        });
-      } else {
-        toast({
-          title: "Sign In Started",
-          description: "Redirecting to Google for authentication...",
-        });
-      }
+      // Show appropriate success message
+      const successMessage = getSuccessMessage(mode, isRetry);
+      toast({
+        title: successMessage.title,
+        description: successMessage.description,
+      });
       
       if (onSuccess) {
         onSuccess();
@@ -130,7 +147,8 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       monitoring.logError(error as Error, `google_auth_${mode}_error`, {
         mode,
         disabled,
-        base_url: window.location.origin
+        is_retry: isRetry,
+        retry_count: retryCount
       });
       
       const errorMessage = error instanceof Error ? error.message : `An unexpected error occurred during ${mode}`;
@@ -138,8 +156,19 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       
       toast({
         title: "Authentication Error",
-        description: "Unable to connect to Google. Please try again or use email authentication.",
-        variant: "destructive"
+        description: "Unable to connect to Google. Please check your internet connection and try again.",
+        variant: "destructive",
+        action: retryCount < 2 ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleRetry()}
+            disabled={isLoading}
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Retry
+          </Button>
+        ) : undefined
       });
       
       if (onError) {
@@ -150,18 +179,80 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     }
   };
 
+  const handleRetry = () => {
+    const newRetryCount = retryCount + 1;
+    setRetryCount(newRetryCount);
+    
+    // Add exponential backoff for retries
+    const delay = Math.min(1000 * Math.pow(2, newRetryCount - 1), 5000);
+    
+    setTimeout(() => {
+      handleGoogleAuth(true);
+    }, delay);
+  };
+
+  const getErrorMessage = (errorMsg: string, isRetry: boolean): string => {
+    const baseMsg = errorMsg.toLowerCase();
+    
+    if (baseMsg.includes('popup')) {
+      return 'Popup was blocked. Please allow popups for this site and try again.';
+    } else if (baseMsg.includes('network') || baseMsg.includes('fetch') || baseMsg.includes('connection')) {
+      return isRetry 
+        ? 'Network issue persists. Please check your internet connection and try again later.' 
+        : 'Network error. Please check your connection and try again.';
+    } else if (baseMsg.includes('cancelled') || baseMsg.includes('closed') || baseMsg.includes('abort')) {
+      return 'Authentication was cancelled. Please try again to complete the sign-in process.';
+    } else if (baseMsg.includes('redirect') || baseMsg.includes('callback')) {
+      return 'OAuth redirect issue. This might be temporary - please try again.';
+    } else if (baseMsg.includes('invalid_request') || baseMsg.includes('invalid_client')) {
+      return 'OAuth configuration issue. Please contact support if this persists.';
+    } else if (baseMsg.includes('unauthorized') || baseMsg.includes('access_denied')) {
+      return 'Google authorization was denied. Please allow access to continue.';
+    } else if (baseMsg.includes('timeout')) {
+      return 'Request timed out. Please try again with a stable internet connection.';
+    }
+    
+    return isRetry 
+      ? `Authentication failed again. Please contact support if this continues.` 
+      : `Failed to ${mode} with Google. Please try again.`;
+  };
+
+  const getSuccessMessage = (mode: string, isRetry: boolean) => {
+    if (mode === 'signup') {
+      return {
+        title: isRetry ? "Account Creation Resumed!" : "Account Creation Started!",
+        description: "Redirecting to Google for secure signup. You'll complete your profile after authentication."
+      };
+    } else {
+      return {
+        title: isRetry ? "Sign In Resumed!" : "Welcome Back!",
+        description: "Redirecting to Google for authentication..."
+      };
+    }
+  };
+
+  const shouldShowRetry = (errorMsg: string, currentRetryCount: number): boolean => {
+    // Don't show retry for certain error types or after max retries
+    if (currentRetryCount >= 3) return false;
+    
+    const baseMsg = errorMsg.toLowerCase();
+    const nonRetryableErrors = ['invalid_client', 'invalid_request', 'access_denied'];
+    
+    return !nonRetryableErrors.some(err => baseMsg.includes(err));
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={handleGoogleAuth}
+      onClick={() => handleGoogleAuth(false)}
       disabled={isLoading || disabled}
       className="w-full flex items-center justify-center space-x-2 border-2 hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isLoading ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin" />
-          <span>Connecting to Google...</span>
+          <span>{retryCount > 0 ? 'Retrying...' : 'Connecting to Google...'}</span>
         </>
       ) : (
         <>
