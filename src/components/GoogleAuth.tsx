@@ -30,9 +30,11 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     try {
       monitoring.startTiming(`google_auth_${mode}`);
       
-      // Enhanced redirect URL construction
+      // Enhanced redirect URL construction - CRITICAL FIX
       const baseUrl = window.location.origin;
-      const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
+      const redirectTo = `${baseUrl}/dashboard`; // Always redirect to dashboard after OAuth
+      
+      console.log('Starting Google OAuth with:', { mode, redirectTo, baseUrl });
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -50,17 +52,23 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         console.error('Google auth error:', error);
         monitoring.logError(error, `google_auth_${mode}_error`, {
           error_code: error.message,
-          redirect_to: redirectTo
+          redirect_to: redirectTo,
+          base_url: baseUrl
         });
         
-        // Enhanced error messaging
+        // Enhanced error messaging with specific handling
         let userMessage = `Failed to ${mode} with Google`;
+        
         if (error.message.includes('popup')) {
           userMessage = 'Popup was blocked. Please allow popups and try again.';
-        } else if (error.message.includes('network')) {
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
           userMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('cancelled')) {
+        } else if (error.message.includes('cancelled') || error.message.includes('closed')) {
           userMessage = 'Authentication was cancelled. Please try again.';
+        } else if (error.message.includes('redirect')) {
+          userMessage = 'Redirect configuration error. Please contact support.';
+        } else if (error.message.includes('invalid_request')) {
+          userMessage = 'OAuth configuration error. Please contact support.';
         }
         
         toast({
@@ -80,29 +88,31 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       trackUserAction(`google_auth_${mode}_initiated`, {
         provider: 'google',
         redirect_to: redirectTo,
-        mode
+        mode,
+        success: true
       });
       
-      // Show success message for signup
-      if (mode === 'signup') {
-        toast({
-          title: "Account Created!",
-          description: "Welcome to Usergy! Please complete your profile.",
-        });
-      }
+      console.log('Google OAuth initiated successfully');
+      
+      // Show appropriate success message
+      toast({
+        title: mode === 'signup' ? "Account Creation Started" : "Sign In Started",
+        description: "Redirecting to Google for authentication...",
+      });
       
     } catch (error) {
       monitoring.logError(error as Error, `google_auth_${mode}_error`, {
         mode,
-        disabled
+        disabled,
+        base_url: window.location.origin
       });
       
       const errorMessage = error instanceof Error ? error.message : `An unexpected error occurred during ${mode}`;
-      console.error('Google auth error:', error);
+      console.error('Google auth unexpected error:', error);
       
       toast({
         title: "Authentication Error",
-        description: errorMessage,
+        description: "Unable to connect to Google. Please try again or use email authentication.",
         variant: "destructive"
       });
       
@@ -125,7 +135,7 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       {isLoading ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin" />
-          <span>Connecting...</span>
+          <span>Connecting to Google...</span>
         </>
       ) : (
         <>

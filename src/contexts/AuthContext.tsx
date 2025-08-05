@@ -35,21 +35,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
     
-    // Set up auth state listener FIRST
+    // Set up auth state listener FIRST - this is critical for proper session management
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return;
         
-        console.log('Auth state change:', event, session);
+        console.log('Auth state change:', { event, session: !!session, user: !!session?.user });
+        
+        // Always set both session and user together
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
         
-        // Track auth events
+        // Only set loading to false after we've processed the auth state
+        if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || 
+            event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setLoading(false);
+        }
+        
+        // Track auth events for monitoring
         if (event === 'SIGNED_IN' && session?.user) {
           trackUserAction('user_signed_in', {
             user_id: session.user.id,
-            email: session.user.email
+            email: session.user.email,
+            provider: session.user.app_metadata?.provider || 'email'
           });
         } else if (event === 'SIGNED_OUT') {
           trackUserAction('user_signed_out', {});
@@ -57,20 +65,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      console.log('Initial session:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    }).catch((error) => {
-      console.error('Error getting initial session:', error);
-      if (mounted) {
-        setLoading(false);
+    // THEN check for existing session - this order is critical
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting initial session:', error);
+          if (mounted) {
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (mounted) {
+          console.log('Initial session loaded:', { session: !!session, user: !!session?.user });
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+        }
       }
-    });
+    };
+
+    getInitialSession();
 
     return () => {
       mounted = false;
@@ -78,13 +104,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Use AuthService methods directly
-  const signUp = AuthService.signUp;
-  const verifyOTP = AuthService.verifyOTP;
-  const resendOTP = AuthService.resendOTP;
-  const signIn = AuthService.signIn;
-  const signOut = AuthService.signOut;
-  const resetPassword = AuthService.resetPassword;
+  // Use AuthService methods directly with enhanced error handling
+  const signUp = async (email: string, password: string): Promise<AuthResult> => {
+    try {
+      return await AuthService.signUp(email, password);
+    } catch (error) {
+      console.error('SignUp error in context:', error);
+      return { error: 'An unexpected error occurred during signup' };
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string, password: string): Promise<AuthResult> => {
+    try {
+      return await AuthService.verifyOTP(email, otp, password);
+    } catch (error) {
+      console.error('VerifyOTP error in context:', error);
+      return { error: 'An unexpected error occurred during verification' };
+    }
+  };
+
+  const resendOTP = async (email: string): Promise<AuthResult> => {
+    try {
+      return await AuthService.resendOTP(email);
+    } catch (error) {
+      console.error('ResendOTP error in context:', error);
+      return { error: 'An unexpected error occurred while resending code' };
+    }
+  };
+
+  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+    try {
+      return await AuthService.signIn(email, password);
+    } catch (error) {
+      console.error('SignIn error in context:', error);
+      return { error: 'An unexpected error occurred during signin' };
+    }
+  };
+
+  const signOut = async (): Promise<void> => {
+    try {
+      await AuthService.signOut();
+    } catch (error) {
+      console.error('SignOut error in context:', error);
+      // Don't throw here, just log the error
+    }
+  };
+
+  const resetPassword = async (email: string): Promise<AuthResult> => {
+    try {
+      return await AuthService.resetPassword(email);
+    } catch (error) {
+      console.error('ResetPassword error in context:', error);
+      return { error: 'An unexpected error occurred during password reset' };
+    }
+  };
 
   const value = {
     user,

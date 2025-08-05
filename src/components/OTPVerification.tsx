@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, RefreshCw, AlertTriangle, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useToast } from '@/hooks/use-toast';
 
 interface OTPVerificationProps {
   email: string;
@@ -25,7 +25,7 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
   const [isBlocked, setIsBlocked] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { verifyOTP, resendOTP } = useAuth();
-  const { handleError, handleErrorWithRecovery } = useErrorHandler();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Focus first input on mount
@@ -60,9 +60,16 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      // Focus previous input on backspace
-      inputRefs.current[index - 1]?.focus();
+    if (e.key === 'Backspace') {
+      if (!otp[index] && index > 0) {
+        // Focus previous input on backspace
+        inputRefs.current[index - 1]?.focus();
+      } else {
+        // Clear current input
+        const newOtp = [...otp];
+        newOtp[index] = '';
+        setOtp(newOtp);
+      }
     }
   };
 
@@ -70,23 +77,44 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     setIsLoading(true);
     
     try {
-      const { error } = await verifyOTP(email, otpCode, password);
+      console.log('Verifying OTP for email:', email);
+      const { error, attemptsLeft: newAttemptsLeft } = await verifyOTP(email, otpCode, password);
       
       if (error) {
-        await handleErrorWithRecovery(
-          new Error(error),
-          'otp_verification',
-          { email, attempts_left: attemptsLeft },
-          () => {
-            setOtp(['', '', '', '', '', '']);
-            inputRefs.current[0]?.focus();
-          }
-        );
+        console.error('OTP verification failed:', error);
         
-        // Update attempts left
-        if (attemptsLeft !== null) {
-          setAttemptsLeft(attemptsLeft - 1);
-          if (attemptsLeft <= 1) {
+        // Enhanced error handling with specific feedback
+        if (error.includes('Too many') || error.includes('blocked')) {
+          setIsBlocked(true);
+          toast({
+            title: "Account Temporarily Secured",
+            description: "Too many failed attempts. Please wait before trying again.",
+            variant: "destructive"
+          });
+        } else if (error.includes('expired')) {
+          toast({
+            title: "Code Expired",
+            description: "Your verification code has expired. Please request a new one.",
+            variant: "destructive"
+          });
+        } else if (error.includes('invalid') || error.includes('incorrect')) {
+          toast({
+            title: "Invalid Code",
+            description: "Please check your code and try again.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Verification Failed",
+            description: error,
+            variant: "destructive"
+          });
+        }
+        
+        // Update attempts left if provided
+        if (newAttemptsLeft !== undefined) {
+          setAttemptsLeft(newAttemptsLeft);
+          if (newAttemptsLeft <= 0) {
             setIsBlocked(true);
           }
         }
@@ -95,10 +123,24 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
+        console.log('OTP verification successful');
+        toast({
+          title: "Welcome to Usergy!",
+          description: "Your account has been created successfully."
+        });
         onSuccess();
       }
     } catch (error) {
-      await handleError(error, 'otp_verification', { email });
+      console.error('Unexpected error in OTP verification:', error);
+      toast({
+        title: "Verification Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+      
+      // Clear OTP on error
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     }
     
     setIsLoading(false);
@@ -110,15 +152,32 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
     setIsLoading(true);
     
     try {
+      console.log('Resending OTP for email:', email);
       const { error, attemptsLeft: newAttemptsLeft } = await resendOTP(email);
       
       if (error) {
-        await handleError(new Error(error), 'otp_resend', { email });
+        console.error('OTP resend failed:', error);
         
-        if (error.includes('Too many')) {
+        if (error.includes('Too many') || error.includes('blocked')) {
           setIsBlocked(true);
+          toast({
+            title: "Too Many Requests",
+            description: "Please wait before requesting another code.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Failed to Resend Code",
+            description: error,
+            variant: "destructive"
+          });
         }
       } else {
+        console.log('OTP resent successfully');
+        toast({
+          title: "New Code Sent!",
+          description: "Check your inbox for the verification code."
+        });
         setResendCooldown(60);
         setAttemptsLeft(newAttemptsLeft || null);
         setIsBlocked(false);
@@ -127,7 +186,12 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
-      await handleError(error, 'otp_resend', { email });
+      console.error('Unexpected error in OTP resend:', error);
+      toast({
+        title: "Resend Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
     }
     
     setIsLoading(false);

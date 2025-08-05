@@ -53,38 +53,56 @@ export type Database = {
       auth_otp_verifications: {
         Row: {
           account_type: string
+          attempts: number | null
+          blocked_until: string | null
           created_at: string | null
           email: string
+          email_error: string | null
+          email_sent: boolean | null
           expires_at: string
           id: string
+          ip_address: unknown | null
           metadata: Json | null
           otp_code: string
           resend_attempts: number | null
           source_url: string
+          user_agent: string | null
           verified_at: string | null
         }
         Insert: {
           account_type: string
+          attempts?: number | null
+          blocked_until?: string | null
           created_at?: string | null
           email: string
+          email_error?: string | null
+          email_sent?: boolean | null
           expires_at: string
           id?: string
+          ip_address?: unknown | null
           metadata?: Json | null
           otp_code: string
           resend_attempts?: number | null
           source_url: string
+          user_agent?: string | null
           verified_at?: string | null
         }
         Update: {
           account_type?: string
+          attempts?: number | null
+          blocked_until?: string | null
           created_at?: string | null
           email?: string
+          email_error?: string | null
+          email_sent?: boolean | null
           expires_at?: string
           id?: string
+          ip_address?: unknown | null
           metadata?: Json | null
           otp_code?: string
           resend_attempts?: number | null
           source_url?: string
+          user_agent?: string | null
           verified_at?: string | null
         }
         Relationships: []
@@ -810,6 +828,10 @@ export type Database = {
       check_email_exists_for_account_type: {
         Args: { email_param: string; account_type_param: string }
         Returns: boolean
+      }
+      cleanup_auth_otp_verifications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_expired_otp: {
         Args: Record<PropertyKey, never>
