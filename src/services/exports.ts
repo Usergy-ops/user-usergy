@@ -1,4 +1,5 @@
 
+
 /**
  * Centralized exports for all services - Updated with OAuth services
  * This file consolidates all service exports to prevent missing import issues
@@ -35,7 +36,8 @@ export type { SectionUpdateData, ValidationResult } from './profileUpdater/types
 export {
   cachedProfileDataLoader,
   batchedProfileUpdater,
-  optimizedCompletionCalculator,
+  standardizedCompletionCalculator,
   optimizedProfilePictureUpload,
   preloadProfileDependencies
 } from './optimizedProfileServices';
+
