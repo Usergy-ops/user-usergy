@@ -6,7 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { monitoring } from '@/utils/monitoring';
 import { checkRateLimit } from '@/utils/rateLimit';
-import { handleError } from '@/utils/errorHandling';
+import { handleError } from '@/utils/errorHandling/index';
 
 export class IntegrationTestRunner {
   private testResults: Record<string, boolean> = {};

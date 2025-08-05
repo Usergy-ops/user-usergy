@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { monitoring } from '@/utils/monitoring';
+import { handleError } from '@/utils/errorHandling/index';
 
 export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -99,9 +100,7 @@ export class SystemHealthChecker {
     try {
       // Test error handling system
       const testError = new Error('Health check test error');
-      const result = await import('@/utils/errorHandling').then(module => 
-        module.handleError(testError, 'health_check')
-      );
+      const result = await handleError(testError, 'health_check');
       return !!(result && result.id);
     } catch (error) {
       console.error('Error handling health check failed:', error);
