@@ -20,6 +20,3 @@ export type {
   ErrorContext,
   ErrorStatistics
 } from './errorHandling/types';
-
-// Legacy interface export for backward compatibility
-export interface { ErrorContext };
