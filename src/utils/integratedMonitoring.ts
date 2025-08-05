@@ -1,11 +1,12 @@
 /**
- * Integrated monitoring system that combines rate limiting, error handling,
- * and performance monitoring with centralized alerting
+ * Updated integrated monitoring system that uses the enhanced backend infrastructure
+ * This replaces the previous version with better database integration
  */
 
-import { monitoring } from './monitoring';
-import { handleCentralizedError } from './centralizedErrorHandling';
-import { checkRateLimit } from './rateLimit';
+import { enhancedMonitoring, recordSystemMetric, startTiming, endTiming } from './enhancedMonitoring';
+import { enhancedErrorHandler, handleError, handleSecurityError } from './enhancedErrorHandling';
+import { enhancedRateLimitEngine } from './rateLimit/enhancedCore';
+import { RateLimitConfig } from './rateLimit/types';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface MonitoringAlert {
@@ -34,6 +35,7 @@ class IntegratedMonitoringSystem {
     activeUsers: 0,
     systemLoad: 0
   };
+
   private alertThresholds = {
     rateLimitHitsPerMinute: 50,
     errorCountPerMinute: 10,
@@ -41,25 +43,38 @@ class IntegratedMonitoringSystem {
     criticalErrorTypes: ['DatabaseError', 'AuthenticationError', 'SecurityError']
   };
 
-  // Enhanced rate limiting with monitoring integration
+  // Enhanced rate limiting with progressive escalation
   async checkRateLimitWithMonitoring(
     identifier: string,
     action: string,
-    customConfig?: any
+    customConfig?: RateLimitConfig
   ) {
-    const startTime = performance.now();
+    const timerId = startTiming('rate_limit_check');
     
     try {
-      // Check rate limits
-      const result = await checkRateLimit(identifier, action, customConfig);
+      // Use enhanced rate limiting with progressive escalation
+      const result = customConfig
+        ? await enhancedRateLimitEngine.checkRateLimit(identifier, action, customConfig)
+        : await enhancedRateLimitEngine.checkProgressiveRateLimit(identifier, action, {
+            maxAttempts: 10,
+            windowMinutes: 60,
+            blockDurationMinutes: 15
+          });
 
-      // Record metrics
+      // Update metrics
       this.metrics.rateLimitHits++;
-      monitoring.recordMetric('integrated_rate_limit_check', 1, {
-        action,
-        allowed: result.allowed.toString(),
-        blocked: result.blocked.toString(),
-        identifier_type: identifier.includes('@') ? 'email' : 'user_id'
+      
+      // Record system metric
+      await recordSystemMetric({
+        metric_name: 'integrated_rate_limit_check',
+        metric_value: 1,
+        metric_type: 'counter',
+        labels: {
+          action,
+          allowed: result.allowed.toString(),
+          blocked: result.blocked.toString(),
+          identifier_type: identifier.includes('@') ? 'email' : 'user_id'
+        }
       });
 
       // Check for rate limiting alerts
@@ -69,21 +84,18 @@ class IntegratedMonitoringSystem {
 
       return result;
     } catch (error) {
-      await handleCentralizedError(error as Error, 'integrated_rate_limit_check', identifier);
+      await handleError(error as Error, 'integrated_rate_limit_check', 'rate_limit_engine', identifier);
       throw error;
     } finally {
-      const endTime = performance.now();
-      monitoring.recordMetric('integrated_rate_limit_duration', endTime - startTime, {
-        action,
-        identifier_type: identifier.includes('@') ? 'email' : 'user_id'
-      });
+      await endTiming(timerId, 'rate_limit_check', 'integrated_monitoring', identifier);
     }
   }
 
-  // Enhanced error handling with monitoring
+  // Enhanced error handling with automatic categorization
   async handleErrorWithMonitoring(
     error: Error,
     context: string,
+    componentName?: string,
     userId?: string,
     metadata?: Record<string, any>
   ) {
@@ -91,17 +103,23 @@ class IntegratedMonitoringSystem {
       // Increment error count
       this.metrics.errorCount++;
       
-      // Log error with centralized handling
-      await handleCentralizedError(error, context, userId, metadata);
+      // Use enhanced error handling
+      await enhancedErrorHandler.handleError(error, context, componentName, userId, metadata);
       
       // Check for error spike alerts
       await this.checkErrorAlerts(error, context);
       
       // Record monitoring metrics
-      monitoring.recordMetric('integrated_error_handled', 1, {
-        error_type: error.constructor.name,
-        context,
-        user_id: userId || 'anonymous'
+      await recordSystemMetric({
+        metric_name: 'integrated_error_handled',
+        metric_value: 1,
+        metric_type: 'counter',
+        labels: {
+          error_type: error.constructor.name,
+          context,
+          component: componentName || 'unknown',
+          user_id: userId || 'anonymous'
+        }
       });
 
     } catch (handlingError) {
@@ -110,20 +128,25 @@ class IntegratedMonitoringSystem {
     }
   }
 
-  // Performance monitoring with alerting
+  // Performance monitoring with enhanced logging
   async recordPerformanceMetric(
     operation: string,
     duration: number,
+    componentName?: string,
+    userId?: string,
     metadata?: Record<string, any>
   ) {
     try {
       // Update average response time
       this.metrics.avgResponseTime = (this.metrics.avgResponseTime + duration) / 2;
       
-      // Record in monitoring system
-      monitoring.recordMetric('integrated_performance', duration, {
-        operation,
-        ...metadata
+      // Record in enhanced monitoring system
+      await enhancedMonitoring.recordPerformanceLog({
+        operation_name: operation,
+        duration_ms: Math.round(duration),
+        component_name: componentName,
+        user_id: userId,
+        metadata
       });
       
       // Check for performance alerts
@@ -132,7 +155,7 @@ class IntegratedMonitoringSystem {
           type: 'performance',
           severity: duration > this.alertThresholds.avgResponseTimeMs * 2 ? 'high' : 'medium',
           message: `Slow performance detected for ${operation}: ${duration.toFixed(2)}ms`,
-          metadata: { operation, duration, ...metadata }
+          metadata: { operation, duration, component: componentName, ...metadata }
         });
       }
       
@@ -141,7 +164,7 @@ class IntegratedMonitoringSystem {
     }
   }
 
-  // Security monitoring integration
+  // Enhanced security monitoring
   async recordSecurityEvent(
     eventType: string,
     severity: 'low' | 'medium' | 'high' | 'critical',
@@ -149,11 +172,16 @@ class IntegratedMonitoringSystem {
     userId?: string
   ) {
     try {
-      // Log security event
-      monitoring.recordMetric('security_event', 1, {
-        event_type: eventType,
-        severity,
-        user_id: userId || 'anonymous'
+      // Record security metric
+      await recordSystemMetric({
+        metric_name: 'security_event',
+        metric_value: 1,
+        metric_type: 'counter',
+        labels: {
+          event_type: eventType,
+          severity,
+          user_id: userId || 'anonymous'
+        }
       });
       
       // Create security alert
@@ -164,11 +192,11 @@ class IntegratedMonitoringSystem {
         metadata: { ...details, user_id: userId }
       });
       
-      // Log to error system if high severity
+      // Log to enhanced error system if high severity
       if (severity === 'high' || severity === 'critical') {
-        await handleCentralizedError(
-          new Error(`Security event: ${eventType}`),
-          'security_monitoring',
+        await handleSecurityError(
+          `Security event: ${eventType}`,
+          eventType,
           userId,
           details
         );
@@ -179,42 +207,62 @@ class IntegratedMonitoringSystem {
     }
   }
 
-  // System health monitoring
+  // Enhanced system health monitoring
   async getSystemHealth(): Promise<{
     status: 'healthy' | 'warning' | 'error';
     metrics: SystemMetrics;
     alerts: MonitoringAlert[];
+    detailedHealth: {
+      avgResponseTime: number;
+      errorRate: number;
+      activeOperations: number;
+      systemLoad: number;
+    };
   }> {
     try {
-      // Calculate system status based on metrics and alerts
+      // Get enhanced system health metrics
+      const detailedHealth = await enhancedMonitoring.getSystemHealthMetrics();
+      
+      // Calculate system status
       const criticalAlerts = this.alerts.filter(a => a.severity === 'critical').length;
       const highAlerts = this.alerts.filter(a => a.severity === 'high').length;
       
       let status: 'healthy' | 'warning' | 'error' = 'healthy';
       
-      if (criticalAlerts > 0 || this.metrics.errorCount > 50) {
+      if (criticalAlerts > 0 || detailedHealth.systemLoad > 80) {
         status = 'error';
-      } else if (highAlerts > 0 || this.metrics.errorCount > 20 || this.metrics.rateLimitHits > 100) {
+      } else if (highAlerts > 0 || detailedHealth.systemLoad > 60 || detailedHealth.errorRate > 0.05) {
         status = 'warning';
       }
+      
+      // Update local metrics with database metrics
+      this.metrics.avgResponseTime = detailedHealth.avgResponseTime;
+      this.metrics.systemLoad = detailedHealth.systemLoad;
       
       return {
         status,
         metrics: { ...this.metrics },
-        alerts: [...this.alerts]
+        alerts: [...this.alerts],
+        detailedHealth
       };
       
     } catch (error) {
-      console.error('Error getting system health:', error);
+      console.error('Error getting enhanced system health:', error);
       return {
         status: 'error',
         metrics: this.metrics,
-        alerts: this.alerts
+        alerts: this.alerts,
+        detailedHealth: {
+          avgResponseTime: 0,
+          errorRate: 0,
+          activeOperations: 0,
+          systemLoad: 0
+        }
       };
     }
   }
 
-  // Alert management
+  // Alert management with database persistence
   private async createAlert(alert: Omit<MonitoringAlert, 'id' | 'timestamp'>) {
     const newAlert: MonitoringAlert = {
       id: crypto.randomUUID(),
@@ -229,20 +277,39 @@ class IntegratedMonitoringSystem {
       this.alerts = this.alerts.slice(0, 100);
     }
     
-    // Log alert to monitoring system
-    monitoring.recordMetric('alert_created', 1, {
-      alert_type: alert.type,
-      severity: alert.severity
+    // Log alert to enhanced error system
+    await enhancedErrorHandler.logEnhancedError({
+      error_type: 'monitoring_alert',
+      error_message: alert.message,
+      severity: alert.severity === 'critical' ? 'critical' : 
+                alert.severity === 'high' ? 'error' : 'warning',
+      context: 'integrated_monitoring',
+      component_name: 'alert_system',
+      metadata: {
+        alert_type: alert.type,
+        ...alert.metadata
+      }
     });
     
-    console.warn(`[ALERT] ${alert.severity.toUpperCase()}: ${alert.message}`, alert.metadata);
+    // Record alert metric
+    await recordSystemMetric({
+      metric_name: 'alert_created',
+      metric_value: 1,
+      metric_type: 'counter',
+      labels: {
+        alert_type: alert.type,
+        severity: alert.severity
+      }
+    });
+    
+    console.warn(`[ENHANCED ALERT] ${alert.severity.toUpperCase()}: ${alert.message}`, alert.metadata);
   }
 
-  // Rate limit alert checking
+  // Rate limit alert checking with database queries
   private async checkRateLimitAlerts(action: string, identifier: string, result: any) {
     try {
-      // Check recent rate limit hits
-      const recentHits = await this.getRateLimitHitsInWindow(action, 5); // 5 minute window
+      // Check recent rate limit hits from database
+      const recentHits = await this.getRateLimitHitsInWindow(action, 5);
       
       if (recentHits > this.alertThresholds.rateLimitHitsPerMinute) {
         await this.createAlert({
@@ -258,7 +325,7 @@ class IntegratedMonitoringSystem {
     }
   }
 
-  // Error alert checking
+  // Error alert checking with enhanced error statistics
   private async checkErrorAlerts(error: Error, context: string) {
     try {
       // Check for critical error types
@@ -271,15 +338,19 @@ class IntegratedMonitoringSystem {
         });
       }
       
-      // Check recent error count
-      const recentErrors = await this.getErrorCountInWindow(5); // 5 minute window
+      // Get recent error count from enhanced error handler
+      const errorStats = await enhancedErrorHandler.getErrorStatistics(300); // 5 minutes
       
-      if (recentErrors > this.alertThresholds.errorCountPerMinute) {
+      if (errorStats.totalErrors > this.alertThresholds.errorCountPerMinute) {
         await this.createAlert({
           type: 'error_spike',
           severity: 'high',
-          message: `Error spike detected: ${recentErrors} errors in 5 minutes`,
-          metadata: { recent_errors: recentErrors, context }
+          message: `Error spike detected: ${errorStats.totalErrors} errors in 5 minutes`,
+          metadata: { 
+            recent_errors: errorStats.totalErrors,
+            critical_errors: errorStats.criticalErrors,
+            context 
+          }
         });
       }
       
@@ -288,14 +359,14 @@ class IntegratedMonitoringSystem {
     }
   }
 
-  // Helper methods for database queries
+  // Enhanced database query helpers
   private async getRateLimitHitsInWindow(action: string, windowMinutes: number): Promise<number> {
     try {
       const windowStart = new Date();
       windowStart.setMinutes(windowStart.getMinutes() - windowMinutes);
       
       const { count } = await supabase
-        .from('rate_limits')
+        .from('enhanced_rate_limits')
         .select('*', { count: 'exact' })
         .eq('action', action)
         .gte('created_at', windowStart.toISOString());
@@ -307,20 +378,28 @@ class IntegratedMonitoringSystem {
     }
   }
 
-  private async getErrorCountInWindow(windowMinutes: number): Promise<number> {
+  // Comprehensive system cleanup
+  async triggerSystemCleanup(): Promise<any> {
     try {
-      const windowStart = new Date();
-      windowStart.setMinutes(windowStart.getMinutes() - windowMinutes);
+      const result = await enhancedMonitoring.triggerSystemCleanup();
       
-      const { count } = await supabase
-        .from('error_logs')
-        .select('*', { count: 'exact' })
-        .gte('created_at', windowStart.toISOString());
+      // Clear old alerts
+      this.clearOldAlerts();
       
-      return count || 0;
+      // Reset metrics
+      this.resetMetrics();
+      
+      await this.createAlert({
+        type: 'performance',
+        severity: 'low',
+        message: 'System cleanup completed successfully',
+        metadata: { cleanup_result: result }
+      });
+      
+      return result;
     } catch (error) {
-      console.error('Error getting error count:', error);
-      return 0;
+      console.error('Error during integrated system cleanup:', error);
+      throw error;
     }
   }
 
@@ -330,7 +409,7 @@ class IntegratedMonitoringSystem {
     this.alerts = this.alerts.filter(alert => alert.timestamp > cutoff);
   }
 
-  // Reset metrics (call periodically)
+  // Reset metrics
   resetMetrics() {
     this.metrics = {
       rateLimitHits: 0,
@@ -342,12 +421,13 @@ class IntegratedMonitoringSystem {
   }
 }
 
-// Export singleton instance
+// Export enhanced singleton instance
 export const integratedMonitoring = new IntegratedMonitoringSystem();
 
-// Convenience functions
+// Enhanced convenience functions
 export const checkRateLimitWithMonitoring = integratedMonitoring.checkRateLimitWithMonitoring.bind(integratedMonitoring);
 export const handleErrorWithMonitoring = integratedMonitoring.handleErrorWithMonitoring.bind(integratedMonitoring);
 export const recordPerformanceMetric = integratedMonitoring.recordPerformanceMetric.bind(integratedMonitoring);
 export const recordSecurityEvent = integratedMonitoring.recordSecurityEvent.bind(integratedMonitoring);
 export const getSystemHealth = integratedMonitoring.getSystemHealth.bind(integratedMonitoring);
+export const triggerSystemCleanup = integratedMonitoring.triggerSystemCleanup.bind(integratedMonitoring);

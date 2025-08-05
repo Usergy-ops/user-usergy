@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_types: {
+        Row: {
+          account_type: string
+          auth_user_id: string | null
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          account_type: string
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          account_type?: string
+          auth_user_id?: string | null
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_types_auth_user_id_fkey"
+            columns: ["auth_user_id"]
+            isOneToOne: true
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_types_auth_user_id_fkey"
+            columns: ["auth_user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auth_otp_verifications: {
+        Row: {
+          account_type: string
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          metadata: Json | null
+          otp_code: string
+          resend_attempts: number | null
+          source_url: string
+          verified_at: string | null
+        }
+        Insert: {
+          account_type: string
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          metadata?: Json | null
+          otp_code: string
+          resend_attempts?: number | null
+          source_url: string
+          verified_at?: string | null
+        }
+        Update: {
+          account_type?: string
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json | null
+          otp_code?: string
+          resend_attempts?: number | null
+          source_url?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       consolidated_social_presence: {
         Row: {
           additional_links: string[] | null
@@ -54,6 +129,54 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "consolidated_social_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consolidated_social_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_send_logs: {
+        Row: {
+          created_at: string | null
+          email: string
+          email_type: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          resend_response: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          email_type: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          resend_response?: Json | null
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          resend_response?: Json | null
+          status?: string
+        }
         Relationships: []
       }
       enhanced_rate_limits: {
@@ -62,9 +185,12 @@ export type Database = {
           attempts: number | null
           blocked_until: string | null
           created_at: string | null
+          escalation_level: number | null
           id: string
           identifier: string
+          last_violation_at: string | null
           metadata: Json | null
+          total_violations: number | null
           updated_at: string | null
           window_end: string | null
           window_start: string | null
@@ -74,9 +200,12 @@ export type Database = {
           attempts?: number | null
           blocked_until?: string | null
           created_at?: string | null
+          escalation_level?: number | null
           id?: string
           identifier: string
+          last_violation_at?: string | null
           metadata?: Json | null
+          total_violations?: number | null
           updated_at?: string | null
           window_end?: string | null
           window_start?: string | null
@@ -86,9 +215,12 @@ export type Database = {
           attempts?: number | null
           blocked_until?: string | null
           created_at?: string | null
+          escalation_level?: number | null
           id?: string
           identifier?: string
+          last_violation_at?: string | null
           metadata?: Json | null
+          total_violations?: number | null
           updated_at?: string | null
           window_end?: string | null
           window_start?: string | null
@@ -97,36 +229,99 @@ export type Database = {
       }
       error_logs: {
         Row: {
+          component_name: string | null
           context: string | null
           created_at: string | null
           error_message: string
           error_stack: string | null
           error_type: string
           id: string
+          ip_address: unknown | null
           metadata: Json | null
           resolved: boolean | null
+          session_id: string | null
+          severity: string | null
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
+          component_name?: string | null
           context?: string | null
           created_at?: string | null
           error_message: string
           error_stack?: string | null
           error_type: string
           id?: string
+          ip_address?: unknown | null
           metadata?: Json | null
           resolved?: boolean | null
+          session_id?: string | null
+          severity?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
+          component_name?: string | null
           context?: string | null
           created_at?: string | null
           error_message?: string
           error_stack?: string | null
           error_type?: string
           id?: string
+          ip_address?: unknown | null
           metadata?: Json | null
           resolved?: boolean | null
+          session_id?: string | null
+          severity?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_logs: {
+        Row: {
+          component_name: string | null
+          created_at: string | null
+          duration_ms: number
+          id: string
+          metadata: Json | null
+          operation_name: string
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          component_name?: string | null
+          created_at?: string | null
+          duration_ms: number
+          id?: string
+          metadata?: Json | null
+          operation_name: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          component_name?: string | null
+          created_at?: string | null
+          duration_ms?: number
+          id?: string
+          metadata?: Json | null
+          operation_name?: string
+          session_id?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -255,7 +450,22 @@ export type Database = {
           user_id?: string
           work_role?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
@@ -287,6 +497,36 @@ export type Database = {
           identifier?: string
           updated_at?: string | null
           window_start?: string | null
+        }
+        Relationships: []
+      }
+      system_metrics: {
+        Row: {
+          created_at: string | null
+          id: string
+          labels: Json | null
+          metric_name: string
+          metric_type: string
+          metric_value: number
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          labels?: Json | null
+          metric_name: string
+          metric_type?: string
+          metric_value: number
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          labels?: Json | null
+          metric_name?: string
+          metric_type?: string
+          metric_value?: number
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -335,47 +575,54 @@ export type Database = {
             foreignKeyName: "user_devices_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_devices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
-      user_otp_verification: {
+      user_sessions: {
         Row: {
-          attempts: number | null
-          blocked_until: string | null
           created_at: string | null
-          email: string
+          device_info: Json | null
           expires_at: string
           id: string
           ip_address: unknown | null
-          otp_code: string
+          is_active: boolean | null
+          last_activity: string | null
+          session_token: string
           user_agent: string | null
-          verified_at: string | null
+          user_id: string
         }
         Insert: {
-          attempts?: number | null
-          blocked_until?: string | null
           created_at?: string | null
-          email: string
+          device_info?: Json | null
           expires_at: string
           id?: string
           ip_address?: unknown | null
-          otp_code: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          session_token: string
           user_agent?: string | null
-          verified_at?: string | null
+          user_id: string
         }
         Update: {
-          attempts?: number | null
-          blocked_until?: string | null
           created_at?: string | null
-          email?: string
+          device_info?: Json | null
           expires_at?: string
           id?: string
           ip_address?: unknown | null
-          otp_code?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          session_token?: string
           user_agent?: string | null
-          verified_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -412,8 +659,15 @@ export type Database = {
             foreignKeyName: "user_skills_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -488,21 +742,80 @@ export type Database = {
             foreignKeyName: "user_tech_fluency_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedRelation: "auth_monitoring"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_tech_fluency_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      auth_monitoring: {
+        Row: {
+          account_type: string | null
+          auth_provider: string | null
+          created_at: string | null
+          email: string | null
+          id: string | null
+          source_url: string | null
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string | null
+          last_sign_in_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          last_sign_in_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          last_sign_in_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      apply_progressive_rate_limit: {
+        Args: {
+          identifier_param: string
+          action_param: string
+          base_attempts?: number
+          base_window_minutes?: number
+        }
+        Returns: Json
+      }
       calculate_profile_completion: {
         Args: { user_uuid: string }
         Returns: number
       }
+      calculate_profile_completion_enhanced: {
+        Args: { user_uuid: string }
+        Returns: Json
+      }
+      check_email_exists_for_account_type: {
+        Args: { email_param: string; account_type_param: string }
+        Returns: boolean
+      }
       cleanup_expired_otp: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_unified_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -521,6 +834,85 @@ export type Database = {
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      comprehensive_system_cleanup: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      ensure_client_account: {
+        Args: {
+          user_id_param: string
+          company_name_param?: string
+          first_name_param?: string
+          last_name_param?: string
+        }
+        Returns: Json
+      }
+      ensure_client_account_robust: {
+        Args: {
+          user_id_param: string
+          company_name_param?: string
+          first_name_param?: string
+          last_name_param?: string
+        }
+        Returns: Json
+      }
+      ensure_profile_exists: {
+        Args: { user_uuid: string; user_email: string; user_full_name?: string }
+        Returns: boolean
+      }
+      fix_account_type_mismatches: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      fix_incorrect_account_types: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_user_debug_info: {
+        Args: { user_id_param: string }
+        Returns: Json
+      }
+      is_client_account: {
+        Args: { user_id_param: string }
+        Returns: boolean
+      }
+      is_profile_complete: {
+        Args: { user_id_param: string }
+        Returns: boolean
+      }
+      manually_assign_account_type: {
+        Args: { user_id_param: string; account_type_param: string }
+        Returns: Json
+      }
+      monitor_account_type_coverage: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      save_complete_client_profile: {
+        Args: {
+          user_id_param: string
+          company_name_param: string
+          full_name_param: string
+          company_website_param?: string
+          industry_param?: string
+          company_size_param?: string
+          contact_role_param?: string
+          contact_phone_param?: string
+          company_country_param?: string
+          company_city_param?: string
+          company_timezone_param?: string
+          company_logo_url_param?: string
+        }
+        Returns: Json
+      }
+      sync_client_workflow_integration: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      test_email_configuration: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       validate_password_requirements: {
         Args: { password_hash: string }
