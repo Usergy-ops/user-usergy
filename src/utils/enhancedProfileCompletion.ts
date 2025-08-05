@@ -21,6 +21,24 @@ export interface ProfileCompletionResult {
   lastCalculated: Date;
 }
 
+// Type guard for profile completion data
+function isValidProfileCompletionData(data: any): data is {
+  completion_percentage: number;
+  is_complete: boolean;
+  section_scores: Record<string, number>;
+  total_score: number;
+  max_score: number;
+  last_calculated: string;
+} {
+  return data && 
+    typeof data.completion_percentage === 'number' &&
+    typeof data.is_complete === 'boolean' &&
+    typeof data.section_scores === 'object' &&
+    typeof data.total_score === 'number' &&
+    typeof data.max_score === 'number' &&
+    typeof data.last_calculated === 'string';
+}
+
 export async function calculateEnhancedProfileCompletion(userId: string): Promise<ProfileCompletionResult> {
   try {
     // Use the enhanced database function for profile completion calculation
@@ -31,6 +49,10 @@ export async function calculateEnhancedProfileCompletion(userId: string): Promis
 
     if (error) {
       throw new Error(`Profile completion calculation failed: ${error.message}`);
+    }
+
+    if (!isValidProfileCompletionData(data)) {
+      throw new Error('Invalid profile completion data received from database');
     }
 
     // Record completion calculation metric
@@ -48,7 +70,13 @@ export async function calculateEnhancedProfileCompletion(userId: string): Promis
     return {
       completionPercentage: data.completion_percentage,
       isComplete: data.is_complete,
-      sectionScores: data.section_scores,
+      sectionScores: {
+        basic_profile: data.section_scores.basic_profile || 0,
+        devices: data.section_scores.devices || 0,
+        tech_fluency: data.section_scores.tech_fluency || 0,
+        skills: data.section_scores.skills || 0,
+        social_presence: data.section_scores.social_presence || 0
+      },
       totalScore: data.total_score,
       maxScore: data.max_score,
       lastCalculated: new Date(data.last_calculated)

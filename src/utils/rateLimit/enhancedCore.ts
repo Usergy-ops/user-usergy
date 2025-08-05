@@ -6,7 +6,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { RateLimitConfig, RateLimitResult } from './types';
-import { handleDatabaseError, recordSystemMetric } from '../enhancedErrorHandling';
+import { handleDatabaseError } from '../enhancedMonitoring';
 import { recordSystemMetric as monitoringMetric } from '../enhancedMonitoring';
 
 export interface ProgressiveRateLimitResult extends RateLimitResult {
@@ -16,6 +16,20 @@ export interface ProgressiveRateLimitResult extends RateLimitResult {
     maxAttempts: number;
     windowMinutes: number;
   };
+}
+
+// Type guard for progressive rate limit data
+function isValidProgressiveData(data: any): data is {
+  max_attempts: number;
+  window_minutes: number;
+  escalation_level: number;
+  total_violations: number;
+} {
+  return data &&
+    typeof data.max_attempts === 'number' &&
+    typeof data.window_minutes === 'number' &&
+    typeof data.escalation_level === 'number' &&
+    typeof data.total_violations === 'number';
 }
 
 export class EnhancedRateLimitEngine {
@@ -42,6 +56,10 @@ export class EnhancedRateLimitEngine {
 
       if (progressiveError) {
         throw new Error(`Progressive rate limit calculation failed: ${progressiveError.message}`);
+      }
+
+      if (!isValidProgressiveData(progressiveData)) {
+        throw new Error('Invalid progressive rate limit data received from database');
       }
 
       // Apply the progressive configuration
@@ -169,8 +187,8 @@ export class EnhancedRateLimitEngine {
           timestamp: now.toISOString()
         };
 
-        // Update escalation tracking if blocked
-        if (isBlocked && existing) {
+        // Update escalation tracking if blocked and record exists
+        if (isBlocked && existing && 'escalation_level' in existing && 'total_violations' in existing) {
           updateData.escalation_level = (existing.escalation_level || 0) + 1;
           updateData.total_violations = (existing.total_violations || 0) + 1;
           updateData.last_violation_at = now.toISOString();

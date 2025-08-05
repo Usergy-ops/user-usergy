@@ -137,6 +137,34 @@ class EnhancedMonitoringService {
     return duration;
   }
 
+  // Handle database errors with proper logging
+  async handleDatabaseError(
+    error: Error,
+    table: string,
+    operation: string,
+    userId?: string
+  ): Promise<void> {
+    console.error(`Database error in ${table}.${operation}:`, error);
+    
+    await handleCentralizedError(
+      error,
+      `database_error_${table}_${operation}`,
+      userId
+    );
+
+    await this.recordSystemMetric({
+      metric_name: 'database_error',
+      metric_value: 1,
+      metric_type: 'counter',
+      labels: {
+        table,
+        operation,
+        error_type: error.name
+      },
+      user_id: userId
+    });
+  }
+
   // Get system health metrics from the database
   async getSystemHealthMetrics(timeWindow: number = 3600): Promise<{
     avgResponseTime: number;
@@ -241,3 +269,4 @@ export const startTiming = enhancedMonitoring.startTiming.bind(enhancedMonitorin
 export const endTiming = enhancedMonitoring.endTiming.bind(enhancedMonitoring);
 export const getSystemHealthMetrics = enhancedMonitoring.getSystemHealthMetrics.bind(enhancedMonitoring);
 export const triggerSystemCleanup = enhancedMonitoring.triggerSystemCleanup.bind(enhancedMonitoring);
+export const handleDatabaseError = enhancedMonitoring.handleDatabaseError.bind(enhancedMonitoring);

@@ -70,11 +70,11 @@ class ErrorCleanupService {
     }
   }
 
-  // Clean up expired OTP records
+  // Clean up expired OTP records - using correct table name
   private async cleanupOTPRecords(cutoff: Date): Promise<void> {
     try {
       const { error } = await supabase
-        .from('user_otp_verification')
+        .from('auth_otp_verifications')
         .delete()
         .or(`expires_at.lt.${new Date().toISOString()},created_at.lt.${cutoff.toISOString()}`);
         
@@ -112,9 +112,9 @@ class ErrorCleanupService {
   // Clean up specific user's failed attempts
   async cleanupUserFailedAttempts(userId: string, email: string): Promise<void> {
     try {
-      // Clean up failed OTP attempts
+      // Clean up failed OTP attempts - using correct table name
       await supabase
-        .from('user_otp_verification')
+        .from('auth_otp_verifications')
         .delete()
         .eq('email', email)
         .neq('verified_at', null);
