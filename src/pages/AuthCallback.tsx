@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { trackUserAction } from '@/utils/monitoring';
+import { OAuthAuthService } from '@/services/oauthAuthService';
+import { OAuthProfileService } from '@/services/oauthProfileService';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function AuthCallback() {
     
     const handleAuthCallback = async () => {
       try {
-        console.log('OAuth callback processing started');
+        console.log('OAuth callback processing started with enhanced service');
         
         // Set a timeout to prevent infinite loading
         timeoutId = setTimeout(() => {
@@ -27,76 +27,46 @@ export default function AuthCallback() {
             setCallbackState('timeout');
             setErrorMessage('Authentication is taking longer than expected');
           }
-        }, 30000); // 30 second timeout
+        }, 30000);
 
-        // Get the URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const error = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
-        
-        // Check for OAuth errors in URL
-        if (error) {
-          console.error('OAuth callback error:', { error, errorDescription });
+        // Use the enhanced OAuth service to handle callback
+        const result = await OAuthAuthService.handleOAuthCallback();
+
+        if (result.error) {
+          console.error('OAuth callback error:', result.error);
           setCallbackState('error');
-          
-          let userFriendlyError = 'Authentication failed';
-          if (error === 'access_denied') {
-            userFriendlyError = 'Authentication was cancelled or access was denied';
-          } else if (errorDescription) {
-            userFriendlyError = errorDescription;
+          setErrorMessage(result.error);
+          return;
+        }
+
+        if (result.success && result.user) {
+          console.log('OAuth callback successful with enhanced service', { 
+            user_id: result.user.id,
+            email: result.user.email,
+            needs_profile_completion: result.needsProfileCompletion
+          });
+
+          // Create or update OAuth profile if this is a new user
+          if (result.isNewUser) {
+            console.log('Creating OAuth profile for new user...');
+            const profileResult = await OAuthProfileService.createOAuthProfile(result.user);
+            
+            if (!profileResult.success) {
+              console.error('Failed to create OAuth profile:', profileResult.error);
+              // Don't fail the entire flow, just log the error
+            }
           }
           
-          setErrorMessage(userFriendlyError);
-          
-          trackUserAction('oauth_callback_error', {
-            error,
-            error_description: errorDescription,
-            url: window.location.href
-          });
-          
-          return;
-        }
-
-        // Get session from Supabase (this should now contain the OAuth session)
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('Session retrieval error:', sessionError);
-          setCallbackState('error');
-          setErrorMessage('Failed to retrieve authentication session');
-          return;
-        }
-
-        if (session?.user) {
-          console.log('OAuth callback successful', { 
-            user_id: session.user.id,
-            email: session.user.email,
-            provider: session.user.app_metadata?.provider 
-          });
-          
           setCallbackState('success');
-          
-          // Track successful OAuth completion
-          trackUserAction('oauth_callback_success', {
-            user_id: session.user.id,
-            email: session.user.email,
-            provider: session.user.app_metadata?.provider || 'google',
-            oauth_user: true
-          });
           
           toast({
             title: "Authentication Successful!",
             description: "You've been signed in successfully. Redirecting...",
           });
 
-          // Determine where to redirect based on account setup
-          // Check if this is a client account that needs profile completion
-          const isOAuthSignup = session.user.app_metadata?.provider && 
-            !session.user.user_metadata?.profile_completed;
-
           // Redirect after a brief delay to show success
           setTimeout(() => {
-            if (isOAuthSignup) {
+            if (result.needsProfileCompletion) {
               navigate('/profile-completion');
             } else {
               navigate('/dashboard');
@@ -105,21 +75,15 @@ export default function AuthCallback() {
           
         } else if (!loading) {
           // No session and auth is not loading - this might be an error
-          console.warn('No session found in callback');
+          console.warn('No session found in enhanced OAuth callback');
           setCallbackState('error');
           setErrorMessage('No authentication session found. Please try signing in again.');
         }
-        // If loading is still true, keep waiting
 
       } catch (error) {
-        console.error('OAuth callback processing error:', error);
+        console.error('Enhanced OAuth callback processing error:', error);
         setCallbackState('error');
         setErrorMessage('An unexpected error occurred during authentication');
-        
-        trackUserAction('oauth_callback_error', {
-          error: error instanceof Error ? error.message : 'unknown_error',
-          url: window.location.href
-        });
       } finally {
         if (timeoutId) {
           clearTimeout(timeoutId);

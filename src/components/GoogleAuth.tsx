@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Chrome, Loader2, Shield, RefreshCw } from 'lucide-react';
 import { monitoring, trackUserAction } from '@/utils/monitoring';
+import { OAuthAuthService } from '@/services/oauthAuthService';
 
 interface GoogleAuthProps {
   mode: 'signin' | 'signup';
@@ -23,12 +22,6 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
   const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
-  const getRedirectUrl = () => {
-    const baseUrl = window.location.origin;
-    // Use dedicated callback route for OAuth
-    return `${baseUrl}/auth/callback`;
-  };
-
   const handleGoogleAuth = async (isRetry = false) => {
     if (disabled || isLoading) return;
     
@@ -37,69 +30,25 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     try {
       monitoring.startTiming(`google_auth_${mode}_${isRetry ? 'retry' : 'initial'}`);
       
-      const redirectTo = getRedirectUrl();
-      
-      console.log('Starting Google OAuth with:', { 
+      console.log('Starting Google OAuth with enhanced service:', { 
         mode, 
-        redirectTo, 
-        baseUrl: window.location.origin,
         isRetry,
         retryCount
       });
       
-      // Enhanced OAuth configuration with improved error recovery
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          queryParams: {
-            access_type: 'offline',
-            prompt: mode === 'signup' ? 'consent' : isRetry ? 'consent' : 'select_account',
-            hd: undefined, // Allow any domain
-            ...(isRetry && { approval_prompt: 'force' }) // Force approval on retry
-          },
-          skipBrowserRedirect: false,
-          // Enhanced metadata for better OAuth detection
-          ...(mode === 'signup' && {
-            data: {
-              account_type: 'client',
-              signup_source: 'google_oauth_signup',
-              source_url: window.location.origin,
-              oauth_provider: 'google',
-              signup_intent: true,
-              oauth_signup: true,
-              retry_attempt: isRetry ? retryCount + 1 : 1
-            }
-          }),
-          // For signin, still add some metadata
-          ...(mode === 'signin' && {
-            data: {
-              signin_source: 'google_oauth_signin',
-              oauth_provider: 'google',
-              retry_attempt: isRetry ? retryCount + 1 : 1
-            }
-          })
-        }
-      });
+      // Use the new OAuth service
+      const result = await OAuthAuthService.initiateGoogleAuth(mode);
 
-      if (error) {
-        console.error('Google auth error:', error);
-        monitoring.logError(error, `google_auth_${mode}_error`, {
-          error_code: error.message,
-          redirect_to: redirectTo,
-          mode,
-          is_retry: isRetry,
-          retry_count: retryCount
-        });
+      if (result.error) {
+        console.error('Google auth error:', result.error);
         
-        // Enhanced error handling with specific recovery strategies
-        const errorMessage = getErrorMessage(error.message, isRetry);
+        const errorMessage = result.error;
         
         toast({
           title: "Authentication Error",
           description: errorMessage,
           variant: "destructive",
-          action: shouldShowRetry(error.message, retryCount) ? (
+          action: shouldShowRetry(result.error, retryCount) ? (
             <Button 
               variant="outline" 
               size="sm" 
@@ -122,7 +71,6 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       
       trackUserAction(`google_auth_${mode}_initiated`, {
         provider: 'google',
-        redirect_to: redirectTo,
         mode,
         success: true,
         oauth_signup: mode === 'signup',
