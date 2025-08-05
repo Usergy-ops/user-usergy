@@ -6,6 +6,9 @@ export interface StandardLayoutConfig {
   contentPadding: string;
   maxWidth: string;
   spacing: string;
+  sidebarWidth: string;
+  sidebarWidthCollapsed: string;
+  mobileBottomNavHeight: string;
 }
 
 export const useStandardLayout = () => {
@@ -13,7 +16,10 @@ export const useStandardLayout = () => {
     headerHeight: 'h-16', // 64px consistent header height
     contentPadding: 'pt-16', // 64px top padding to match header
     maxWidth: 'max-w-7xl',
-    spacing: 'px-4 md:px-8'
+    spacing: 'px-4 md:px-8',
+    sidebarWidth: 'w-64', // 256px sidebar width
+    sidebarWidthCollapsed: 'w-16', // 64px collapsed sidebar width  
+    mobileBottomNavHeight: 'pb-16' // 64px bottom nav height on mobile
   };
 
   const getLayoutClasses = useCallback((customClasses?: string) => {
@@ -30,10 +36,22 @@ export const useStandardLayout = () => {
     return 'min-h-[calc(100vh-4rem)]'; // Full height minus header
   }, []);
 
+  const getSidebarClasses = useCallback((collapsed = false, customClasses?: string) => {
+    const baseClasses = collapsed ? config.sidebarWidthCollapsed : config.sidebarWidth;
+    return customClasses ? `${baseClasses} ${customClasses}` : baseClasses;
+  }, [config]);
+
+  const getMobileContentClasses = useCallback((customClasses?: string) => {
+    const baseClasses = `${config.contentPadding} ${config.mobileBottomNavHeight}`;
+    return customClasses ? `${baseClasses} ${customClasses}` : baseClasses;
+  }, [config]);
+
   return {
     config,
     getLayoutClasses,
     getHeaderClasses,
-    getContentMinHeight
+    getContentMinHeight,
+    getSidebarClasses,
+    getMobileContentClasses
   };
 };
