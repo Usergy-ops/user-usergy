@@ -1,10 +1,9 @@
-
 /**
  * Automated error cleanup utilities
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { unifiedErrorHandler } from './errorHandling';
+import { unifiedErrorHandler } from './unifiedErrorHandling';
 
 class ErrorCleanupService {
   private cleanupInterval: NodeJS.Timeout | null = null;
