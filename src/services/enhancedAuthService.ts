@@ -1,4 +1,3 @@
-
 /**
  * Enhanced authentication service with progressive rate limiting and OTP verification
  */
@@ -97,7 +96,7 @@ class EnhancedAuthService {
     }
   }
 
-  async verifyOTP(email: string, otp: string, password: string): Promise<EnhancedAuthResult> {
+  async verifyOTP(email: string, otp: string, password: string): Promise<OTPVerificationResult> {
     try {
       if (!email || !otp || !password) {
         return { error: 'Email, verification code, and password are required' };
