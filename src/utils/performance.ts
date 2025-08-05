@@ -49,3 +49,9 @@ export const debounce = <T extends (...args: any[]) => any>(
     }, wait);
   };
 };
+
+// Re-export advanced performance utilities
+export { memoizeWithTTL } from './performance/memoization';
+export { createResourcePool } from './performance/resourcePool';
+export { withPerformanceMonitoring, createLazyLoader, createBatchProcessor, createCleanupManager } from './performance/advanced';
+export { executeBatchQueries, optimizedProfileQueries, queryCache, cachedQuery } from './performance/queryOptimization';
