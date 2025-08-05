@@ -1,20 +1,28 @@
 
 /**
- * Centralized monitoring and telemetry system
+ * Unified monitoring system with enhanced capabilities
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { enhancedMonitoring, trackUserAction as enhancedTrackUserAction, trackError as enhancedTrackError } from './enhancedMonitoring';
 
-interface MetricData {
-  [key: string]: string | number | boolean;
+interface MonitoringMetric {
+  name: string;
+  value: number;
+  labels?: Record<string, string | number>;
+  timestamp?: Date;
 }
 
-interface TimingData {
-  [key: string]: number;
+interface TimingMetric {
+  operation: string;
+  startTime: number;
+  endTime?: number;
+  metadata?: Record<string, any>;
 }
 
 class MonitoringService {
-  private timings: TimingData = {};
+  private timings = new Map<string, TimingMetric>();
+  private errorCount = 0;
   private sessionId: string;
 
   constructor() {
@@ -25,170 +33,195 @@ class MonitoringService {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  startTiming(operation: string): void {
-    this.timings[operation] = Date.now();
+  // Timing methods
+  startTiming(operation: string, metadata?: Record<string, any>): void {
+    const key = `${operation}_${Date.now()}`;
+    this.timings.set(key, {
+      operation,
+      startTime: performance.now(),
+      metadata
+    });
   }
 
-  endTiming(operation: string): number {
-    const startTime = this.timings[operation];
-    if (!startTime) {
-      console.warn(`No start time found for operation: ${operation}`);
-      return 0;
+  endTiming(operation: string): number | null {
+    const entries = Array.from(this.timings.entries());
+    const entry = entries.find(([key, timing]) => 
+      timing.operation === operation && !timing.endTime
+    );
+
+    if (!entry) {
+      console.warn(`No active timing found for operation: ${operation}`);
+      return null;
     }
-    
-    const duration = Date.now() - startTime;
-    delete this.timings[operation];
-    
-    // Log to database
-    this.logPerformance(operation, duration);
-    
+
+    const [key, timing] = entry;
+    const endTime = performance.now();
+    const duration = endTime - timing.startTime;
+
+    timing.endTime = endTime;
+
+    // Record the performance metric using enhanced monitoring
+    enhancedMonitoring.trackPerformance(operation, duration, timing.metadata);
+
     return duration;
   }
 
-  recordMetric(name: string, value: number, labels?: MetricData): void {
-    this.logMetric(name, value, 'counter', labels);
+  // Metric recording
+  recordMetric(name: string, value: number, labels?: Record<string, string | number>): void {
+    const metric = {
+      metric_name: name,
+      metric_value: value,
+      metric_type: 'counter' as const,
+      labels,
+      user_id: this.getCurrentUserId()
+    };
+
+    enhancedMonitoring.recordMetric(metric);
   }
 
-  recordGauge(name: string, value: number, labels?: MetricData): void {
-    this.logMetric(name, value, 'gauge', labels);
-  }
-
-  recordHistogram(name: string, value: number, labels?: MetricData): void {
-    this.logMetric(name, value, 'histogram', labels);
-  }
-
-  warn(message: string, context: string, metadata?: MetricData): void {
-    console.warn(`[${context}] ${message}`, metadata);
+  // Error logging
+  logError(error: Error, context: string, metadata?: Record<string, any>): void {
+    this.errorCount++;
     
-    // Log warning to database
-    this.logWarning(message, context, metadata);
+    const errorMetadata = {
+      ...metadata,
+      sessionId: this.sessionId,
+      errorCount: this.errorCount,
+      timestamp: new Date().toISOString(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      url: typeof window !== 'undefined' ? window.location.href : null
+    };
+
+    enhancedTrackError(error, context, errorMetadata);
   }
 
-  private async logWarning(message: string, context: string, metadata?: MetricData): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('error_logs')
-        .insert({
-          error_type: 'Warning',
-          error_message: message,
-          context,
-          severity: 'warning',
-          metadata: metadata || {},
-          user_id: await this.getCurrentUserId(),
-          session_id: this.sessionId,
-          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-          created_at: new Date().toISOString()
-        });
+  // User action tracking
+  trackUserAction(action: string, metadata?: Record<string, any>): void {
+    const actionMetadata = {
+      ...metadata,
+      sessionId: this.sessionId,
+      timestamp: new Date().toISOString()
+    };
 
-      if (error) {
-        console.error('Failed to log warning to database:', error);
-      }
-    } catch (logError) {
-      console.error('Error logging warning:', logError);
-    }
+    enhancedTrackUserAction(action, actionMetadata, this.getCurrentUserId());
   }
 
-  private async logMetric(name: string, value: number, type: string, labels?: MetricData): Promise<void> {
+  // Performance monitoring
+  async measureDatabaseOperation<T>(
+    operation: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    const startTime = performance.now();
+    let error: Error | null = null;
+
     try {
-      const { error } = await supabase
-        .from('system_metrics')
-        .insert({
-          metric_name: name,
-          metric_value: value,
-          metric_type: type,
-          labels: labels || {},
-          user_id: await this.getCurrentUserId(),
-          created_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Failed to log metric:', error);
-      }
-    } catch (error) {
-      console.error('Error logging metric:', error);
-    }
-  }
-
-  private async logPerformance(operation: string, duration: number): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('performance_logs')
-        .insert({
-          operation_name: operation,
-          duration_ms: duration,
-          user_id: await this.getCurrentUserId(),
-          session_id: this.sessionId,
-          created_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Failed to log performance:', error);
-      }
-    } catch (error) {
-      console.error('Error logging performance:', error);
-    }
-  }
-
-  async logError(error: Error, context: string, metadata?: MetricData): Promise<void> {
-    try {
-      console.error(`[${context}] Error:`, error);
+      const result = await fn();
+      return result;
+    } catch (err) {
+      error = err as Error;
+      throw err;
+    } finally {
+      const duration = performance.now() - startTime;
       
-      const { error: dbError } = await supabase
-        .from('error_logs')
-        .insert({
-          error_type: error.name || 'Error',
-          error_message: error.message,
-          error_stack: error.stack,
-          context,
-          severity: this.getSeverity(error),
-          metadata: metadata || {},
-          user_id: await this.getCurrentUserId(),
-          session_id: this.sessionId,
-          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-          created_at: new Date().toISOString()
+      this.recordMetric('database_operation_duration', duration, {
+        operation,
+        success: error ? 'false' : 'true',
+        error_type: error?.name || 'none'
+      });
+
+      if (error) {
+        this.logError(error, `database_${operation}`, { operation });
+      }
+    }
+  }
+
+  // System health monitoring
+  recordSystemHealth(): void {
+    if (typeof window !== 'undefined' && 'performance' in window) {
+      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      
+      if (navigation) {
+        this.recordMetric('page_load_time', navigation.loadEventEnd - navigation.fetchStart, {
+          page: window.location.pathname
         });
 
-      if (dbError) {
-        console.error('Failed to log error to database:', dbError);
+        this.recordMetric('dom_content_loaded', navigation.domContentLoadedEventEnd - navigation.fetchStart, {
+          page: window.location.pathname
+        });
       }
-    } catch (logError) {
-      console.error('Error logging error:', logError);
+
+      // Memory usage (if available)
+      if ('memory' in performance) {
+        const memory = (performance as any).memory;
+        this.recordMetric('memory_used_mb', memory.usedJSHeapSize / 1048576);
+        this.recordMetric('memory_total_mb', memory.totalJSHeapSize / 1048576);
+      }
     }
   }
 
-  private getSeverity(error: Error): string {
-    if (error.message?.includes('Network') || error.message?.includes('fetch')) {
-      return 'warning';
-    }
-    if (error.message?.includes('Authentication') || error.message?.includes('Unauthorized')) {
-      return 'high';
-    }
-    if (error.message?.includes('Database') || error.message?.includes('SQL')) {
-      return 'critical';
-    }
-    return 'medium';
+  // Rate limiting monitoring
+  recordRateLimitHit(action: string, identifier: string, blocked: boolean): void {
+    this.recordMetric('rate_limit_hit', 1, {
+      action,
+      blocked: blocked.toString(),
+      identifier_hash: this.hashIdentifier(identifier)
+    });
   }
 
-  private async getCurrentUserId(): Promise<string | null> {
+  private hashIdentifier(identifier: string): string {
+    // Simple hash for privacy
+    let hash = 0;
+    for (let i = 0; i < identifier.length; i++) {
+      const char = identifier.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(16);
+  }
+
+  private getCurrentUserId(): string | undefined {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user?.id || null;
-    } catch (error) {
-      return null;
+      // This would be set by the auth context
+      return (supabase.auth.getUser() as any)?.data?.user?.id;
+    } catch {
+      return undefined;
     }
+  }
+
+  // Cleanup old timings to prevent memory leaks
+  cleanup(): void {
+    const cutoff = Date.now() - 300000; // 5 minutes
+    const toDelete: string[] = [];
+
+    for (const [key, timing] of this.timings.entries()) {
+      if (timing.startTime < cutoff) {
+        toDelete.push(key);
+      }
+    }
+
+    toDelete.forEach(key => this.timings.delete(key));
   }
 }
 
-// Create singleton instance
 export const monitoring = new MonitoringService();
 
-// Convenience function for user action tracking
-export const trackUserAction = (action: string, properties?: MetricData): void => {
-  monitoring.recordMetric('user_action', 1, {
-    action,
-    ...properties,
-    timestamp: new Date().toISOString()
+// Export convenience functions
+export const trackUserAction = monitoring.trackUserAction.bind(monitoring);
+export const logError = monitoring.logError.bind(monitoring);
+export const recordMetric = monitoring.recordMetric.bind(monitoring);
+export const startTiming = monitoring.startTiming.bind(monitoring);
+export const endTiming = monitoring.endTiming.bind(monitoring);
+
+// Set up periodic cleanup
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    monitoring.cleanup();
+  }, 300000); // Every 5 minutes
+
+  // Record initial system health
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      monitoring.recordSystemHealth();
+    }, 1000);
   });
-  
-  console.log(`[User Action] ${action}:`, properties);
-};
+}
