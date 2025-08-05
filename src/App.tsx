@@ -11,10 +11,10 @@ import Dashboard from "./pages/Dashboard";
 import ProfileCompletion from "./pages/ProfileCompletion";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
 import Payments from "./pages/Payments";
-import SystemMonitoring from "./pages/SystemMonitoring";
+import { SystemMonitoring } from "./pages/SystemMonitoring";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 

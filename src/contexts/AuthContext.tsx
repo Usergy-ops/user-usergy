@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -78,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: session.user.email,
               email_confirmed: !!session.user.email_confirmed_at,
               provider,
-              signup_source: session.user.raw_user_meta_data?.signup_source
+              signup_source: session.user.user_metadata?.signup_source
             });
           }
           
@@ -151,7 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Use AuthService methods directly with enhanced error handling
   const signUp = async (email: string, password: string): Promise<AuthResult> => {
     try {
       return await AuthService.signUp(email, password);
