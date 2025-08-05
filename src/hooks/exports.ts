@@ -1,8 +1,10 @@
-
 /**
  * Centralized exports for all custom hooks
  * This file consolidates all hook exports to prevent missing import issues
  */
+
+// OAuth hooks
+export { useOAuthFlow } from './useOAuthFlow';
 
 // Optimized hooks
 export { useOptimizedProfile } from './useOptimizedProfile';

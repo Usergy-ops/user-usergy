@@ -1,8 +1,11 @@
-
 /**
- * Centralized exports for optimized components
- * This file consolidates component exports to prevent missing import issues
+ * Centralized exports for all components - Updated with OAuth components
  */
+
+// Authentication components
+export { GoogleAuth } from './GoogleAuth';
+export { OAuthButton } from './auth/OAuthButton';
+export { OAuthCallback } from './auth/OAuthCallback';
 
 // Lazy-loaded profile components
 export {
