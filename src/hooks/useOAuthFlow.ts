@@ -77,13 +77,9 @@ export const useOAuthFlow = (options: UseOAuthFlowOptions = {}) => {
           description: "You've been signed in successfully. Redirecting...",
         });
 
-        // Handle redirection
+        // Always redirect to profile completion for OAuth users
         setTimeout(() => {
-          if (result.needsProfileCompletion) {
-            navigate('/profile-completion');
-          } else {
-            navigate('/dashboard');
-          }
+          navigate('/profile-completion');
         }, 2000);
         
         if (options.onSuccess) {

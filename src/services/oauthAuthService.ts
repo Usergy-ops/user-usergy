@@ -23,7 +23,7 @@ export class OAuthAuthService {
 
   static async initiateGoogleAuth(mode: 'signin' | 'signup'): Promise<OAuthResult> {
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const redirectTo = `${window.location.origin}/profile-completion`;
       
       console.log('Initiating Google OAuth:', { mode, redirectTo });
       

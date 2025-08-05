@@ -42,7 +42,7 @@ public_bucket = "profile-pictures"
 [auth]
 enabled = true
 port = 54328
-site_url = "http://localhost:5173"
+site_url = "https://lnsyrmpucmllakuuiixe.lovableproject.com"
 additional_redirect_urls = ["https://lnsyrmpucmllakuuiixe.lovableproject.com", "http://localhost:5173/auth/callback", "https://lnsyrmpucmllakuuiixe.lovableproject.com/auth/callback"]
 jwt_expiry = 3600
 refresh_token_rotation_enabled = true
