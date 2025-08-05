@@ -28,6 +28,7 @@ export class OAuthProfileService {
       console.log('Creating OAuth profile for user:', user.id);
 
       const profileData = {
+        user_id: user.id, // This is required by the database schema
         id: user.id,
         email: user.email,
         full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
@@ -65,9 +66,21 @@ export class OAuthProfileService {
 
       console.log('OAuth profile created successfully:', data);
       
+      // Map database response to OAuthProfileData
+      const oauthProfile: OAuthProfileData = {
+        id: data.id,
+        email: data.email,
+        full_name: data.full_name || undefined,
+        avatar_url: data.avatar_url || undefined,
+        provider: data.provider,
+        oauth_signup: data.oauth_signup,
+        account_type: data.account_type,
+        profile_completed: data.profile_completed
+      };
+      
       return {
         success: true,
-        profile: data
+        profile: oauthProfile
       };
     } catch (error) {
       console.error('OAuth profile creation error:', error);
@@ -106,9 +119,21 @@ export class OAuthProfileService {
         };
       }
 
+      // Map database response to OAuthProfileData
+      const oauthProfile: OAuthProfileData = {
+        id: data.id,
+        email: data.email,
+        full_name: data.full_name || undefined,
+        avatar_url: data.avatar_url || undefined,
+        provider: data.provider || 'google',
+        oauth_signup: data.oauth_signup || false,
+        account_type: data.account_type || 'client',
+        profile_completed: data.profile_completed || false
+      };
+
       return {
         success: true,
-        profile: data
+        profile: oauthProfile
       };
     } catch (error) {
       console.error('OAuth profile fetch error:', error);

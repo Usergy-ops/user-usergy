@@ -5,7 +5,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { trackUserAction, trackError } from '@/utils/monitoring';
+import { trackUserAction, monitoring } from '@/utils/monitoring';
 import { handleCentralizedError, createAuthenticationError } from '@/utils/centralizedErrorHandling';
 
 export interface OAuthResult {
@@ -56,7 +56,7 @@ export class OAuthAuthService {
 
       if (error) {
         console.error('Google OAuth initiation error:', error);
-        trackError(error, 'google_oauth_initiation', { mode });
+        monitoring.logError(new Error(error.message), 'google_oauth_initiation', { mode });
         
         return {
           error: this.getOAuthErrorMessage(error.message),
@@ -85,7 +85,7 @@ export class OAuthAuthService {
       
       if (error) {
         console.error('OAuth callback error:', { error, errorDescription });
-        trackError(new Error(`OAuth error: ${error}`), 'oauth_callback_error', {
+        monitoring.logError(new Error(`OAuth error: ${error}`), 'oauth_callback_error', {
           error,
           error_description: errorDescription
         });
@@ -101,7 +101,7 @@ export class OAuthAuthService {
       
       if (sessionError) {
         console.error('Session retrieval error:', sessionError);
-        trackError(sessionError, 'oauth_session_retrieval');
+        monitoring.logError(sessionError, 'oauth_session_retrieval');
         return {
           error: 'Failed to retrieve authentication session',
           success: false

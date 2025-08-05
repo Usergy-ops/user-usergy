@@ -32,7 +32,7 @@ export class OAuthIntegrationTestRunner {
       // Test that OAuth provider is properly configured
       const configTest = typeof window !== 'undefined' && 
                         window.location.origin && 
-                        supabase.auth;
+                        !!supabase.auth;
       
       this.testResults['oauth_configuration'] = configTest;
       console.log('OAuth Configuration:', configTest ? '✅' : '❌');
