@@ -181,8 +181,8 @@ export const createContextualValidator = (context: string) => {
     
     if (!result.isValid) {
       monitoring.warn(`Validation failed in ${context}`, 'input_validation', {
-        errors: result.errors,
-        data: Object.keys(data)
+        errors: result.errors.join(', '), // Convert array to string
+        data: Object.keys(data).join(', ') // Convert array to string
       });
     }
     
