@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 import { Resend } from "npm:resend@4.0.0";
@@ -534,15 +535,17 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log('Generated OTP:', otpCode, 'for email:', email);
 
-        // Store OTP in database with security info
+        // Store OTP in database with security info - FIXED TABLE NAME
         const { error: dbError } = await supabase
-          .from('user_otp_verification')
+          .from('auth_otp_verifications')
           .insert({
             email,
             otp_code: otpCode,
             expires_at: expiresAt.toISOString(),
             ip_address: ip,
-            user_agent: userAgent
+            user_agent: userAgent,
+            account_type: 'user',
+            source_url: req.headers.get('referer') || 'unknown'
           });
 
         if (dbError) {
@@ -561,7 +564,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error('Email sending failed:', emailError);
           // Clean up the OTP record since email failed
           await supabase
-            .from('user_otp_verification')
+            .from('auth_otp_verifications')
             .delete()
             .eq('email', email)
             .eq('otp_code', otpCode);
@@ -611,7 +614,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Check if user is blocked due to too many failed attempts
         const { data: blockedUser } = await supabase
-          .from('user_otp_verification')
+          .from('auth_otp_verifications')
           .select('blocked_until')
           .eq('email', email)
           .not('blocked_until', 'is', null)
@@ -626,9 +629,9 @@ const handler = async (req: Request): Promise<Response> => {
           );
         }
 
-        // Get and validate OTP
+        // Get and validate OTP - FIXED TABLE NAME
         const { data: otpData, error: otpError } = await supabase
-          .from('user_otp_verification')
+          .from('auth_otp_verifications')
           .select('*')
           .eq('email', email)
           .eq('otp_code', otp)
@@ -636,7 +639,7 @@ const handler = async (req: Request): Promise<Response> => {
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (otpError || !otpData) {
           console.error('OTP validation failed:', otpError);
@@ -655,7 +658,7 @@ const handler = async (req: Request): Promise<Response> => {
             }
             
             await supabase
-              .from('user_otp_verification')
+              .from('auth_otp_verifications')
               .update(updateData)
               .eq('id', otpData.id);
           }
@@ -668,7 +671,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Mark OTP as verified
         await supabase
-          .from('user_otp_verification')
+          .from('auth_otp_verifications')
           .update({ verified_at: new Date().toISOString() })
           .eq('id', otpData.id);
 
@@ -722,12 +725,12 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Check for recent OTP requests (additional rate limiting)
         const { data: recentOTP } = await supabase
-          .from('user_otp_verification')
+          .from('auth_otp_verifications')
           .select('created_at')
           .eq('email', email)
           .gt('created_at', new Date(Date.now() - 60 * 1000).toISOString())
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (recentOTP) {
           return new Response(
@@ -740,15 +743,17 @@ const handler = async (req: Request): Promise<Response> => {
         const otpCode = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-        // Store new OTP
+        // Store new OTP - FIXED TABLE NAME
         const { error: dbError } = await supabase
-          .from('user_otp_verification')
+          .from('auth_otp_verifications')
           .insert({
             email,
             otp_code: otpCode,
             expires_at: expiresAt.toISOString(),
             ip_address: ip,
-            user_agent: userAgent
+            user_agent: userAgent,
+            account_type: 'user',
+            source_url: req.headers.get('referer') || 'unknown'
           });
 
         if (dbError) {
@@ -767,7 +772,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error('Email sending failed on resend:', emailError);
           // Clean up the OTP record since email failed
           await supabase
-            .from('user_otp_verification')
+            .from('auth_otp_verifications')
             .delete()
             .eq('email', email)
             .eq('otp_code', otpCode);

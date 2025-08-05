@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { unifiedErrorHandler } from './unifiedErrorHandling';
+import { unifiedErrorHandler } from './errorHandling';
 
 class ErrorCleanupService {
   private cleanupInterval: NodeJS.Timeout | null = null;
@@ -39,13 +39,13 @@ class ErrorCleanupService {
       // Clean up error logs
       await this.cleanupErrorLogs(cutoff);
       
-      // Clean up OTP verification records
+      // Clean up OTP verification records - FIXED TABLE NAME
       await this.cleanupOTPRecords(cutoff);
       
       // Clean up rate limit records
       await this.cleanupRateLimitRecords(cutoff);
       
-      // Clean up in-memory error records - using correct method name
+      // Clean up in-memory error records
       unifiedErrorHandler.cleanupOldErrors(this.MAX_AGE);
       
       console.log('Error cleanup completed successfully');
@@ -70,7 +70,7 @@ class ErrorCleanupService {
     }
   }
 
-  // Clean up expired OTP records - using correct table name
+  // Clean up expired OTP records - FIXED TABLE NAME
   private async cleanupOTPRecords(cutoff: Date): Promise<void> {
     try {
       const { error } = await supabase
@@ -109,10 +109,10 @@ class ErrorCleanupService {
     await this.performCleanup();
   }
 
-  // Clean up specific user's failed attempts
+  // Clean up specific user's failed attempts - FIXED TABLE NAME
   async cleanupUserFailedAttempts(userId: string, email: string): Promise<void> {
     try {
-      // Clean up failed OTP attempts - using correct table name
+      // Clean up failed OTP attempts
       await supabase
         .from('auth_otp_verifications')
         .delete()

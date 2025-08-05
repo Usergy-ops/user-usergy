@@ -1,4 +1,3 @@
-
 /**
  * Authentication service - handles all auth operations
  */
@@ -63,13 +62,19 @@ export class AuthService {
       if (error) {
         console.error('Sign up error:', error);
         
-        // Handle specific error cases
+        // Handle specific error cases with better messaging
         let userFriendlyMessage = error.message || 'Failed to send verification code';
         
-        if (error.message?.includes('User already registered')) {
+        if (error.message?.includes('User already registered') || 
+            error.message?.includes('already exists') ||
+            error.message?.includes('already part of our community')) {
           userFriendlyMessage = 'This email is already registered. Please sign in instead.';
         } else if (error.message?.includes('duplicate key value')) {
           userFriendlyMessage = 'An account with this email already exists. Please sign in.';
+        } else if (error.message?.includes('email availability')) {
+          userFriendlyMessage = 'Unable to verify email. Please try again.';
+        } else if (error.message?.includes('verification email')) {
+          userFriendlyMessage = 'Failed to send verification email. Please check your email address and try again.';
         }
         
         const authError = createAuthenticationError(userFriendlyMessage);
@@ -78,13 +83,17 @@ export class AuthService {
         return { error: authError.message };
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('Sign up data error:', data.error);
         
         let userFriendlyMessage = data.error;
         
-        if (data.error.includes('User already registered') || data.error.includes('already exists')) {
+        if (data.error.includes('User already registered') || 
+            data.error.includes('already exists') ||
+            data.error.includes('already part of our community')) {
           userFriendlyMessage = 'This email is already registered. Please sign in instead.';
+        } else if (data.error.includes('verification email')) {
+          userFriendlyMessage = 'Failed to send verification email. Please check your email address and try again.';
         }
         
         const authError = createAuthenticationError(userFriendlyMessage);
@@ -103,10 +112,10 @@ export class AuthService {
       
       return { 
         error: undefined, 
-        attemptsLeft: data.attemptsLeft 
+        attemptsLeft: data?.attemptsLeft 
       };
     } catch (error) {
-      const authError = createAuthenticationError('An unexpected error occurred during signup');
+      const authError = createAuthenticationError('An unexpected error occurred during signup. Please try again.');
       await handleCentralizedError(error as Error, 'auth_signup', undefined, { email });
       return { error: authError.message };
     }
@@ -155,14 +164,32 @@ export class AuthService {
 
       if (error) {
         console.error('OTP verification error:', error);
-        const authError = createAuthenticationError(error.message || 'Failed to verify code');
+        let userFriendlyMessage = error.message || 'Failed to verify code';
+        
+        if (error.message?.includes('invalid') || error.message?.includes('expired')) {
+          userFriendlyMessage = 'Invalid or expired verification code. Please try again or request a new code.';
+        } else if (error.message?.includes('blocked') || error.message?.includes('many attempts')) {
+          userFriendlyMessage = 'Too many failed attempts. Please try again later.';
+        }
+        
+        const authError = createAuthenticationError(userFriendlyMessage);
         await handleCentralizedError(authError, 'auth_otp_verify', undefined, { email });
         return { error: authError.message };
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('OTP verification data error:', data.error);
-        const authError = createAuthenticationError(data.error);
+        let userFriendlyMessage = data.error;
+        
+        if (data.error.includes('invalid') || data.error.includes('expired')) {
+          userFriendlyMessage = 'Invalid or expired verification code. Please try again or request a new code.';
+        } else if (data.error.includes('blocked') || data.error.includes('many attempts')) {
+          userFriendlyMessage = 'Too many failed attempts. Please try again later.';
+        } else if (data.error.includes('create account')) {
+          userFriendlyMessage = 'Failed to create your account. Please try again.';
+        }
+        
+        const authError = createAuthenticationError(userFriendlyMessage);
         await handleCentralizedError(authError, 'auth_otp_verify', undefined, { email });
         return { error: authError.message };
       }
@@ -176,7 +203,7 @@ export class AuthService {
 
       if (signInError) {
         console.error('Post-verification sign in error:', signInError);
-        const authError = createAuthenticationError(signInError.message);
+        const authError = createAuthenticationError('Account created but sign-in failed. Please try signing in manually.');
         await handleCentralizedError(authError, 'auth_post_verification_signin', undefined, { email });
         return { error: authError.message };
       }
@@ -191,7 +218,7 @@ export class AuthService {
       
       return { error: undefined };
     } catch (error) {
-      const authError = createAuthenticationError('An unexpected error occurred during OTP verification');
+      const authError = createAuthenticationError('An unexpected error occurred during verification. Please try again.');
       await handleCentralizedError(error as Error, 'auth_otp_verify', undefined, { email });
       return { error: authError.message };
     }
@@ -295,7 +322,7 @@ export class AuthService {
         return { error: authError.message };
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('Resend OTP data error:', data.error);
         const authError = createAuthenticationError(data.error);
         await handleCentralizedError(authError, 'auth_otp_resend', undefined, { email });
@@ -312,7 +339,7 @@ export class AuthService {
       
       return { 
         error: undefined, 
-        attemptsLeft: data.attemptsLeft 
+        attemptsLeft: data?.attemptsLeft 
       };
     } catch (error) {
       const authError = createAuthenticationError('An unexpected error occurred during OTP resend');
