@@ -110,14 +110,11 @@ export const useOptimizedErrorHandler = () => {
         toast({
           title: "Recovery Available",
           description: "Click to retry the operation",
-          action: (
-            <button
-              onClick={recoveryCallback}
-              className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-secondary focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              Retry
-            </button>
-          )
+          action: {
+            altText: "Retry",
+            onClick: recoveryCallback,
+            label: "Retry"
+          }
         });
       }, 3000);
     }
