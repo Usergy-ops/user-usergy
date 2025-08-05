@@ -22,4 +22,4 @@ export { useProject } from './useProject';
 export { useToast, toast } from './use-toast';
 
 // Mobile detection hook
-export { useMobile } from './use-mobile';
+export { useIsMobile } from './use-mobile';

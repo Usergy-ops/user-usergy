@@ -65,14 +65,3 @@ export {
 
 // Profile utilities
 export { calculateProfileCompletionPercentage } from './profileCompletionUtils';
-
-// Security utilities  
-export { generateSecureToken, hashData, validateSecureData } from './security';
-
-// Social presence utilities
-export { 
-  consolidateSocialPresenceData,
-  validateSocialPresenceData as validateSocialData,
-  formatSocialPresenceForStorage,
-  extractSocialPresenceFromProfile
-} from './consolidatedSocialPresence';

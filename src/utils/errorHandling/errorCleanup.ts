@@ -75,12 +75,12 @@ export class ErrorCleanupManager {
   }
 
   private async cleanupByCount(maxErrors: number): Promise<void> {
-    const { data: totalCount } = await supabase
+    const { count } = await supabase
       .from('error_logs')
-      .select('id', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true });
 
-    if (totalCount && totalCount > maxErrors) {
-      const excessCount = totalCount - maxErrors;
+    if (count && count > maxErrors) {
+      const excessCount = count - maxErrors;
 
       const { error } = await supabase
         .from('error_logs')

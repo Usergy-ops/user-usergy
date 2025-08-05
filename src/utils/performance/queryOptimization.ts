@@ -112,7 +112,7 @@ export const optimizedProfileQueries = {
       }
     ];
     
-    const results = await executeBatchQueries(queries, 3);
+    const results = await Promise.all(queries.map(query => query()));
     
     return {
       profile: results[0]?.data,
