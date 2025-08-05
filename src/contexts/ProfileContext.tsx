@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useOptimizedErrorHandler } from '@/hooks/useOptimizedErrorHandler';
 import { handleError } from '@/utils/unifiedErrorHandling';
 import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
-import { profileDataLoader } from '@/services/profileDataLoader';
-import { profileDataUpdater } from '@/services/profileUpdater';
+import { cachedProfileDataLoader, batchedProfileUpdater, optimizedCompletionCalculator, preloadProfileDependencies } from '@/services/optimizedProfileServices';
 import { profilePictureUploader } from '@/services/profilePictureUploader';
 import { profileCompletionTracker } from '@/services/profileCompletionTracker';
+import { useMemo } from 'react';
 import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -49,7 +49,7 @@ export const useProfile = () => {
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { handleError: handleErrorWithToast } = useErrorHandler();
+  const { handleError: handleErrorWithToast } = useOptimizedErrorHandler();
 
   // State management
   const [profileData, setProfileData] = useState<ProfileData>({});
@@ -61,26 +61,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentStep, setCurrentStep] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Enhanced profile completion check with better race condition handling
-  const isProfileComplete = React.useMemo(() => {
+  // Memoized profile completion check
+  const isProfileComplete = useMemo(() => {
     const completionPercentage = profileData.completion_percentage || 0;
     const profileCompleted = profileData.profile_completed || false;
     
     return profileCompleted || completionPercentage >= 100;
   }, [profileData.completion_percentage, profileData.profile_completed]);
 
-  console.log('ProfileProvider state:', {
-    profileData: {
-      completion_percentage: profileData.completion_percentage,
-      profile_completed: profileData.profile_completed,
-      section_4_completed: profileData.section_4_completed,
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level
-    },
-    isProfileComplete,
-    loading,
-    isUpdating
-  });
+  // Memoized completion calculation using optimized calculator
+  const calculateCompletion = useCallback(() => {
+    return optimizedCompletionCalculator(profileData, deviceData, techFluencyData, skillsData);
+  }, [profileData, deviceData, techFluencyData, skillsData]);
 
   const resumeIncompleteSection = useCallback(() => {
     if (!user) return;
@@ -88,44 +80,32 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     profileCompletionTracker.resumeIncompleteSection(profileData, setCurrentStep);
   }, [profileData, user]);
 
-  const calculateCompletion = useCallback(() => {
-    const completionData = {
-      profileData,
-      deviceData,
-      techFluencyData,
-      skillsData
-    };
-
-    return profileCompletionTracker.calculateAndUpdateCompletion(
-      completionData,
-      user,
-      isUpdating,
-      setProfileData
-    );
-  }, [profileData, deviceData, techFluencyData, skillsData, user, isUpdating]);
-
-  // Load profile data when user changes
+  // Load profile data when user changes - now using cached loader
   useEffect(() => {
     if (user) {
       loadProfileData();
+      // Preload dependencies in background
+      preloadProfileDependencies(user.id).catch(console.warn);
     } else {
       setLoading(false);
     }
   }, [user]);
 
-  // Recalculate completion whenever data changes
+  // Optimized completion calculation with debouncing
   useEffect(() => {
     if (user && !loading && !isUpdating) {
-      calculateCompletion();
+      const completion = calculateCompletion();
+      
+      // Only update if there's a meaningful change
+      if (Math.abs(completion - (profileData.completion_percentage || 0)) > 5) {
+        setProfileData(prev => ({ 
+          ...prev, 
+          completion_percentage: completion,
+          profile_completed: completion >= 100
+        }));
+      }
     }
   }, [profileData, deviceData, techFluencyData, skillsData, calculateCompletion, user, loading, isUpdating]);
-
-  // Resume incomplete section when profile data is loaded
-  useEffect(() => {
-    if (user && !loading && !isProfileComplete) {
-      resumeIncompleteSection();
-    }
-  }, [user, loading, isProfileComplete, resumeIncompleteSection]);
 
   const loadProfileData = async () => {
     if (!user) return;
@@ -133,7 +113,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setLoading(true);
       
-      const profileDataResponse = await profileDataLoader.loadAll(user.id);
+      // Use cached profile data loader
+      const profileDataResponse = await cachedProfileDataLoader.loadAll(user.id);
       
       setProfileData(profileDataResponse.profile || {});
       setDeviceData(profileDataResponse.devices || {});
@@ -156,7 +137,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setIsUpdating(true);
       
-      await profileDataUpdater.updateSection(section, data, user.id);
+      // Use batched updater for better performance
+      await batchedProfileUpdater.add({ section, data, userId: user.id });
       
       // Update local state based on section
       switch (section) {
@@ -200,7 +182,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const value = {
+  // Memoized context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     profileData,
     deviceData,
     techFluencyData,
@@ -214,7 +197,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     calculateCompletion,
     uploadProfilePicture,
     resumeIncompleteSection
-  };
+  }), [
+    profileData,
+    deviceData,
+    techFluencyData,
+    skillsData,
+    socialPresenceData,
+    loading,
+    currentStep,
+    isProfileComplete,
+    updateProfileData,
+    calculateCompletion,
+    uploadProfilePicture,
+    resumeIncompleteSection
+  ]);
 
   return (
     <ProfileContext.Provider value={value}>
