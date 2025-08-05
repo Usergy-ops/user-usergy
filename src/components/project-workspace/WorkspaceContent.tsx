@@ -10,11 +10,13 @@ import { MessagesView } from './sections/MessagesView';
 interface WorkspaceContentProps {
   activeSection: string;
   project: any;
+  sidebarOpen?: boolean;
 }
 
 export const WorkspaceContent: React.FC<WorkspaceContentProps> = ({ 
   activeSection, 
-  project
+  project,
+  sidebarOpen = true
 }) => {
   const renderSection = () => {
     switch (activeSection) {
@@ -34,7 +36,10 @@ export const WorkspaceContent: React.FC<WorkspaceContentProps> = ({
   };
 
   return (
-    <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
+    <main className={cn(
+      "flex-1 p-4 md:p-8 pb-20 md:pb-8 transition-all duration-200",
+      sidebarOpen ? "md:ml-[280px]" : "md:ml-14"
+    )}>
       <div className="max-w-4xl mx-auto">
         <section 
           key={activeSection}
