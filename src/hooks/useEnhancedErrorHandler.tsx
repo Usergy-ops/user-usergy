@@ -190,7 +190,7 @@ export const useEnhancedErrorHandler = (
     retryActionRef.current = null;
   }, []);
 
-  const handleAsyncOperation = useCallback(async <T>(
+  const handleAsyncOperation = useCallback(async <T,>(
     operation: () => Promise<T>,
     context: string,
     metadata?: Record<string, any>
