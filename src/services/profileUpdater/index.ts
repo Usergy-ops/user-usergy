@@ -38,7 +38,7 @@ export class ProfileDataUpdater {
       
       trackUserAction('profile_updated', {
         section,
-        data_keys: Object.keys(data),
+        data_keys: Object.keys(data).join(','), // Convert array to string
         user_id: userId
       });
 

@@ -1,4 +1,3 @@
-
 /**
  * Core rate limiting engine - handles basic rate limit logic
  */
@@ -82,18 +81,24 @@ export class RateLimitEngine {
         }
 
         // Update existing record
-        const updateData = {
+        const updateData: any = {
           attempts,
           updated_at: now.toISOString(),
           blocked_until: shouldBlock ? 
             new Date(now.getTime() + (blockDuration * 60 * 1000)).toISOString() : 
-            null,
-          ...(this.enhanced && {
-            escalation_level: Math.floor(attempts / config.maxAttempts),
-            total_violations: shouldBlock ? (existingRecord.total_violations || 0) + 1 : existingRecord.total_violations,
-            last_violation_at: shouldBlock ? now.toISOString() : existingRecord.last_violation_at
-          })
+            null
         };
+
+        // Add enhanced fields only if in enhanced mode
+        if (this.enhanced) {
+          updateData.escalation_level = Math.floor(attempts / config.maxAttempts);
+          updateData.total_violations = shouldBlock ? 
+            ((existingRecord as any).total_violations || 0) + 1 : 
+            (existingRecord as any).total_violations;
+          updateData.last_violation_at = shouldBlock ? 
+            now.toISOString() : 
+            (existingRecord as any).last_violation_at;
+        }
 
         const { error: updateError } = await supabase
           .from(tableName)
@@ -105,18 +110,20 @@ export class RateLimitEngine {
         }
       } else {
         // Create new record
-        const insertData = {
+        const insertData: any = {
           identifier,
           action,
           attempts: 1,
           window_start: windowStart.toISOString(),
           created_at: now.toISOString(),
-          updated_at: now.toISOString(),
-          ...(this.enhanced && {
-            escalation_level: 0,
-            total_violations: 0
-          })
+          updated_at: now.toISOString()
         };
+
+        // Add enhanced fields only if in enhanced mode
+        if (this.enhanced) {
+          insertData.escalation_level = 0;
+          insertData.total_violations = 0;
+        }
 
         const { error: insertError } = await supabase
           .from(tableName)

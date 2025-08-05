@@ -57,6 +57,37 @@ class MonitoringService {
     this.logMetric(name, value, 'histogram', labels);
   }
 
+  warn(message: string, context: string, metadata?: MetricData): void {
+    console.warn(`[${context}] ${message}`, metadata);
+    
+    // Log warning to database
+    this.logWarning(message, context, metadata);
+  }
+
+  private async logWarning(message: string, context: string, metadata?: MetricData): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('error_logs')
+        .insert({
+          error_type: 'Warning',
+          error_message: message,
+          context,
+          severity: 'warning',
+          metadata: metadata || {},
+          user_id: await this.getCurrentUserId(),
+          session_id: this.sessionId,
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Failed to log warning to database:', error);
+      }
+    } catch (logError) {
+      console.error('Error logging warning:', logError);
+    }
+  }
+
   private async logMetric(name: string, value: number, type: string, labels?: MetricData): Promise<void> {
     try {
       const { error } = await supabase
