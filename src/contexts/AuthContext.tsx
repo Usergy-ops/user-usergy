@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           event, 
           session: !!session, 
           user: !!session?.user,
-          provider: session?.user?.app_metadata?.provider 
+          provider: session?.user?.app_metadata?.provider || session?.user?.user_metadata?.provider
         });
         
         // Always set both session and user together
@@ -57,16 +57,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         }
         
-        // Track auth events for monitoring
+        // Track auth events for monitoring with enhanced OAuth detection
         if (event === 'SIGNED_IN' && session?.user) {
+          const isOauthUser = !!(
+            session.user.app_metadata?.provider || 
+            session.user.user_metadata?.provider ||
+            session.user.user_metadata?.iss
+          );
+          
           trackUserAction('user_signed_in', {
             user_id: session.user.id,
             email: session.user.email,
-            provider: session.user.app_metadata?.provider || 'email',
-            oauth_signup: !!session.user.app_metadata?.provider
+            provider: session.user.app_metadata?.provider || session.user.user_metadata?.provider || 'email',
+            oauth_signup: isOauthUser,
+            is_oauth_user: isOauthUser,
+            auth_event: event
           });
         } else if (event === 'SIGNED_OUT') {
-          trackUserAction('user_signed_out', {});
+          trackUserAction('user_signed_out', {
+            auth_event: event
+          });
         }
       }
     );
@@ -87,11 +97,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (mounted) {
+          const isOauthUser = !!(
+            session?.user?.app_metadata?.provider || 
+            session?.user?.user_metadata?.provider ||
+            session?.user?.user_metadata?.iss
+          );
+          
           console.log('Initial session loaded:', { 
             session: !!session, 
             user: !!session?.user,
-            provider: session?.user?.app_metadata?.provider 
+            provider: session?.user?.app_metadata?.provider || session?.user?.user_metadata?.provider,
+            is_oauth_user: isOauthUser
           });
+          
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);

@@ -32,7 +32,9 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       
       // Enhanced redirect URL construction with security considerations
       const baseUrl = window.location.origin;
-      const redirectTo = mode === 'signup' ? `${baseUrl}/profile-completion` : `${baseUrl}/dashboard`;
+      const redirectTo = mode === 'signup' 
+        ? `${baseUrl}/profile-completion` 
+        : `${baseUrl}/dashboard`;
       
       console.log('Starting Enhanced Google OAuth with:', { mode, redirectTo, baseUrl });
       
@@ -42,10 +44,20 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
           redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: mode === 'signup' ? 'consent' : 'select_account',
             hd: undefined, // Allow any domain
           },
-          skipBrowserRedirect: false
+          skipBrowserRedirect: false,
+          // Add enhanced metadata for OAuth signup detection
+          ...(mode === 'signup' && {
+            data: {
+              account_type: 'client',
+              signup_source: 'enhanced_google_oauth_signup',
+              source_url: baseUrl,
+              oauth_provider: 'google',
+              signup_intent: true
+            }
+          })
         }
       });
 
@@ -53,10 +65,11 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
         console.error('Enhanced Google auth error:', error);
         monitoring.logError(error, `enhanced_google_auth_${mode}_error`, {
           error_code: error.message,
-          redirect_to: redirectTo
+          redirect_to: redirectTo,
+          mode
         });
         
-        // Enhanced error messaging
+        // Enhanced error messaging with detailed OAuth error handling
         let userMessage = `Failed to ${mode} with Google`;
         if (error.message.includes('popup')) {
           userMessage = 'Popup was blocked. Please allow popups and try again.';
@@ -66,6 +79,10 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
           userMessage = 'Authentication was cancelled. Please try again.';
         } else if (error.message.includes('redirect')) {
           userMessage = 'OAuth redirect error. Please contact support if this persists.';
+        } else if (error.message.includes('unauthorized') || error.message.includes('access_denied')) {
+          userMessage = 'Google authorization was denied. Please try again and allow access.';
+        } else if (error.message.includes('invalid_client')) {
+          userMessage = 'OAuth configuration issue. Please contact support.';
         }
         
         toast({
@@ -85,21 +102,23 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
       trackUserAction(`enhanced_google_auth_${mode}_initiated`, {
         provider: 'google',
         redirect_to: redirectTo,
-        mode
+        mode,
+        enhanced: true,
+        oauth_signup: mode === 'signup'
       });
       
       console.log('Enhanced Google OAuth initiated successfully');
       
-      // Show success message for signup
+      // Show enhanced success message for signup vs signin
       if (mode === 'signup') {
         toast({
-          title: "Account Created!",
-          description: "Welcome to Usergy! Redirecting you to complete your profile.",
+          title: "Account Creation Started!",
+          description: "Redirecting to Google for secure signup. You'll complete your profile after authentication.",
         });
       } else {
         toast({
           title: "Welcome Back!",
-          description: "Successfully signed in with Google.",
+          description: "Redirecting to Google for authentication...",
         });
       }
       
@@ -110,7 +129,8 @@ export const EnhancedGoogleAuth: React.FC<EnhancedGoogleAuthProps> = ({
     } catch (error) {
       monitoring.logError(error as Error, `enhanced_google_auth_${mode}_error`, {
         mode,
-        disabled
+        disabled,
+        enhanced: true
       });
       
       const errorMessage = error instanceof Error ? error.message : `An unexpected error occurred during ${mode}`;

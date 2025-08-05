@@ -30,21 +30,32 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
     try {
       monitoring.startTiming(`google_auth_${mode}`);
       
-      // Enhanced redirect URL construction
+      // Enhanced redirect URL construction with proper OAuth handling
       const baseUrl = window.location.origin;
-      const redirectTo = `${baseUrl}/dashboard`;
+      const redirectTo = mode === 'signup' 
+        ? `${baseUrl}/profile-completion` 
+        : `${baseUrl}/dashboard`;
       
       console.log('Starting Google OAuth with:', { mode, redirectTo, baseUrl });
       
+      // Enhanced OAuth configuration with proper signup metadata
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: mode === 'signup' ? 'consent' : 'select_account',
           },
-          skipBrowserRedirect: false
+          skipBrowserRedirect: false,
+          // Add signup context for backend trigger detection
+          ...(mode === 'signup' && {
+            data: {
+              account_type: 'client',
+              signup_source: 'google_oauth_signup',
+              source_url: baseUrl
+            }
+          })
         }
       });
 
@@ -53,10 +64,11 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         monitoring.logError(error, `google_auth_${mode}_error`, {
           error_code: error.message,
           redirect_to: redirectTo,
-          base_url: baseUrl
+          base_url: baseUrl,
+          mode
         });
         
-        // Enhanced error messaging with specific handling
+        // Enhanced error messaging with OAuth-specific handling
         let userMessage = `Failed to ${mode} with Google`;
         
         if (error.message.includes('popup')) {
@@ -66,9 +78,11 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         } else if (error.message.includes('cancelled') || error.message.includes('closed')) {
           userMessage = 'Authentication was cancelled. Please try again.';
         } else if (error.message.includes('redirect')) {
-          userMessage = 'Redirect configuration error. Please contact support.';
+          userMessage = 'OAuth redirect error. Please contact support if this persists.';
         } else if (error.message.includes('invalid_request')) {
           userMessage = 'OAuth configuration error. Please contact support.';
+        } else if (error.message.includes('unauthorized')) {
+          userMessage = 'OAuth authorization failed. Please try again.';
         }
         
         toast({
@@ -89,16 +103,24 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
         provider: 'google',
         redirect_to: redirectTo,
         mode,
-        success: true
+        success: true,
+        oauth_signup: mode === 'signup'
       });
       
       console.log('Google OAuth initiated successfully');
       
-      // Show appropriate success message
-      toast({
-        title: mode === 'signup' ? "Account Creation Started" : "Sign In Started",
-        description: "Redirecting to Google for authentication...",
-      });
+      // Show appropriate success message based on mode
+      if (mode === 'signup') {
+        toast({
+          title: "Account Creation Started",
+          description: "Redirecting to Google for signup. You'll be taken to complete your profile afterwards.",
+        });
+      } else {
+        toast({
+          title: "Sign In Started",
+          description: "Redirecting to Google for authentication...",
+        });
+      }
       
       if (onSuccess) {
         onSuccess();
