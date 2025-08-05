@@ -45,7 +45,7 @@ export * from './hooks';
 export * from './utils';
 export * from './debug';
 
-// Error types
+// Error types - import all from errors.ts
 export type {
   BaseError,
   ApiError,
@@ -76,7 +76,7 @@ export type {
   EnvironmentErrorConfig
 } from './errors';
 
-// Validation types
+// Validation types - import from validation/types.ts
 export type {
   ValidationRule,
   ValidationSchema,
@@ -87,7 +87,7 @@ export type {
   FormValidationConfig
 } from './validation/types';
 
-// Rate limiting types
+// Rate limiting types - import from rateLimit/types.ts
 export type {
   RateLimitConfig,
   RateLimitResult,
@@ -95,20 +95,20 @@ export type {
   RateLimitRecord
 } from './rateLimit/types';
 
-// Type utility functions
-export const isApiError = (error: any): error is ApiError => {
+// Type utility functions with proper imports
+export const isApiError = (error: any): error is import('./errors').ApiError => {
   return error && typeof error === 'object' && 'status' in error && 'endpoint' in error;
 };
 
-export const isValidationError = (error: any): error is ValidationError => {
+export const isValidationError = (error: any): error is import('./errors').ValidationError => {
   return error && typeof error === 'object' && 'field' in error && 'constraints' in error;
 };
 
-export const isAuthenticationError = (error: any): error is AuthenticationError => {
+export const isAuthenticationError = (error: any): error is import('./errors').AuthenticationError => {
   return error && typeof error === 'object' && 'reason' in error;
 };
 
-export const isRateLimitError = (error: any): error is RateLimitError => {
+export const isRateLimitError = (error: any): error is import('./errors').RateLimitError => {
   return error && typeof error === 'object' && 'limit' in error && 'resetTime' in error;
 };
 
