@@ -45,8 +45,8 @@ class ErrorCleanupService {
       // Clean up rate limit records
       await this.cleanupRateLimitRecords(cutoff);
       
-      // Clean up in-memory error records
-      unifiedErrorHandler.clearOldErrors(this.MAX_AGE);
+      // Clean up in-memory error records - using correct method name
+      unifiedErrorHandler.cleanupOldErrors(this.MAX_AGE);
       
       console.log('Error cleanup completed successfully');
     } catch (error) {
