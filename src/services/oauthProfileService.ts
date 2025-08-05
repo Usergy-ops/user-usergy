@@ -33,9 +33,6 @@ export class OAuthProfileService {
         email: user.email,
         full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
         avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
-        provider: user.app_metadata?.provider || 'google',
-        oauth_signup: true,
-        account_type: 'client' as const,
         profile_completed: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -60,22 +57,22 @@ export class OAuthProfileService {
 
       trackUserAction('oauth_profile_created', {
         user_id: user.id,
-        provider: profileData.provider,
+        provider: user.app_metadata?.provider || 'google',
         has_avatar: !!profileData.avatar_url
       });
 
       console.log('OAuth profile created successfully:', data);
       
-      // Map database response to OAuthProfileData
+      // Map database response to OAuthProfileData with OAuth-specific defaults
       const oauthProfile: OAuthProfileData = {
         id: data.id,
         email: data.email,
         full_name: data.full_name || undefined,
         avatar_url: data.avatar_url || undefined,
-        provider: data.provider,
-        oauth_signup: data.oauth_signup,
-        account_type: data.account_type,
-        profile_completed: data.profile_completed
+        provider: user.app_metadata?.provider || 'google', // Get from user metadata
+        oauth_signup: true, // Always true for OAuth users
+        account_type: 'client', // Default for OAuth users
+        profile_completed: data.profile_completed || false
       };
       
       return {
@@ -119,15 +116,18 @@ export class OAuthProfileService {
         };
       }
 
-      // Map database response to OAuthProfileData
+      // Get user metadata for OAuth-specific information
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Map database response to OAuthProfileData with OAuth-specific defaults
       const oauthProfile: OAuthProfileData = {
         id: data.id,
         email: data.email,
         full_name: data.full_name || undefined,
         avatar_url: data.avatar_url || undefined,
-        provider: data.provider || 'google',
-        oauth_signup: data.oauth_signup || false,
-        account_type: data.account_type || 'client',
+        provider: user?.app_metadata?.provider || 'google', // Get from user metadata
+        oauth_signup: true, // Assume true since we're in OAuth context
+        account_type: 'client', // Default for OAuth users
         profile_completed: data.profile_completed || false
       };
 
