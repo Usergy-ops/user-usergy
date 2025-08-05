@@ -837,6 +837,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_expired_otps_final: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_expired_unified_otp: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -850,6 +854,10 @@ export type Database = {
         Returns: undefined
       }
       cleanup_old_rate_limits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_rate_limits_final: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -935,14 +943,6 @@ export type Database = {
       test_email_configuration: {
         Args: Record<PropertyKey, never>
         Returns: Json
-      }
-      validate_password_requirements: {
-        Args: { password_hash: string }
-        Returns: boolean
-      }
-      validate_password_strength: {
-        Args: { password: string }
-        Returns: boolean
       }
     }
     Enums: {
