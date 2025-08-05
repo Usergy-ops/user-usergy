@@ -65,3 +65,11 @@ export {
 
 // Profile utilities
 export { calculateProfileCompletionPercentage } from './profileCompletionUtils';
+
+// Integration utilities (Phase 5)
+export {
+  integrationTestRunner,
+  systemHealthChecker,
+  finalValidationRunner,
+  type HealthCheckResult
+} from './integration';

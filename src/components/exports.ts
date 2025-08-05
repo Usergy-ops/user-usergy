@@ -17,3 +17,6 @@ export {
 
 // Optimized profile section
 export { OptimizedProfileSection } from './optimized/OptimizedProfileSection';
+
+// Integration testing components (Phase 5)
+export { IntegrationTestDashboard } from './integration/IntegrationTestDashboard';
