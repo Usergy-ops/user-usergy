@@ -130,7 +130,7 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
         return;
       }
       
-      // Update using ProfileContext
+      // Save to consolidated_social_presence table using the ProfileContext
       await updateProfileData('social_presence', {
         linkedin_url: formData.linkedin_url || null,
         github_url: formData.github_url || null,
@@ -138,8 +138,12 @@ export const EnhancedSocialPresenceSection: React.FC = () => {
         portfolio_url: formData.portfolio_url || null
       });
 
-      // Mark section as completed
+      // Also update the profile table for completion tracking
       await updateProfileData('profile', {
+        linkedin_url: formData.linkedin_url || null,
+        github_url: formData.github_url || null,
+        twitter_url: formData.twitter_url || null,
+        portfolio_url: formData.portfolio_url || null,
         section_5_completed: true
       });
       

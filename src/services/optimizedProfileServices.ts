@@ -3,6 +3,7 @@ import { memoizeWithTTL, createBatchProcessor, withPerformanceMonitoring } from 
 import { profileDataLoader } from './profileDataLoader';
 import { profileDataUpdater } from './profileUpdater';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
 
 /**
  * Performance-optimized profile services with caching and batching
@@ -42,39 +43,16 @@ export const batchedProfileUpdater = createBatchProcessor(
   1000 // 1 second delay
 );
 
-// Optimized profile completion calculator with caching
-export const optimizedCompletionCalculator = memoizeWithTTL(
-  withPerformanceMonitoring((profileData: any, deviceData: any, techData: any, skillsData: any) => {
-    let score = 0;
-    const maxScore = 100;
-    
-    // Basic profile info (30 points)
-    if (profileData.full_name) score += 5;
-    if (profileData.email) score += 5;
-    if (profileData.bio) score += 5;
-    if (profileData.city && profileData.country) score += 5;
-    if (profileData.job_title) score += 5;
-    if (profileData.company_size) score += 5;
-    
-    // Education and work (20 points)
-    if (profileData.education_level) score += 5;
-    if (profileData.field_of_study) score += 5;
-    if (profileData.work_role) score += 5;
-    if (profileData.technical_experience_level) score += 5;
-    
-    // Devices and tech (25 points)
-    if (deviceData.devices_owned?.length) score += 10;
-    if (deviceData.operating_systems?.length) score += 5;
-    if (techData.programming_languages?.length) score += 5;
-    if (techData.ai_models_used?.length) score += 5;
-    
-    // Skills and interests (25 points)
-    if (skillsData.skills && Object.keys(skillsData.skills).length > 0) score += 15;
-    if (skillsData.interests?.length) score += 5;
-    if (skillsData.product_categories?.length) score += 5;
-    
-    return Math.min(score, maxScore);
-  }, 'profile_completion_calculation'),
+// Use the standardized completion calculator instead of the previous optimized one
+export const standardizedCompletionCalculator = memoizeWithTTL(
+  withPerformanceMonitoring((profileData: any, deviceData: any, techFluencyData: any, skillsData: any) => {
+    return calculateProfileCompletionPercentage({
+      profileData,
+      deviceData,
+      techFluencyData,
+      skillsData
+    });
+  }, 'standardized_profile_completion_calculation'),
   180000 // 3 minutes cache
 );
 

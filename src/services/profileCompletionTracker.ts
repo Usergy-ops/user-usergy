@@ -37,11 +37,13 @@ class ProfileCompletionTracker {
     isUpdating: boolean,
     setProfileData: (updater: (prev: any) => any) => void
   ): number {
+    // Use the standardized calculation from profileCompletionUtils
     const percentage = calculateProfileCompletionPercentage(completionData);
     
-    console.log('Frontend completion calculation:', {
+    console.log('Standardized completion calculation:', {
       percentage,
-      currentStoredPercentage: completionData.profileData.completion_percentage
+      currentStoredPercentage: completionData.profileData.completion_percentage,
+      isComplete: percentage >= 100
     });
     
     // Update completion percentage and profile_completed flag if needed

@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,26 +30,7 @@ const ProfileCompletion = () => {
     resumeIncompleteSection
   } = useProfile();
 
-  console.log('ProfileCompletion rendered with:', {
-    currentStep,
-    isProfileComplete,
-    profileData: {
-      completion_percentage: profileData.completion_percentage,
-      section_4_completed: profileData.section_4_completed,
-      technical_experience_level: profileData.technical_experience_level,
-      ai_familiarity_level: profileData.ai_familiarity_level
-    },
-    techFluencyData: {
-      ai_interests: techFluencyData.ai_interests,
-      ai_models_used: techFluencyData.ai_models_used,
-      coding_experience_years: techFluencyData.coding_experience_years
-    },
-    skillsData: {
-      interests: skillsData.interests
-    }
-  });
-
-  // Calculate real-time completion percentage using the utility function
+  // Calculate real-time completion percentage using the standardized utility function
   const realTimeCompletion = calculateProfileCompletionPercentage({
     profileData,
     deviceData,
@@ -56,9 +38,12 @@ const ProfileCompletion = () => {
     skillsData
   });
 
-  console.log('Real-time completion calculation:', {
+  console.log('ProfileCompletion - Real-time completion data:', {
+    currentStep,
     realTimeCompletion,
-    storedCompletion: profileData.completion_percentage
+    storedCompletion: profileData.completion_percentage,
+    isProfileComplete,
+    profileCompleted: profileData.profile_completed
   });
 
   useEffect(() => {
@@ -74,12 +59,13 @@ const ProfileCompletion = () => {
     }
   }, [user, loading, isProfileComplete, resumeIncompleteSection]);
 
-  // Check if profile is complete and redirect to dashboard
+  // Show celebration when profile is complete (100% completion)
   useEffect(() => {
-    if (isProfileComplete && profileData?.profile_completed === true && currentStep !== 7) {
-      navigate('/dashboard', { replace: true });
+    if (realTimeCompletion >= 100 && profileData?.profile_completed === true) {
+      console.log('Profile is complete, showing celebration');
+      // Don't automatically redirect - let CompletionCelebration handle it
     }
-  }, [isProfileComplete, profileData?.profile_completed, currentStep, navigate]);
+  }, [realTimeCompletion, profileData?.profile_completed]);
 
   // Scroll to top when currentStep changes
   useEffect(() => {
@@ -98,7 +84,8 @@ const ProfileCompletion = () => {
     );
   }
 
-  if (isProfileComplete) {
+  // Show celebration if profile is complete (both 100% completion AND profile_completed flag)
+  if (realTimeCompletion >= 100 && profileData?.profile_completed === true) {
     return <CompletionCelebration />;
   }
 

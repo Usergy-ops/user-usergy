@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { Button } from '@/components/ui/button';
@@ -8,10 +9,11 @@ export const CompletionCelebration: React.FC = () => {
   const { profileData, updateProfileData } = useProfile();
   const navigate = useNavigate();
 
-  // Ensure profile_completed flag is set
+  // Ensure profile_completed flag is set when celebration is shown
   useEffect(() => {
     const ensureProfileCompleted = async () => {
       if (profileData?.completion_percentage >= 100 && !profileData?.profile_completed) {
+        console.log('Setting profile_completed flag to true');
         await updateProfileData('profile', { 
           profile_completed: true,
           completion_percentage: 100 

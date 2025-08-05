@@ -1,9 +1,10 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useOptimizedErrorHandler } from '@/hooks/useOptimizedErrorHandler';
 import { handleError } from '@/utils/unifiedErrorHandling';
 import { calculateProfileCompletionPercentage } from '@/utils/profileCompletionUtils';
-import { cachedProfileDataLoader, batchedProfileUpdater, optimizedCompletionCalculator, preloadProfileDependencies } from '@/services/optimizedProfileServices';
+import { cachedProfileDataLoader, batchedProfileUpdater, preloadProfileDependencies } from '@/services/optimizedProfileServices';
 import { profilePictureUploader } from '@/services/profilePictureUploader';
 import { profileCompletionTracker } from '@/services/profileCompletionTracker';
 import { useMemo } from 'react';
@@ -61,18 +62,29 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentStep, setCurrentStep] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Memoized profile completion check
+  // Standardized completion calculation using the utility function
+  const calculateCompletion = useCallback(() => {
+    return calculateProfileCompletionPercentage({
+      profileData,
+      deviceData,
+      techFluencyData,
+      skillsData
+    });
+  }, [profileData, deviceData, techFluencyData, skillsData]);
+
+  // Memoized profile completion check - using the standardized 17-field calculation
   const isProfileComplete = useMemo(() => {
-    const completionPercentage = profileData.completion_percentage || 0;
+    const completionPercentage = calculateCompletion();
     const profileCompleted = profileData.profile_completed || false;
     
-    return profileCompleted || completionPercentage >= 100;
-  }, [profileData.completion_percentage, profileData.profile_completed]);
-
-  // Memoized completion calculation using optimized calculator
-  const calculateCompletion = useCallback(() => {
-    return optimizedCompletionCalculator(profileData, deviceData, techFluencyData, skillsData);
-  }, [profileData, deviceData, techFluencyData, skillsData]);
+    console.log('Profile completion check:', {
+      completionPercentage,
+      profileCompleted,
+      isComplete: completionPercentage >= 100 || profileCompleted
+    });
+    
+    return completionPercentage >= 100 || profileCompleted;
+  }, [calculateCompletion, profileData.profile_completed]);
 
   const resumeIncompleteSection = useCallback(() => {
     if (!user) return;
@@ -91,18 +103,25 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user]);
 
-  // Optimized completion calculation with debouncing
+  // Update completion tracking when data changes
   useEffect(() => {
     if (user && !loading && !isUpdating) {
-      const completion = calculateCompletion();
+      const currentCompletion = calculateCompletion();
       
       // Only update if there's a meaningful change
-      if (Math.abs(completion - (profileData.completion_percentage || 0)) > 5) {
-        setProfileData(prev => ({ 
-          ...prev, 
-          completion_percentage: completion,
-          profile_completed: completion >= 100
-        }));
+      if (Math.abs(currentCompletion - (profileData.completion_percentage || 0)) > 0) {
+        console.log('Completion percentage changed:', {
+          old: profileData.completion_percentage,
+          new: currentCompletion,
+          isComplete: currentCompletion >= 100
+        });
+        
+        profileCompletionTracker.calculateAndUpdateCompletion(
+          { profileData, deviceData, techFluencyData, skillsData },
+          user,
+          isUpdating,
+          setProfileData
+        );
       }
     }
   }, [profileData, deviceData, techFluencyData, skillsData, calculateCompletion, user, loading, isUpdating]);
@@ -137,6 +156,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setIsUpdating(true);
       
+      console.log(`Updating ${section} section:`, data);
+      
       // Use batched updater for better performance
       await batchedProfileUpdater.add({ section, data, userId: user.id });
       
@@ -158,6 +179,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setSocialPresenceData(prev => ({ ...prev, ...data }));
           break;
       }
+
+      console.log(`${section} section updated successfully`);
 
     } catch (error) {
       console.error(`Error updating ${section}:`, error);
