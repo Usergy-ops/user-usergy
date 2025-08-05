@@ -13,7 +13,7 @@ export {
   handleDatabaseError,
   cleanupOldErrors,
   getErrorStatistics
-} from './errorHandling';
+} from './errorHandling/index';
 
 export type {
   UnifiedError,
