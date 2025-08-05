@@ -136,8 +136,11 @@ export const UnifiedOTPVerification: React.FC<UnifiedOTPVerificationProps> = ({
           description: "Your account has been created successfully."
         });
         
-        // Determine account type for redirection
-        const finalAccountType = accountType || detectAccountTypeFromContext();
+        // Determine account type for redirection with proper type casting
+        const detectedType = detectAccountTypeFromContext();
+        const finalAccountType: 'user' | 'client' = (accountType === 'user' || accountType === 'client') 
+          ? accountType 
+          : detectedType;
         
         console.log('OTP Verification Success - Redirecting:', {
           email,

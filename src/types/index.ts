@@ -4,14 +4,50 @@
  * Exports all types for easy importing throughout the application
  */
 
-// Core API types
-export * from './api';
+// Core API types (selective imports to avoid conflicts)
+export type {
+  ApiResponse,
+  UnifiedAuthRequest,
+  UnifiedAuthResponse,
+  OTPVerificationData,
+  OTPResendResponse,
+  AccountTypeInfo,
+  AccountTypeAssignmentRequest,
+  RateLimitResponse,
+  RateLimitViolation,
+  ProfileData,
+  ProfileUpdateRequest,
+  ProfileUpdateResponse,
+  ClientRecord,
+  ClientProfileSaveRequest,
+  ClientProfileSaveResponse,
+  ErrorLogEntry,
+  EmailSendRequest,
+  EmailSendResponse,
+  EmailLogEntry,
+  ValidationError as ApiValidationError,
+  FormValidationResponse,
+  DatabaseFunctionResponse,
+  UserDebugInfoResponse
+} from './api';
+
+// Import conflicting types with aliases
+export type {
+  SystemHealthStats as ApiSystemHealthStats,
+  AccountTypeFixResult as ApiAccountTypeFixResult,
+  ClientWorkflowSyncResult as ApiClientWorkflowSyncResult,
+  AccountTypeAssignmentResponse as ApiAccountTypeAssignmentResponse,
+  ApiError as ApiErrorType
+} from './api';
+
 export * from './components';
 export * from './hooks';
 export * from './utils';
+export * from './debug';
 
 // Error types
 export type {
+  BaseError,
   ApiError,
   ValidationError,
   AuthenticationError,
@@ -47,21 +83,8 @@ export type {
   ValidationResult,
   ValidationContext,
   ValidationOptions,
-  EmailValidationRule,
-  PasswordValidationRule,
-  PhoneValidationRule,
-  DateValidationRule,
-  FileValidationRule,
-  ProfileValidationSchema,
-  ProfileValidationResult,
   FormValidationState,
-  FormValidationConfig,
-  APIValidationError,
-  APIValidationResponse,
-  ValidationMiddleware,
-  CustomValidator,
-  ValidationCacheEntry,
-  ValidationCache
+  FormValidationConfig
 } from './validation/types';
 
 // Rate limiting types
@@ -69,25 +92,8 @@ export type {
   RateLimitConfig,
   RateLimitResult,
   RateLimitEntry,
-  RateLimitRecord,
-  RateLimitStrategy,
-  RateLimitStorage,
-  RateLimitManager,
-  RateLimitMiddleware,
-  RateLimitMetrics,
-  RateLimitAlert,
-  ActionRateLimitConfigs,
-  AdaptiveRateLimitConfig,
-  GeographicRateLimitConfig,
-  UserTierRateLimitConfig,
-  RateLimitEvent,
-  RateLimitEventHandler,
-  RateLimitCacheEntry,
-  RateLimitCache
+  RateLimitRecord
 } from './rateLimit/types';
-
-// Debug types (re-export from existing file)
-export * from './debug';
 
 // Type utility functions
 export const isApiError = (error: any): error is ApiError => {
