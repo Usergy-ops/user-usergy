@@ -7,6 +7,7 @@ import { NetworkNodes } from '@/components/NetworkNodes';
 import heroIllustration from '@/assets/usergy-hero-illustration.png';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,15 +28,27 @@ const Index = () => {
     signUp,
     signIn
   } = useAuth();
+  const { isProfileComplete, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
 
-  // Redirect authenticated users to appropriate page
+  // Redirect authenticated users to appropriate page based on profile completion
   useEffect(() => {
-    if (user) {
-      console.log('User is authenticated, redirecting to profile completion');
-      navigate('/profile-completion');
+    if (user && !profileLoading) {
+      console.log('User is authenticated, checking profile completion status:', {
+        isProfileComplete,
+        userId: user.id
+      });
+      
+      if (isProfileComplete) {
+        console.log('Profile is complete, redirecting to dashboard');
+        navigate('/dashboard');
+      } else {
+        console.log('Profile is incomplete, redirecting to profile completion');
+        navigate('/profile-completion');
+      }
     }
-  }, [user, navigate]);
+  }, [user, isProfileComplete, profileLoading, navigate]);
+
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
     setIsLoading(true);
@@ -107,6 +120,7 @@ const Index = () => {
     
     setIsLoading(false);
   };
+
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     try {
@@ -138,6 +152,7 @@ const Index = () => {
     }
     setIsLoading(false);
   };
+
   const handleOTPSuccess = () => {
     console.log('OTP verification successful');
     setShowOTPVerification(false);
@@ -147,11 +162,13 @@ const Index = () => {
       description: "Your account has been created successfully."
     });
   };
+
   const handleBackToSignup = () => {
     console.log('Going back to signup form');
     setShowOTPVerification(false);
     setPendingSignup(null);
   };
+
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
       {/* Animated Background Elements */}
       <NetworkNodes />
