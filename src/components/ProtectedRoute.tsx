@@ -34,29 +34,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // For routes that require complete profile, check completion status
   if (requireCompleteProfile) {
     const completionPercentage = profileData?.completion_percentage || 0;
-    const profileCompleted = profileData?.profile_completed || false;
-    const hasProfileData = profileData && Object.keys(profileData).length > 0;
+    const profileCompleted = profileData?.profile_completed === true;
     
-    // If we're already on the celebration page, don't check completion
-    const isOnCelebrationPage = location.pathname === '/profile-completion' && 
-                                profileCompleted === true;
+    // Enhanced completion check - profile is complete if ANY of these are true:
+    // 1. isProfileComplete from context (uses standardized calculation)
+    // 2. completion_percentage >= 100
+    // 3. profile_completed flag is true
+    const profileIsComplete = isProfileComplete || 
+                             completionPercentage >= 100 || 
+                             profileCompleted;
     
-    // Only redirect if we have profile data and the profile is definitively incomplete
-    if (hasProfileData && !isOnCelebrationPage) {
-      const isComplete = profileCompleted === true || completionPercentage >= 100;
-      
-      console.log('ProtectedRoute profile check:', {
-        completionPercentage,
-        profileCompleted,
-        isComplete,
-        hasProfileData,
-        isProfileComplete,
-        pathname: location.pathname
-      });
-      
-      if (!isComplete) {
-        return <Navigate to="/profile-completion" replace />;
-      }
+    console.log('ProtectedRoute profile check:', {
+      completionPercentage,
+      profileCompleted,
+      isProfileComplete,
+      profileIsComplete,
+      pathname: location.pathname
+    });
+    
+    if (!profileIsComplete) {
+      console.log('Profile incomplete, redirecting to profile completion');
+      return <Navigate to="/profile-completion" replace />;
     }
   }
 

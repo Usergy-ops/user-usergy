@@ -28,26 +28,38 @@ const Index = () => {
     signUp,
     signIn
   } = useAuth();
-  const { isProfileComplete, loading: profileLoading } = useProfile();
+  const { isProfileComplete, loading: profileLoading, profileData } = useProfile();
   const navigate = useNavigate();
 
-  // Redirect authenticated users to appropriate page based on profile completion
+  // Enhanced redirect logic for authenticated users
   useEffect(() => {
     if (user && !profileLoading) {
-      console.log('User is authenticated, checking profile completion status:', {
+      // Get real-time completion percentage for additional verification
+      const completionPercentage = profileData?.completion_percentage || 0;
+      const profileCompletedFlag = profileData?.profile_completed === true;
+      
+      console.log('Landing page redirect check:', {
+        userId: user.id,
         isProfileComplete,
-        userId: user.id
+        completionPercentage,
+        profileCompletedFlag,
+        profileData: !!profileData
       });
       
-      if (isProfileComplete) {
+      // Multiple checks to ensure profile is truly complete
+      const profileIsComplete = isProfileComplete || 
+                               completionPercentage >= 100 || 
+                               profileCompletedFlag;
+      
+      if (profileIsComplete) {
         console.log('Profile is complete, redirecting to dashboard');
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       } else {
         console.log('Profile is incomplete, redirecting to profile completion');
-        navigate('/profile-completion');
+        navigate('/profile-completion', { replace: true });
       }
     }
-  }, [user, isProfileComplete, profileLoading, navigate]);
+  }, [user, isProfileComplete, profileLoading, profileData, navigate]);
 
   const handleAuthSubmit = async (email: string, password?: string) => {
     if (!password) return;
@@ -168,6 +180,18 @@ const Index = () => {
     setShowOTPVerification(false);
     setPendingSignup(null);
   };
+
+  // Show loading while auth/profile data is being determined
+  if (user && profileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -293,4 +317,5 @@ const Index = () => {
       </div>
     </div>;
 };
+
 export default Index;

@@ -20,7 +20,8 @@ const ActiveProjectCard: React.FC<ActiveProjectCardProps> = ({ project }) => {
   const navigate = useNavigate();
 
   const handleViewProject = () => {
-    navigate(`/dashboard/project/${project.id}`);
+    // Fixed route: use /project/:id instead of /dashboard/project/:id
+    navigate(`/project/${project.id}`);
   };
   
   return (

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useOptimizedErrorHandler } from '@/hooks/useOptimizedErrorHandler';
@@ -72,18 +71,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [profileData, deviceData, techFluencyData, skillsData]);
 
-  // Memoized profile completion check - using the standardized 17-field calculation
+  // Memoized profile completion check - simplified to use single source of truth
   const isProfileComplete = useMemo(() => {
     const completionPercentage = calculateCompletion();
-    const profileCompleted = profileData.profile_completed || false;
     
-    console.log('Profile completion check:', {
+    // Profile is complete if completion percentage is 100% OR if profile_completed flag is true
+    const isComplete = completionPercentage >= 100 || profileData.profile_completed === true;
+    
+    console.log('Profile completion check (simplified):', {
       completionPercentage,
-      profileCompleted,
-      isComplete: completionPercentage >= 100 || profileCompleted
+      profileCompletedFlag: profileData.profile_completed,
+      isComplete
     });
     
-    return completionPercentage >= 100 || profileCompleted;
+    return isComplete;
   }, [calculateCompletion, profileData.profile_completed]);
 
   const resumeIncompleteSection = useCallback(() => {
@@ -109,17 +110,38 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user]);
 
-  // Update completion tracking when data changes
+  // Update completion tracking when data changes - ensure profile_completed flag is synchronized
   useEffect(() => {
     if (user && !loading && !isUpdating) {
       const currentCompletion = calculateCompletion();
       
-      // Only update if there's a meaningful change
-      if (Math.abs(currentCompletion - (profileData.completion_percentage || 0)) > 0) {
+      // Check if we need to update the profile_completed flag
+      const shouldBeComplete = currentCompletion >= 100;
+      const currentlyMarkedComplete = profileData.profile_completed === true;
+      
+      // If completion percentage is 100% but profile_completed is not true, update it
+      if (shouldBeComplete && !currentlyMarkedComplete) {
+        console.log('Profile reached 100% completion, updating profile_completed flag to true');
+        
+        const updateData = {
+          completion_percentage: currentCompletion,
+          profile_completed: true
+        };
+        
+        setProfileData(prev => ({ ...prev, ...updateData }));
+        
+        // Update in database
+        profileCompletionTracker.calculateAndUpdateCompletion(
+          { profileData: { ...profileData, ...updateData }, deviceData, techFluencyData, skillsData },
+          user,
+          isUpdating,
+          setProfileData
+        );
+      } else if (Math.abs(currentCompletion - (profileData.completion_percentage || 0)) > 0) {
+        // Update completion percentage if it has changed
         console.log('Completion percentage changed:', {
           old: profileData.completion_percentage,
-          new: currentCompletion,
-          isComplete: currentCompletion >= 100
+          new: currentCompletion
         });
         
         profileCompletionTracker.calculateAndUpdateCompletion(
